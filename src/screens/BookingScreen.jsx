@@ -100,6 +100,28 @@ function Step1({ form, setForm }) {
   const mapRef = React.useRef(null);
   const markerRef = React.useRef(null);
   const leafletMapRef = React.useRef(null);
+  const [latInput, setLatInput] = React.useState(form.coords[0].toFixed(6));
+  const [lngInput, setLngInput] = React.useState(form.coords[1].toFixed(6));
+
+  function moveMapTo(coords) {
+    setLatInput(coords[0].toFixed(6));
+    setLngInput(coords[1].toFixed(6));
+    if (leafletMapRef.current && markerRef.current) {
+      leafletMapRef.current.setView(coords, leafletMapRef.current.getZoom());
+      markerRef.current.setLatLng(coords);
+    }
+  }
+
+  function applyLatLng() {
+    const lat = parseFloat(latInput);
+    const lng = parseFloat(lngInput);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+    setForm(f => ({ ...f, coords: [lat, lng] }));
+    if (leafletMapRef.current && markerRef.current) {
+      leafletMapRef.current.setView([lat, lng], 14);
+      markerRef.current.setLatLng([lat, lng]);
+    }
+  }
 
   React.useEffect(() => {
     if (!mapRef.current || leafletMapRef.current) return;
@@ -125,10 +147,14 @@ function Step1({ form, setForm }) {
     marker.on('dragend', () => {
       const ll = marker.getLatLng();
       setForm((f) => ({ ...f, coords: [ll.lat, ll.lng] }));
+      setLatInput(ll.lat.toFixed(6));
+      setLngInput(ll.lng.toFixed(6));
     });
     map.on('click', (e) => {
       marker.setLatLng(e.latlng);
       setForm((f) => ({ ...f, coords: [e.latlng.lat, e.latlng.lng] }));
+      setLatInput(e.latlng.lat.toFixed(6));
+      setLngInput(e.latlng.lng.toFixed(6));
     });
 
     leafletMapRef.current = map;
@@ -149,7 +175,9 @@ function Step1({ form, setForm }) {
   ];
 
   function setLocation(p) {
-    setForm({ ...form, destination: p.name + " จ.เชียงใหม่", coords: p.coords });
+    setForm(f => ({ ...f, destination: p.name + " จ.เชียงใหม่", coords: p.coords }));
+    setLatInput(p.coords[0].toFixed(6));
+    setLngInput(p.coords[1].toFixed(6));
     if (leafletMapRef.current && markerRef.current) {
       leafletMapRef.current.setView(p.coords, 13);
       markerRef.current.setLatLng(p.coords);
@@ -164,9 +192,13 @@ function Step1({ form, setForm }) {
         <div className="col gap-3">
           <div className="field">
             <label className="field-lbl">วัตถุประสงค์การใช้รถ <span className="req">*</span></label>
-            <select className="select" value={form.purpose} onChange={(e) => setForm({...form, purpose:e.target.value})}>
-              {PURPOSES.map((p) => <option key={p}>{p}</option>)}
-            </select>
+            <input className="input" list="purpose-list" value={form.purpose}
+              onChange={e => setForm({...form, purpose: e.target.value})}
+              placeholder="เลือกหรือพิมพ์วัตถุประสงค์..."/>
+            <datalist id="purpose-list">
+              {PURPOSES.map(p => <option key={p} value={p}/>)}
+            </datalist>
+            <div className="input-hint">เลือกจากรายการ หรือพิมพ์เองได้</div>
           </div>
           <div className="field">
             <label className="field-lbl">รายละเอียดเพิ่มเติม / เหตุผล {form.purpose === "อื่นๆ (ระบุ)" && <span className="req">*</span>}</label>
@@ -203,8 +235,21 @@ function Step1({ form, setForm }) {
           })()}
           <div className="field">
             <label className="field-lbl">สถานที่ปลายทาง <span className="req">*</span></label>
-            <input className="input" value={form.destination} onChange={(e) => setForm({...form, destination:e.target.value})} placeholder="ระบุที่อยู่/ตำบล/จังหวัด"/>
-            <div className="input-hint">พิกัด: {form.coords[0].toFixed(4)}, {form.coords[1].toFixed(4)} (ปักหมุดบนแผนที่)</div>
+            <input className="input" value={form.destination} onChange={e => setForm({...form, destination:e.target.value})} placeholder="ระบุที่อยู่/ตำบล/จังหวัด"/>
+          </div>
+          <div className="field">
+            <label className="field-lbl">พิกัด GPS (ละติจูด, ลองจิจูด)</label>
+            <div style={{display:'flex', gap:8, alignItems:'center'}}>
+              <input className="input" value={latInput} onChange={e => setLatInput(e.target.value)}
+                onBlur={applyLatLng} onKeyDown={e => e.key === 'Enter' && applyLatLng()}
+                placeholder="ละติจูด เช่น 19.9152" style={{flex:1}}/>
+              <span style={{color:'var(--text-3)', flexShrink:0}}>，</span>
+              <input className="input" value={lngInput} onChange={e => setLngInput(e.target.value)}
+                onBlur={applyLatLng} onKeyDown={e => e.key === 'Enter' && applyLatLng()}
+                placeholder="ลองจิจูด เช่น 99.2102" style={{flex:1}}/>
+              <button className="btn sm primary" onClick={applyLatLng} title="ปักหมุด" style={{flexShrink:0}}>📍</button>
+            </div>
+            <div className="input-hint">กรอกพิกัดจาก Google Maps แล้วกด 📍 หรือคลิก/ลากหมุดบนแผนที่</div>
           </div>
           <div className="field">
             <label className="field-lbl">จำนวนผู้โดยสาร</label>
