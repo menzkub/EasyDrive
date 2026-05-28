@@ -441,7 +441,7 @@ function App() {
         {route === "members" && <MembersScreen users={users} user={currentUser} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users}/>}
-        {route === "settings" && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
+        {route === "settings" && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast}/>}
       </main>
 
       {selectedVehicle && <VehicleQuickModal vehicle={selectedVehicle} bookings={bookings} users={users} onClose={() => setSelectedVehicle(null)} onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}/>}
