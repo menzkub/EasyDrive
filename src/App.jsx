@@ -11,48 +11,24 @@ import { SettingsScreen } from './screens/SettingsScreen'
 import { BookingVoucher, BookingDetailModal } from './screens/VoucherScreen'
 import { NotificationCenter, generateNotifications } from './screens/NotificationsScreen'
 import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
-import { VEHICLES, BOOKINGS, USERS, VEHICLE_TYPES, FUEL_TYPES } from './data'
+import { VEHICLE_TYPES, FUEL_TYPES } from './data'
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakButton } from './TweaksPanel'
+import { supabase } from './supabase'
 
-const TWEAK_DEFAULTS = {
-  "theme": "purple-orange",
-  "density": "regular",
-  "dashboardLayout": "timeline",
-  "vehicleGrid": "grid",
-  "darkSidebar": true
-};
+const TWEAK_DEFAULTS = { theme: "purple-orange", density: "regular", dashboardLayout: "timeline" };
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
+  const [appReady, setAppReady] = React.useState(false);
   const [currentUser, setCurrentUser] = React.useState(null);
   const [registered, setRegistered] = React.useState(false);
 
-  const [vehicles, setVehicles] = React.useState(VEHICLES);
-  const [bookings, setBookings] = React.useState(BOOKINGS);
-  const [users, setUsers] = React.useState(USERS);
-  const [vehicleHistory, setVehicleHistory] = React.useState([
-    { id: "H001", vehicleId: "V002", at: "2026-05-19T14:30", actor: "ธีรพงษ์ ทองสุข", action: "update", field: "เลขไมล์", oldValue: "64,500 กม.", newValue: "67,120 กม.", note: "ปรับเลขไมล์ตาม Check-in รอบล่าสุด", photo: true },
-    { id: "H002", vehicleId: "V002", at: "2026-04-15T09:10", actor: "ธีรพงษ์ ทองสุข", action: "update", field: "วันครบกำหนดเช็คระยะถัดไป", oldValue: "2026-04-01", newValue: "2026-07-01", note: "ทำเช็คระยะ 60,000 กม. เสร็จสิ้น", photo: false },
-    { id: "H003", vehicleId: "V005", at: "2026-05-15T08:45", actor: "ธีรพงษ์ ทองสุข", action: "status", field: "สถานะ", oldValue: "พร้อมใช้งาน", newValue: "บำรุงรักษา", note: "นำเข้าศูนย์ Toyota เปลี่ยนคลัทช์ คาดเสร็จ 25 พ.ค.", photo: false },
-    { id: "H004", vehicleId: "V008", at: "2026-05-21T10:50", actor: "ธีรพงษ์ ทองสุข", action: "status", field: "สถานะการจอง", oldValue: "พร้อมใช้งาน", newValue: "ภารกิจด่วน", note: "เรียกใช้ภารกิจไฟดับ ต.แม่ข่า", photo: false },
-    { id: "H005", vehicleId: "V001", at: "2026-04-01T11:20", actor: "วิภาวี ศรีสุข", action: "create", field: "เพิ่มรถยนต์", oldValue: "", newValue: "Toyota Hilux Revo · กข 1234", note: "เพิ่มรถใหม่เข้าระบบ", photo: false },
-  ]);
-  const [mileageCorrections, setMileageCorrections] = React.useState([
-    {
-      id: "MC2026-001",
-      bookingId: "BK2026-0521-001",
-      vehicleId: "V002",
-      userId: "U001",
-      claimedMileage: 67248,
-      systemMileage: 67120,
-      diff: 128,
-      reason: "เลขไมล์บนหน้าปัดสูงกว่าในระบบ คาดว่าผู้ใช้งานคนก่อนหน้าไม่ได้บันทึก Check-in",
-      dashPhoto: true,
-      status: "pending",
-      requestedAt: "2026-05-21T07:55",
-    },
-  ]);
+  const [vehicles, setVehicles] = React.useState([]);
+  const [bookings, setBookings] = React.useState([]);
+  const [users, setUsers] = React.useState([]);
+  const [vehicleHistory, setVehicleHistory] = React.useState([]);
+  const [mileageCorrections, setMileageCorrections] = React.useState([]);
 
   const [route, setRoute] = React.useState("dashboard");
   const [selectedVehicle, setSelectedVehicle] = React.useState(null);
@@ -64,54 +40,84 @@ function App() {
   const [notiOpen, setNotiOpen] = React.useState(false);
   const [readNotifications, setReadNotifications] = React.useState(new Set());
 
+  // ── Init: restore session on page refresh ──
+  React.useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) await initUser(session.user.id);
+      setAppReady(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setVehicles([]); setBookings([]); setUsers([]);
+        setVehicleHistory([]); setMileageCorrections([]);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function initUser(userId) {
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (profile?.status === 'approved') {
+      setCurrentUser(profile);
+      await loadAllData();
+    }
+  }
+
+  async function loadAllData() {
+    const [v, b, u, vh, mc] = await Promise.all([
+      supabase.from('vehicles').select('*').order('id'),
+      supabase.from('bookings').select('*').order('"createdAt"', { ascending: false }),
+      supabase.from('profiles').select('*').neq('status', 'rejected'),
+      supabase.from('vehicle_history').select('*').order('at', { ascending: false }),
+      supabase.from('mileage_corrections').select('*').order('"requestedAt"', { ascending: false }),
+    ]);
+    setVehicles(v.data || []);
+    setBookings(b.data || []);
+    setUsers(u.data || []);
+    setVehicleHistory(vh.data || []);
+    setMileageCorrections(mc.data || []);
+  }
+
+  // ── Theme ──
   React.useEffect(() => {
     const root = document.documentElement;
     if (t.theme === "blue") {
-      root.style.setProperty('--pea-purple', '#1d4ed8');
-      root.style.setProperty('--pea-purple-deep', '#1e3a8a');
-      root.style.setProperty('--pea-purple-50', '#eff6ff');
-      root.style.setProperty('--pea-purple-100', '#dbeafe');
-      root.style.setProperty('--pea-orange', '#f59e0b');
-      root.style.setProperty('--pea-orange-light', '#fbbf24');
+      root.style.setProperty('--pea-purple', '#1d4ed8'); root.style.setProperty('--pea-purple-deep', '#1e3a8a');
+      root.style.setProperty('--pea-purple-50', '#eff6ff'); root.style.setProperty('--pea-purple-100', '#dbeafe');
+      root.style.setProperty('--pea-orange', '#f59e0b'); root.style.setProperty('--pea-orange-light', '#fbbf24');
     } else if (t.theme === "teal") {
-      root.style.setProperty('--pea-purple', '#0d9488');
-      root.style.setProperty('--pea-purple-deep', '#115e59');
-      root.style.setProperty('--pea-purple-50', '#f0fdfa');
-      root.style.setProperty('--pea-purple-100', '#ccfbf1');
-      root.style.setProperty('--pea-orange', '#f59e0b');
-      root.style.setProperty('--pea-orange-light', '#fbbf24');
+      root.style.setProperty('--pea-purple', '#0d9488'); root.style.setProperty('--pea-purple-deep', '#115e59');
+      root.style.setProperty('--pea-purple-50', '#f0fdfa'); root.style.setProperty('--pea-purple-100', '#ccfbf1');
+      root.style.setProperty('--pea-orange', '#f59e0b'); root.style.setProperty('--pea-orange-light', '#fbbf24');
     } else {
-      root.style.setProperty('--pea-purple', '#6E2A8C');
-      root.style.setProperty('--pea-purple-deep', '#4D1F66');
-      root.style.setProperty('--pea-purple-50', '#F5EEF8');
-      root.style.setProperty('--pea-purple-100', '#E9DBF0');
-      root.style.setProperty('--pea-orange', '#F37021');
-      root.style.setProperty('--pea-orange-light', '#FAA61A');
+      root.style.setProperty('--pea-purple', '#6E2A8C'); root.style.setProperty('--pea-purple-deep', '#4D1F66');
+      root.style.setProperty('--pea-purple-50', '#F5EEF8'); root.style.setProperty('--pea-purple-100', '#E9DBF0');
+      root.style.setProperty('--pea-orange', '#F37021'); root.style.setProperty('--pea-orange-light', '#FAA61A');
     }
   }, [t.theme]);
 
   function pushToast(toast) {
     const id = Math.random().toString(36).slice(2);
-    const item = { ...toast, id };
-    setToasts((s) => [...s, item]);
+    setToasts((s) => [...s, { ...toast, id }]);
     setTimeout(() => setToasts((s) => s.filter((x) => x.id !== id)), 3500);
   }
 
-  function handleLogin(user) { setCurrentUser(user); setRoute("dashboard"); }
-  function handleLogout() { setCurrentUser(null); setRoute("dashboard"); }
-
-  function handleRegister(reg) {
-    const newUser = {
-      id: "U" + (users.length + 1).toString().padStart(3, "0"),
-      emp: reg.emp, name: reg.name, dept: reg.dept,
-      role: "user", status: "pending",
-      phone: reg.phone, email: reg.email, joined: "2026-05-21",
-    };
-    setUsers([...users, newUser]);
-    setRegistered(true);
+  // ── Auth handlers ──
+  async function handleLogin(profile) {
+    setCurrentUser(profile);
+    await loadAllData();
+    setRoute("dashboard");
   }
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setRoute("dashboard");
+  }
+  function handleRegister() { setRegistered(true); }
 
-  function handleSubmitBooking(form) {
+  // ── Booking handlers ──
+  async function handleSubmitBooking(form) {
     const id = `BK${new Date().toISOString().slice(0,10).replace(/-/g,'').slice(2)}-${(bookings.length+1).toString().padStart(3,"0")}`;
     const newBooking = {
       id, vehicleId: form.vehicleId, userId: currentUser.id,
@@ -120,15 +126,17 @@ function App() {
       destination: form.destination, coords: form.coords,
       status: "booked", approvedBy: null,
       createdAt: new Date().toISOString().slice(0, 16),
-      mileageOut: null, mileageIn: null,
-      passengers: form.passengers,
+      mileageOut: null, mileageIn: null, passengers: form.passengers,
     };
-    setBookings([newBooking, ...bookings]);
-    pushToast({ kind: "ok", title: "ส่งคำขอจองเรียบร้อย", body: "รออนุมัติจากผู้จัดการ — เลขที่ " + id });
-    setRoute("my");
+    const { error } = await supabase.from('bookings').insert(newBooking);
+    if (!error) {
+      setBookings([newBooking, ...bookings]);
+      pushToast({ kind: "ok", title: "ส่งคำขอจองเรียบร้อย", body: "รออนุมัติจากผู้จัดการ — เลขที่ " + id });
+      setRoute("my");
+    } else pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: "ไม่สามารถส่งคำขอจองได้" });
   }
 
-  function handleApprove(bookingId) {
+  async function handleApprove(bookingId) {
     const b = bookings.find((x) => x.id === bookingId);
     const v = vehicles.find((x) => x.id === b?.vehicleId);
     const u = users.find((x) => x.id === b?.userId);
@@ -147,151 +155,173 @@ function App() {
         </div>
       ),
       confirmLabel: "อนุมัติการจอง",
-      onConfirm: () => {
-        setBookings(bookings.map((x) => x.id === bookingId ? { ...x, status: "approved", approvedBy: currentUser.name } : x));
-        pushToast({ kind: "ok", title: "อนุมัติการจองแล้ว", body: bookingId });
+      onConfirm: async () => {
+        const { error } = await supabase.from('bookings')
+          .update({ status: "approved", approvedBy: currentUser.name }).eq('id', bookingId);
+        if (!error) {
+          setBookings(bookings.map((x) => x.id === bookingId ? { ...x, status: "approved", approvedBy: currentUser.name } : x));
+          pushToast({ kind: "ok", title: "อนุมัติการจองแล้ว", body: bookingId });
+        }
       },
     });
   }
-  function handleReject(bookingId) {
+
+  async function handleReject(bookingId) {
     const b = bookings.find((x) => x.id === bookingId);
     const u = users.find((x) => x.id === b?.userId);
     setConfirm({
-      kind: "negative",
-      title: "ไม่อนุมัติการจอง?",
+      kind: "negative", title: "ไม่อนุมัติการจอง?",
       message: "ระบบจะแจ้งผู้จองพร้อมเหตุผลที่ระบุ",
       detail: <div><b>{u?.name}</b> · {b?.id}</div>,
-      requireReason: true,
-      reasonLabel: "เหตุผลที่ไม่อนุมัติ",
-      reasonPlaceholder: "เช่น รถถูกจองในช่วงเวลาดังกล่าวแล้ว / ระยะเวลาเกินขอบเขตการใช้งาน",
+      requireReason: true, reasonLabel: "เหตุผลที่ไม่อนุมัติ",
+      reasonPlaceholder: "เช่น รถถูกจองในช่วงเวลาดังกล่าวแล้ว",
       confirmLabel: "ยืนยันปฏิเสธ",
-      onConfirm: ({ reason }) => {
-        setBookings(bookings.map((x) => x.id === bookingId ? { ...x, status: "rejected", approvedBy: currentUser.name, rejectReason: reason } : x));
-        pushToast({ kind: "warn", title: "ปฏิเสธการจองแล้ว", body: bookingId });
+      onConfirm: async ({ reason }) => {
+        const { error } = await supabase.from('bookings')
+          .update({ status: "rejected", approvedBy: currentUser.name, rejectReason: reason }).eq('id', bookingId);
+        if (!error) {
+          setBookings(bookings.map((x) => x.id === bookingId ? { ...x, status: "rejected", approvedBy: currentUser.name, rejectReason: reason } : x));
+          pushToast({ kind: "warn", title: "ปฏิเสธการจองแล้ว", body: bookingId });
+        }
       },
     });
   }
-  function handleApproveUser(userId) {
+
+  // ── User management ──
+  async function handleApproveUser(userId) {
     const u = users.find((x) => x.id === userId);
     setConfirm({
-      kind: "positive",
-      title: "อนุมัติสมาชิกใหม่?",
+      kind: "positive", title: "อนุมัติสมาชิกใหม่?",
       message: "ผู้ใช้รายนี้จะสามารถเข้าสู่ระบบและใช้งานได้ทันที",
       detail: (
         <div style={{display:'flex', alignItems:'center', gap:10}}>
           <div className="avatar lg">{u?.name.charAt(0)}</div>
-          <div>
-            <b>{u?.name}</b>
+          <div><b>{u?.name}</b>
             <div className="text-xs muted">{u?.dept} · รหัส {u?.emp}</div>
             <div className="text-xs muted">{u?.email}</div>
           </div>
         </div>
       ),
       confirmLabel: "อนุมัติสมาชิก",
-      onConfirm: () => {
-        setUsers(users.map((x) => x.id === userId ? { ...x, status: "approved" } : x));
-        pushToast({ kind: "ok", title: "อนุมัติสมาชิกใหม่แล้ว", body: u?.name });
+      onConfirm: async () => {
+        const { error } = await supabase.from('profiles').update({ status: "approved" }).eq('id', userId);
+        if (!error) {
+          setUsers(users.map((x) => x.id === userId ? { ...x, status: "approved" } : x));
+          pushToast({ kind: "ok", title: "อนุมัติสมาชิกใหม่แล้ว", body: u?.name });
+        }
       },
     });
   }
-  function handleRejectUser(userId) {
+
+  async function handleRejectUser(userId) {
     const u = users.find((x) => x.id === userId);
     setConfirm({
-      kind: "negative",
-      title: "ปฏิเสธการสมัครสมาชิก?",
-      message: "บัญชีจะถูกลบออกจากระบบและไม่สามารถเข้าใช้งานได้",
+      kind: "negative", title: "ปฏิเสธการสมัครสมาชิก?",
+      message: "บัญชีจะถูกยกเลิกและไม่สามารถเข้าใช้งานได้",
       detail: <div><b>{u?.name}</b> · {u?.dept}</div>,
-      requireReason: true,
-      reasonLabel: "เหตุผล",
-      reasonPlaceholder: "เช่น ไม่ใช่บุคลากรของหน่วยงาน / ข้อมูลไม่ครบถ้วน",
+      requireReason: true, reasonLabel: "เหตุผล",
+      reasonPlaceholder: "เช่น ไม่ใช่บุคลากรของหน่วยงาน",
       confirmLabel: "ยืนยันปฏิเสธ",
-      onConfirm: ({ reason }) => {
+      onConfirm: async () => {
+        await supabase.from('profiles').update({ status: "rejected" }).eq('id', userId);
         setUsers(users.filter((x) => x.id !== userId));
         pushToast({ kind: "warn", title: "ปฏิเสธการสมัครแล้ว", body: u?.name });
       },
     });
   }
-  function handleChangeRole(userId, role) {
-    setUsers(users.map((u) => u.id === userId ? { ...u, role } : u));
-    pushToast({ kind: "ok", title: "เปลี่ยนบทบาทแล้ว" });
+
+  async function handleChangeRole(userId, role) {
+    const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
+    if (!error) {
+      setUsers(users.map((u) => u.id === userId ? { ...u, role } : u));
+      pushToast({ kind: "ok", title: "เปลี่ยนบทบาทแล้ว" });
+    }
   }
-  function handleUpdateUser(userId, data) {
-    setUsers(users.map((u) => u.id === userId ? { ...u, ...data } : u));
-    pushToast({ kind: "ok", title: "บันทึกข้อมูลสมาชิกแล้ว", body: data.name });
+
+  async function handleUpdateUser(userId, data) {
+    const { error } = await supabase.from('profiles').update(data).eq('id', userId);
+    if (!error) {
+      setUsers(users.map((u) => u.id === userId ? { ...u, ...data } : u));
+      pushToast({ kind: "ok", title: "บันทึกข้อมูลสมาชิกแล้ว", body: data.name });
+    }
   }
-  function handleAddVehicle(data) {
+
+  // ── Vehicle management ──
+  async function handleAddVehicle(data) {
     const id = "V" + (vehicles.length + 1).toString().padStart(3, "0");
-    setVehicles([...vehicles, { ...data, id, image: "🚗" }]);
-    addHistory({
-      vehicleId: id, action: "create", field: "เพิ่มรถยนต์",
-      oldValue: "", newValue: `${data.brand} · ${data.plate}`,
-      note: "เพิ่มรถใหม่เข้าระบบ", photo: false,
-    });
-    pushToast({ kind: "ok", title: "เพิ่มรถยนต์ใหม่แล้ว", body: data.plate });
+    const newVehicle = { ...data, id, image: "🚗" };
+    const { error } = await supabase.from('vehicles').insert(newVehicle);
+    if (!error) {
+      setVehicles([...vehicles, newVehicle]);
+      await addHistory({ vehicleId: id, action: "create", field: "เพิ่มรถยนต์", oldValue: "", newValue: `${data.brand} · ${data.plate}`, note: "เพิ่มรถใหม่เข้าระบบ", photo: false });
+      pushToast({ kind: "ok", title: "เพิ่มรถยนต์ใหม่แล้ว", body: data.plate });
+    }
   }
-  function handleUpdateVehicle(id, data) {
+
+  async function handleUpdateVehicle(id, data) {
     const old = vehicles.find((v) => v.id === id);
     if (!old) return;
+    const fieldMap = { mileage: "เลขไมล์", status: "สถานะ", plate: "ทะเบียน", brand: "ยี่ห้อ/รุ่น", taxDue: "วันครบกำหนดต่อภาษี", insuranceDue: "วันครบกำหนด พ.ร.บ.", nextService: "วันครบกำหนดเช็คระยะถัดไป", lastService: "วันบำรุงรักษาล่าสุด", owner: "ผู้รับผิดชอบ" };
     const changes = [];
-    const fieldMap = {
-      mileage: "เลขไมล์",
-      status: "สถานะ",
-      plate: "ทะเบียน",
-      brand: "ยี่ห้อ/รุ่น",
-      taxDue: "วันครบกำหนดต่อภาษี",
-      insuranceDue: "วันครบกำหนด พ.ร.บ.",
-      nextService: "วันครบกำหนดเช็คระยะถัดไป",
-      lastService: "วันบำรุงรักษาล่าสุด",
-      owner: "ผู้รับผิดชอบ",
-    };
     Object.keys(fieldMap).forEach((k) => {
       if (data[k] != null && data[k] !== old[k]) {
-        let oldV = old[k]; let newV = data[k];
+        let oldV = old[k], newV = data[k];
         if (k === "mileage") { oldV = fmtNum(oldV) + " กม."; newV = fmtNum(newV) + " กม."; }
         if (k === "status") { oldV = STATUS_LABEL[oldV] || oldV; newV = STATUS_LABEL[newV] || newV; }
         changes.push({ field: fieldMap[k], oldValue: oldV, newValue: newV });
       }
     });
-    setVehicles(vehicles.map((v) => v.id === id ? { ...v, ...data } : v));
-    changes.forEach((c) => {
-      addHistory({
-        vehicleId: id, action: c.field.includes("สถานะ") ? "status" : "update",
-        field: c.field, oldValue: c.oldValue, newValue: c.newValue,
-        note: data._editNote || "", photo: data._photo || false,
-      });
-    });
-    pushToast({ kind: "ok", title: "อัพเดทข้อมูลรถแล้ว", body: data.plate });
-  }
-  function addHistory(entry) {
-    const id = "H" + Date.now().toString().slice(-6);
-    setVehicleHistory((s) => [{
-      id, at: new Date().toISOString().slice(0, 16), actor: currentUser?.name || "ระบบ",
-      ...entry,
-    }, ...s]);
-  }
-  function handleCheckIn(bookingId, data) {
-    setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageOut: data.mileageOut } : b));
-    if (data.mileageCorrection) {
-      const booking = bookings.find((b) => b.id === bookingId);
-      const id = "MC" + Date.now().toString().slice(-6);
-      setMileageCorrections((s) => [{
-        id, bookingId, vehicleId: booking.vehicleId, userId: currentUser.id,
-        requestedAt: new Date().toISOString().slice(0, 16),
-        ...data.mileageCorrection,
-      }, ...s]);
-      pushToast({ kind: "warn", title: "ส่งคำขอแก้ไขเลขไมล์แล้ว", body: `เลขที่ ${id} · รอแอดมินอนุมัติ` });
-    } else {
-      pushToast({ kind: "ok", title: "Check-out สำเร็จ", body: "บันทึกเลขไมล์ก่อนใช้งานแล้ว" });
+    const { error } = await supabase.from('vehicles').update(data).eq('id', id);
+    if (!error) {
+      setVehicles(vehicles.map((v) => v.id === id ? { ...v, ...data } : v));
+      for (const c of changes) {
+        await addHistory({ vehicleId: id, action: c.field.includes("สถานะ") ? "status" : "update", field: c.field, oldValue: c.oldValue, newValue: c.newValue, note: data._editNote || "", photo: data._photo || false });
+      }
+      pushToast({ kind: "ok", title: "อัพเดทข้อมูลรถแล้ว", body: data.plate });
     }
   }
-  function handleApproveMileageCorrection(correctionId) {
+
+  async function addHistory(entry) {
+    const id = "H" + Date.now().toString().slice(-6);
+    const newEntry = { id, at: new Date().toISOString().slice(0, 16), actor: currentUser?.name || "ระบบ", ...entry };
+    await supabase.from('vehicle_history').insert(newEntry);
+    setVehicleHistory((s) => [newEntry, ...s]);
+  }
+
+  // ── Check-in / Check-out ──
+  async function handleCheckIn(bookingId, data) {
+    const { error } = await supabase.from('bookings').update({ mileageOut: data.mileageOut }).eq('id', bookingId);
+    if (!error) {
+      setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageOut: data.mileageOut } : b));
+      if (data.mileageCorrection) {
+        const booking = bookings.find((b) => b.id === bookingId);
+        const id = "MC" + Date.now().toString().slice(-6);
+        const mc = { id, bookingId, vehicleId: booking.vehicleId, userId: currentUser.id, requestedAt: new Date().toISOString().slice(0, 16), ...data.mileageCorrection };
+        await supabase.from('mileage_corrections').insert(mc);
+        setMileageCorrections((s) => [mc, ...s]);
+        pushToast({ kind: "warn", title: "ส่งคำขอแก้ไขเลขไมล์แล้ว", body: `เลขที่ ${id} · รอแอดมินอนุมัติ` });
+      } else {
+        pushToast({ kind: "ok", title: "Check-out สำเร็จ", body: "บันทึกเลขไมล์ก่อนใช้งานแล้ว" });
+      }
+    }
+  }
+
+  async function handleCheckOut(bookingId, data) {
+    const { error } = await supabase.from('bookings').update({ mileageIn: data.mileageIn, rating: data.rating, status: "completed" }).eq('id', bookingId);
+    if (!error) {
+      setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageIn: data.mileageIn, rating: data.rating, status: "completed" } : b));
+      pushToast({ kind: "ok", title: "Check-in สำเร็จ", body: `ระยะทาง ${data.distance} กม.` });
+    }
+  }
+
+  // ── Mileage corrections ──
+  async function handleApproveMileageCorrection(correctionId) {
     const c = mileageCorrections.find((x) => x.id === correctionId);
     if (!c) return;
     const v = vehicles.find((x) => x.id === c.vehicleId);
     const u = users.find((x) => x.id === c.userId);
     setConfirm({
-      kind: "positive",
-      title: "อนุมัติแก้ไขเลขไมล์?",
+      kind: "positive", title: "อนุมัติแก้ไขเลขไมล์?",
       message: "ระบบจะปรับเลขไมล์ของรถให้ตรงกับที่ผู้ใช้ระบุ การกระทำนี้ไม่สามารถย้อนกลับได้",
       detail: (
         <div>
@@ -310,42 +340,52 @@ function App() {
       requireAck: true,
       ackLabel: "ข้าพเจ้าได้ตรวจสอบรูปหน้าปัดและเหตุผลที่ผู้ใช้แจ้งเรียบร้อยแล้ว",
       confirmLabel: "อนุมัติและปรับข้อมูล",
-      onConfirm: () => {
+      onConfirm: async () => {
+        await supabase.from('vehicles').update({ mileage: c.claimedMileage }).eq('id', c.vehicleId);
+        const approvedAt = new Date().toISOString().slice(0, 16);
+        await supabase.from('mileage_corrections').update({ status: "approved", approvedBy: currentUser.name, approvedAt }).eq('id', correctionId);
         setVehicles(vehicles.map((v) => v.id === c.vehicleId ? { ...v, mileage: c.claimedMileage } : v));
-        setMileageCorrections(mileageCorrections.map((x) => x.id === correctionId ? { ...x, status: "approved", approvedBy: currentUser.name, approvedAt: new Date().toISOString().slice(0, 16) } : x));
+        setMileageCorrections(mileageCorrections.map((x) => x.id === correctionId ? { ...x, status: "approved", approvedBy: currentUser.name, approvedAt } : x));
         pushToast({ kind: "ok", title: "อนุมัติแก้ไขเลขไมล์", body: `ปรับเลขไมล์รถเป็น ${c.claimedMileage.toLocaleString()} กม.` });
       },
     });
   }
-  function handleRejectMileageCorrection(correctionId) {
+
+  async function handleRejectMileageCorrection(correctionId) {
     const c = mileageCorrections.find((x) => x.id === correctionId);
     setConfirm({
-      kind: "negative",
-      title: "ไม่อนุมัติคำขอแก้ไขเลขไมล์?",
+      kind: "negative", title: "ไม่อนุมัติคำขอแก้ไขเลขไมล์?",
       message: "ระบบจะเก็บเลขไมล์เดิมไว้ และส่งเหตุผลกลับให้ผู้ขอ",
       detail: <div>คำขอ <b>{c?.id}</b> · ส่วนต่าง {c?.diff > 0 ? '+' : ''}{fmtNum(c?.diff)} กม.</div>,
-      requireReason: true,
-      reasonLabel: "เหตุผลที่ไม่อนุมัติ",
+      requireReason: true, reasonLabel: "เหตุผลที่ไม่อนุมัติ",
       reasonPlaceholder: "เช่น รูปไม่ชัด / เลขไมล์ที่ระบุไม่สมเหตุสมผล",
-      onConfirm: ({ reason }) => {
+      onConfirm: async ({ reason }) => {
+        await supabase.from('mileage_corrections').update({ status: "rejected", approvedBy: currentUser.name, rejectReason: reason }).eq('id', correctionId);
         setMileageCorrections(mileageCorrections.map((x) => x.id === correctionId ? { ...x, status: "rejected", approvedBy: currentUser.name, rejectReason: reason } : x));
         pushToast({ kind: "warn", title: "ปฏิเสธคำขอแก้ไขเลขไมล์" });
       },
     });
   }
-  function handleCheckOut(bookingId, data) {
-    setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageIn: data.mileageIn, rating: data.rating, status: "completed" } : b));
-    pushToast({ kind: "ok", title: "Check-in สำเร็จ", body: `ระยะทาง ${data.distance} กม.` });
-  }
 
+  // ── Route guard ──
   React.useEffect(() => {
     if (!currentUser) return;
-    const allowedKeys = ["dashboard", "booking", "calendar", "my", "checkin", "settings",
+    const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "settings",
       ...(currentUser.role === "manager" ? ["approvals", "reports"] : []),
       ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports"] : [])
     ];
-    if (!allowedKeys.includes(route)) setRoute("dashboard");
+    if (!allowed.includes(route)) setRoute("dashboard");
   }, [currentUser, route]);
+
+  // ── Loading screen ──
+  if (!appReady) {
+    return (
+      <div style={{display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--surface)', flexDirection:'column', gap:16}}>
+        <div style={{width:54, height:54, borderRadius:14, background:'var(--pea-orange)', display:'grid', placeItems:'center', color:'white', fontWeight:700, fontSize:14}}>PEA</div>
+        <div style={{color:'var(--text-2)', fontSize:14}}>กำลังโหลดระบบ...</div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <AuthScreen registered={registered} onLogin={handleLogin} onRegister={handleRegister}/>;
@@ -358,18 +398,12 @@ function App() {
   };
 
   const titles = {
-    dashboard: { t: "แดชบอร์ด", s: "ภาพรวมสถานะรถยนต์เรียลไทม์" },
-    booking: { t: "จองรถใช้งาน", s: "สร้างคำขอจองรถใหม่" },
-    calendar: { t: "ปฏิทินการจอง", s: "ภาพรวมการใช้รถทั้งหน่วยงาน" },
-    my: { t: "การจองของฉัน", s: "ประวัติการจองทั้งหมด" },
-    checkin: { t: "Check-in / Check-out", s: "บันทึกการรับ-ส่งรถยนต์" },
-    approvals: { t: "อนุมัติการจองรถ", s: "ตรวจสอบและอนุมัติคำขอ" },
-    members: { t: "จัดการสมาชิก", s: "อนุมัติและกำหนดบทบาทผู้ใช้" },
-    vehicles: { t: "จัดการรถยนต์", s: "เพิ่ม แก้ไข และตั้งสถานะรถ" },
-    reports: { t: "รายงานและสถิติ", s: "วิเคราะห์การใช้งานรถยนต์" },
-    settings: { t: "ตั้งค่าและเชื่อมต่อ", s: "Calendar Sync, การแจ้งเตือน, บัญชี" },
+    dashboard: { t: "แดชบอร์ด" }, booking: { t: "จองรถใช้งาน" },
+    calendar: { t: "ปฏิทินการจอง" }, my: { t: "การจองของฉัน" },
+    checkin: { t: "Check-in / Check-out" }, approvals: { t: "อนุมัติการจองรถ" },
+    members: { t: "จัดการสมาชิก" }, vehicles: { t: "จัดการรถยนต์" },
+    reports: { t: "รายงานและสถิติ" }, settings: { t: "ตั้งค่าและเชื่อมต่อ" },
   };
-  const title = titles[route] || titles.dashboard;
 
   const baseNotifications = generateNotifications(currentUser, bookings, users, vehicles, mileageCorrections);
   const notifications = baseNotifications.map((n) => ({ ...n, read: n.read || readNotifications.has(n.id) }));
@@ -378,145 +412,40 @@ function App() {
   return (
     <div className="app">
       <Sidebar route={route} setRoute={setRoute} user={currentUser} counts={counts} onLogout={handleLogout} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)}/>
-      <Topbar title={title.t} subtitle={null}
+      <Topbar title={(titles[route] || titles.dashboard).t} subtitle={null}
         onMenuClick={() => setDrawerOpen(true)}
         onBellClick={() => setNotiOpen(!notiOpen)}
         unreadCount={unreadCount}
       />
       <main className="main">
-        {route === "dashboard" && (
-          <Dashboard
-            user={currentUser} vehicles={vehicles} bookings={bookings} users={users}
-            setRoute={setRoute}
-            onSelectVehicle={(v) => setSelectedVehicle(v)}
-          />
-        )}
-        {route === "booking" && (
-          <BookingScreen
-            user={currentUser} vehicles={vehicles} bookings={bookings}
-            prefillVehicle={selectedVehicle}
-            onSubmit={handleSubmitBooking}
-            onCancel={() => setRoute("dashboard")}
-          />
-        )}
-        {route === "calendar" && (
-          <CalendarScreen
-            vehicles={vehicles} bookings={bookings} users={users}
-            onSelectBooking={(b) => setSelectedBooking(b)}
-          />
-        )}
-        {route === "my" && (
-          <MyBookingsScreen
-            bookings={bookings} vehicles={vehicles} users={users}
-            currentUser={currentUser}
-            onSelectBooking={(b) => setSelectedBooking(b)}
-            onPrintVoucher={(b) => setVoucherBooking(b)}
-            setRoute={setRoute}
-          />
-        )}
-        {route === "checkin" && (
-          <CheckinScreen
-            bookings={bookings} vehicles={vehicles} users={users}
-            currentUser={currentUser}
-            onCheckIn={handleCheckIn}
-            onCheckOut={handleCheckOut}
-            onPrintChecklist={(b) => setVoucherBooking(b)}
-          />
-        )}
-        {route === "approvals" && (
-          <ApprovalsScreen
-            bookings={bookings} vehicles={vehicles} users={users}
-            mileageCorrections={mileageCorrections}
-            user={currentUser}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            onApproveMileage={handleApproveMileageCorrection}
-            onRejectMileage={handleRejectMileageCorrection}
-            onSelectBooking={(b) => setSelectedBooking(b)}
-            onPrintVoucher={(b) => setVoucherBooking(b)}
-          />
-        )}
-        {route === "members" && (
-          <MembersScreen
-            users={users} user={currentUser}
-            onApproveUser={handleApproveUser}
-            onRejectUser={handleRejectUser}
-            onChangeRole={handleChangeRole}
-            onUpdateUser={handleUpdateUser}
-          />
-        )}
-        {route === "vehicles" && (
-          <VehiclesScreen
-            vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory}
-            users={users}
-            user={currentUser}
-            onUpdateVehicle={handleUpdateVehicle}
-            onAddVehicle={handleAddVehicle}
-          />
-        )}
-        {route === "reports" && (
-          <ReportsScreen vehicles={vehicles} bookings={bookings} users={users}/>
-        )}
-        {route === "settings" && (
-          <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>
-        )}
+        {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}
+        {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")}/>}
+        {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)}/>}
+        {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
+        {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)}/>}
+        {route === "approvals" && <ApprovalsScreen bookings={bookings} vehicles={vehicles} users={users} mileageCorrections={mileageCorrections} user={currentUser} onApprove={handleApprove} onReject={handleReject} onApproveMileage={handleApproveMileageCorrection} onRejectMileage={handleRejectMileageCorrection} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)}/>}
+        {route === "members" && <MembersScreen users={users} user={currentUser} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
+        {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
+        {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users}/>}
+        {route === "settings" && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
       </main>
 
-      {selectedVehicle && (
-        <VehicleQuickModal
-          vehicle={selectedVehicle}
-          bookings={bookings} users={users}
-          onClose={() => setSelectedVehicle(null)}
-          onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}
-        />
-      )}
-      {selectedBooking && (
-        <BookingDetailModal
-          booking={selectedBooking}
-          vehicle={vehicles.find((v) => v.id === selectedBooking.vehicleId)}
-          user={users.find((u) => u.id === selectedBooking.userId)}
-          onClose={() => setSelectedBooking(null)}
-        />
-      )}
-      {voucherBooking && (
-        <BookingVoucher
-          booking={voucherBooking}
-          vehicle={vehicles.find((v) => v.id === voucherBooking.vehicleId)}
-          user={users.find((u) => u.id === voucherBooking.userId)}
-          onClose={() => setVoucherBooking(null)}
-        />
-      )}
+      {selectedVehicle && <VehicleQuickModal vehicle={selectedVehicle} bookings={bookings} users={users} onClose={() => setSelectedVehicle(null)} onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}/>}
+      {selectedBooking && <BookingDetailModal booking={selectedBooking} vehicle={vehicles.find((v) => v.id === selectedBooking.vehicleId)} user={users.find((u) => u.id === selectedBooking.userId)} onClose={() => setSelectedBooking(null)}/>}
+      {voucherBooking && <BookingVoucher booking={voucherBooking} vehicle={vehicles.find((v) => v.id === voucherBooking.vehicleId)} user={users.find((u) => u.id === voucherBooking.userId)} onClose={() => setVoucherBooking(null)}/>}
 
       <ToastStack toasts={toasts}/>
       <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)}/>
-      <NotificationCenter
-        open={notiOpen}
-        notifications={notifications}
-        onClose={() => setNotiOpen(false)}
-        onMarkRead={(id) => setReadNotifications(new Set([...readNotifications, id]))}
-        onMarkAllRead={() => setReadNotifications(new Set(notifications.map((n) => n.id)))}
-        onNavigate={(r) => setRoute(r)}
-      />
+      <NotificationCenter open={notiOpen} notifications={notifications} onClose={() => setNotiOpen(false)} onMarkRead={(id) => setReadNotifications(new Set([...readNotifications, id]))} onMarkAllRead={() => setReadNotifications(new Set(notifications.map((n) => n.id)))} onNavigate={(r) => setRoute(r)}/>
 
       <TweaksPanel>
         <TweakSection label="ธีมสี"/>
         <TweakColor label="พาเลตต์"
           value={t.theme === "blue" ? ["#1d4ed8","#f59e0b"] : t.theme === "teal" ? ["#0d9488","#f59e0b"] : ["#6E2A8C","#F37021"]}
-          options={[
-            ["#6E2A8C","#F37021"],
-            ["#1d4ed8","#f59e0b"],
-            ["#0d9488","#f59e0b"],
-          ]}
-          onChange={(v) => {
-            const themes = { "#6E2A8C": "purple-orange", "#1d4ed8": "blue", "#0d9488": "teal" };
-            setTweak("theme", themes[v[0]] || "purple-orange");
-          }}/>
-
+          options={[["#6E2A8C","#F37021"],["#1d4ed8","#f59e0b"],["#0d9488","#f59e0b"]]}
+          onChange={(v) => { const themes = { "#6E2A8C": "purple-orange", "#1d4ed8": "blue", "#0d9488": "teal" }; setTweak("theme", themes[v[0]] || "purple-orange"); }}/>
         <TweakSection label="แดชบอร์ด"/>
-        <TweakRadio label="Layout" value={t.dashboardLayout}
-          options={["timeline","grid"]}
-          onChange={(v) => setTweak("dashboardLayout", v)}/>
-
+        <TweakRadio label="Layout" value={t.dashboardLayout} options={["timeline","grid"]} onChange={(v) => setTweak("dashboardLayout", v)}/>
         <TweakSection label="ทางลัด"/>
         <TweakButton label="ออกจากระบบ" onClick={handleLogout}/>
       </TweaksPanel>
@@ -526,22 +455,14 @@ function App() {
 
 function VehicleQuickModal({ vehicle, bookings, users, onClose, onBook }) {
   const v = vehicle;
-  const vBookings = bookings.filter((b) => b.vehicleId === v.id && (b.status === "approved" || b.status === "urgent" || b.status === "booked"));
+  const vBookings = bookings.filter((b) => b.vehicleId === v.id && ["approved","urgent","booked"].includes(b.status));
   return (
-    <Modal title={`รถยนต์ ${v.id}`} onClose={onClose} width={560} footer={
-      <>
-        <button className="btn" onClick={onClose}>ปิด</button>
-        <button className="btn accent" onClick={onBook}>
-          {I.plus} จองรถคันนี้
-        </button>
-      </>
-    }>
+    <Modal title={`รถยนต์ ${v.id}`} onClose={onClose} width={560} footer={<><button className="btn" onClick={onClose}>ปิด</button><button className="btn accent" onClick={onBook}>{I.plus} จองรถคันนี้</button></>}>
       <div style={{display:'flex', gap:14, padding:16, background:'linear-gradient(135deg, var(--pea-purple-50), var(--pea-orange-50))', borderRadius:10, marginBottom:14}}>
         <VehicleIcon type={v.type} size={64}/>
         <div style={{flex:1}}>
           <div style={{display:'flex', gap:8, alignItems:'center'}}>
-            <span className="plate">{v.plate}</span>
-            <StatusPill status={v.status}/>
+            <span className="plate">{v.plate}</span><StatusPill status={v.status}/>
           </div>
           <div style={{fontSize:18, fontWeight:700, marginTop:4}}>{v.brand}</div>
           <div className="text-xs muted">{VEHICLE_TYPES[v.type]?.label} · ปี {v.year}</div>
@@ -559,7 +480,7 @@ function VehicleQuickModal({ vehicle, bookings, users, onClose, onBook }) {
         <>
           <div style={{fontSize:12.5, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:8}}>การจองที่กำลังจะมาถึง</div>
           <div className="col gap-2">
-            {vBookings.slice(0, 3).map((b) => {
+            {vBookings.slice(0,3).map((b) => {
               const u = users.find((x) => x.id === b.userId);
               return (
                 <div key={b.id} style={{padding:'10px 12px', background:'var(--surface-2)', borderRadius:8, fontSize:12.5}}>

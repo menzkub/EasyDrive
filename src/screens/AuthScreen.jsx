@@ -1,34 +1,87 @@
 import React from 'react'
 import { I } from '../components'
-import { DEPARTMENTS, USERS } from '../data'
+import { DEPARTMENTS } from '../data'
+import { supabase } from '../supabase'
 
 function AuthScreen({ onLogin, registered, onRegister }) {
-  const [mode, setMode] = React.useState("login"); // login | register | pending | forgot | forgot-sent
+  const [mode, setMode] = React.useState("login");
   const [empId, setEmpId] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [err, setErr] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
   const [forgotEmail, setForgotEmail] = React.useState("");
 
   const [reg, setReg] = React.useState({
     name: "", emp: "", dept: DEPARTMENTS[0], email: "", phone: "", password: "", confirm: "",
   });
 
-  function doLogin() {
+  async function doLogin() {
     setErr("");
     if (!empId.trim() || !password.trim()) { setErr("กรุณากรอกรหัสพนักงานและรหัสผ่าน"); return; }
-    const user = USERS.find((u) => u.emp === empId.trim() && u.password === password && u.status === "approved");
-    if (!user) { setErr("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง"); return; }
-    onLogin(user);
+    setLoading(true);
+    const email = `${empId.trim()}@pea-fang.local`;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setErr("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+      setLoading(false);
+      return;
+    }
+    // Load profile
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    setLoading(false);
+    if (!profile || profile.status === 'pending') {
+      await supabase.auth.signOut();
+      setMode("pending");
+      return;
+    }
+    if (profile.status === 'rejected') {
+      await supabase.auth.signOut();
+      setErr("บัญชีของท่านไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ");
+      return;
+    }
+    onLogin(profile);
   }
-  function doRegister() {
+
+  async function doRegister() {
     if (!reg.name || !reg.emp || !reg.email) { setErr("กรุณากรอกข้อมูลให้ครบ"); return; }
     if (reg.password !== reg.confirm) { setErr("รหัสผ่านไม่ตรงกัน"); return; }
-    onRegister(reg);
+    if (reg.password.length < 6) { setErr("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
+    setLoading(true);
+    setErr("");
+    const authEmail = `${reg.emp.trim()}@pea-fang.local`;
+    const { data, error } = await supabase.auth.signUp({ email: authEmail, password: reg.password });
+    if (error) {
+      setErr(error.message === 'User already registered' ? 'รหัสพนักงานนี้มีในระบบแล้ว' : error.message);
+      setLoading(false);
+      return;
+    }
+    // Create profile record
+    await supabase.from('profiles').insert({
+      id: data.user.id,
+      emp: reg.emp.trim(),
+      name: reg.name,
+      dept: reg.dept,
+      role: 'user',
+      status: 'pending',
+      phone: reg.phone || '',
+      email: reg.email,
+    });
+    // Sign out immediately — needs admin approval before use
+    await supabase.auth.signOut();
+    setLoading(false);
+    onRegister();
     setMode("pending");
   }
-  function doForgot() {
+
+  async function doForgot() {
     setErr("");
-    if (!forgotEmail.trim()) { setErr("กรุณากรอกอีเมลหรือรหัสพนักงาน"); return; }
+    if (!forgotEmail.trim()) { setErr("กรุณากรอกรหัสพนักงาน"); return; }
+    setLoading(true);
+    const email = `${forgotEmail.trim()}@pea-fang.local`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    setLoading(false);
+    if (error) { setErr("ไม่พบบัญชีนี้ในระบบ"); return; }
     setMode("forgot-sent");
   }
 
@@ -54,13 +107,10 @@ function AuthScreen({ onLogin, registered, onRegister }) {
             ตรวจสอบสถานะรถ จองล่วงหน้า และอนุมัติได้
             ในระบบเดียว — โปร่งใส ตรวจสอบได้ ทุกขั้นตอน
           </p>
-
           <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, marginTop:36, maxWidth:480}}>
             {[
-              { n: "24+", l: "คันในระบบ" },
-              { n: "8", l: "ประเภทรถ" },
-              { n: "24/7", l: "เรียลไทม์" },
-              { n: "100%", l: "ตรวจสอบได้" },
+              { n: "24+", l: "คันในระบบ" }, { n: "8", l: "ประเภทรถ" },
+              { n: "24/7", l: "เรียลไทม์" }, { n: "100%", l: "ตรวจสอบได้" },
             ].map((s, i) => (
               <div key={i} style={{background:'rgba(0,0,0,0.18)', backdropFilter:'blur(8px)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:12, padding:'14px 16px'}}>
                 <div style={{fontSize:24, fontWeight:700, letterSpacing:'-0.01em'}}>{s.n}</div>
@@ -69,7 +119,6 @@ function AuthScreen({ onLogin, registered, onRegister }) {
             ))}
           </div>
         </div>
-
         <div style={{position:'relative', zIndex:1, marginTop:32, fontSize:11.5, opacity:0.55, letterSpacing:'0.03em'}}>
           © 2026 Provincial Electricity Authority — Fang District
         </div>
@@ -81,17 +130,16 @@ function AuthScreen({ onLogin, registered, onRegister }) {
             <>
               <h2 style={{fontSize:24, fontWeight:700, margin:'0 0 4px', letterSpacing:'-0.01em'}}>ยินดีต้อนรับกลับมา</h2>
               <p className="muted" style={{margin:'0 0 28px', fontSize:13.5}}>เข้าสู่ระบบด้วยรหัสพนักงาน PEA</p>
-
               {registered && (
                 <div style={{background:'var(--ok-bg)', border:'1px solid #c5e5d2', borderRadius:10, padding:'10px 14px', fontSize:13, color:'var(--ok)', marginBottom:18}}>
                   <b>สมัครสมาชิกสำเร็จ</b> · กรุณารอผู้ดูแลระบบอนุมัติบัญชี
                 </div>
               )}
-
               <div className="col gap-3">
                 <div className="field">
                   <label className="field-lbl">รหัสพนักงาน <span className="req">*</span></label>
-                  <input className="input" value={empId} onChange={(e) => setEmpId(e.target.value)} placeholder="เช่น 62145"/>
+                  <input className="input" value={empId} onChange={(e) => setEmpId(e.target.value)}
+                    placeholder="เช่น 508087" onKeyDown={(e) => e.key === 'Enter' && doLogin()}/>
                 </div>
                 <div className="field">
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
@@ -100,15 +148,13 @@ function AuthScreen({ onLogin, registered, onRegister }) {
                       ลืมรหัสผ่าน?
                     </a>
                   </div>
-                  <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}/>
+                  <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && doLogin()}/>
                 </div>
-
                 {err && <div className="input-err">{err}</div>}
-
-                <button className="btn primary lg" onClick={doLogin} style={{marginTop:8}}>
-                  เข้าสู่ระบบ
+                <button className="btn primary lg" onClick={doLogin} disabled={loading} style={{marginTop:8}}>
+                  {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
                 </button>
-
                 <div style={{textAlign:'center', fontSize:13, color:'var(--text-2)', marginTop:6}}>
                   ยังไม่มีบัญชี? <a style={{color:'var(--pea-purple)', fontWeight:600, cursor:'pointer'}} onClick={() => setMode("register")}>สมัครสมาชิก</a>
                 </div>
@@ -157,10 +203,10 @@ function AuthScreen({ onLogin, registered, onRegister }) {
                     <input className="input" type="password" value={reg.confirm} onChange={(e) => setReg({...reg, confirm:e.target.value})}/>
                   </div>
                 </div>
-
                 {err && <div className="input-err">{err}</div>}
-
-                <button className="btn primary lg" onClick={doRegister} style={{marginTop:8}}>สมัครสมาชิก</button>
+                <button className="btn primary lg" onClick={doRegister} disabled={loading} style={{marginTop:8}}>
+                  {loading ? "กำลังสมัคร..." : "สมัครสมาชิก"}
+                </button>
                 <div style={{textAlign:'center', fontSize:13, color:'var(--text-2)'}}>
                   มีบัญชีแล้ว? <a style={{color:'var(--pea-purple)', fontWeight:600, cursor:'pointer'}} onClick={() => setMode("login")}>เข้าสู่ระบบ</a>
                 </div>
@@ -175,21 +221,17 @@ function AuthScreen({ onLogin, registered, onRegister }) {
               </div>
               <h2 style={{fontSize:24, fontWeight:700, margin:'0 0 4px', letterSpacing:'-0.01em'}}>ลืมรหัสผ่าน</h2>
               <p className="muted" style={{margin:'0 0 22px', fontSize:13.5}}>
-                กรอกอีเมลหรือรหัสพนักงานที่ใช้สมัครบัญชี
-                ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลที่ลงทะเบียนไว้
+                กรอกรหัสพนักงานที่ใช้สมัครบัญชี ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลที่ลงทะเบียนไว้
               </p>
               <div className="col gap-3">
                 <div className="field">
-                  <label className="field-lbl">อีเมล หรือ รหัสพนักงาน <span className="req">*</span></label>
-                  <input className="input" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="name@pea.co.th หรือ 6xxxx" autoFocus/>
+                  <label className="field-lbl">รหัสพนักงาน <span className="req">*</span></label>
+                  <input className="input" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="เช่น 63xxx" autoFocus/>
                 </div>
-
                 {err && <div className="input-err">{err}</div>}
-
-                <button className="btn primary lg" onClick={doForgot}>
-                  {I.upload} ส่งลิงก์รีเซ็ตรหัสผ่าน
+                <button className="btn primary lg" onClick={doForgot} disabled={loading}>
+                  {loading ? "กำลังส่ง..." : <>{I.upload} ส่งลิงก์รีเซ็ตรหัสผ่าน</>}
                 </button>
-
                 <div style={{padding:'12px 14px', background:'var(--info-bg)', borderRadius:9, fontSize:12.5, color:'#1e4f88', lineHeight:1.6, marginTop:8}}>
                   <b>หมายเหตุ:</b> หากท่านไม่ได้รับอีเมลภายใน 10 นาที กรุณาตรวจสอบ Junk/Spam หรือติดต่อผู้ดูแลระบบ
                   ที่ <a href="tel:053-451-666" style={{color:'var(--pea-purple)', fontWeight:600}}>053-451-666</a> ต่อ 12
@@ -206,7 +248,7 @@ function AuthScreen({ onLogin, registered, onRegister }) {
                 </div>
                 <h2 style={{margin:'0 0 6px', fontSize:18, color:'var(--ok)'}}>ส่งลิงก์รีเซ็ตรหัสผ่านแล้ว</h2>
                 <p style={{margin:0, fontSize:13.5, color:'#1f5b3a'}}>
-                  ระบบส่งอีเมลพร้อมลิงก์รีเซ็ตรหัสผ่านไปยัง <b>{forgotEmail}</b><br/>
+                  ระบบส่งอีเมลพร้อมลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลที่ลงทะเบียนไว้<br/>
                   กรุณาตรวจสอบกล่องจดหมายและคลิกลิงก์ภายใน 30 นาที
                 </p>
               </div>
@@ -227,8 +269,8 @@ function AuthScreen({ onLogin, registered, onRegister }) {
                 </div>
                 <h2 style={{margin:'0 0 6px', fontSize:18, color:'var(--warn)'}}>รอการอนุมัติจากผู้ดูแลระบบ</h2>
                 <p style={{margin:0, fontSize:13.5, color:'#7a5500'}}>
-                  ระบบได้รับใบสมัครของท่านเรียบร้อยแล้ว <br/>
-                  เมื่อผู้ดูแลระบบอนุมัติบัญชี ท่านจะได้รับอีเมลแจ้งและสามารถเข้าสู่ระบบได้
+                  ระบบได้รับใบสมัครของท่านเรียบร้อยแล้ว<br/>
+                  เมื่อผู้ดูแลระบบอนุมัติบัญชี ท่านจะสามารถเข้าสู่ระบบได้
                 </p>
               </div>
               <button className="btn ghost lg" style={{width:'100%'}} onClick={() => setMode("login")}>
