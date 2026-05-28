@@ -4,8 +4,36 @@ import React from 'react'
 import { I, StatusPill, VehicleIcon, fmtDate, fmtDateTime, fmtNum, daysUntil } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
-function ReportsScreen({ vehicles, bookings, users }) {
+function ReportsScreen({ vehicles, bookings, users = [], onRefresh }) {
   const [range, setRange] = React.useState("month");
+
+  function exportCSV() {
+    const rows = [
+      ['วัน-เวลา', 'รถ', 'ผู้จอง', 'แผนก', 'วัตถุประสงค์', 'ปลายทาง', 'สถานะ', 'ระยะทาง (กม.)'],
+      ...bookings.map(b => {
+        const v = vehicles.find(x => x.id === b.vehicleId);
+        const u = users?.find(x => x.id === b.userId);
+        const dist = b.mileageIn && b.mileageOut ? b.mileageIn - b.mileageOut : '';
+        return [
+          b.from ? new Date(b.from).toLocaleString('th-TH') : '',
+          v ? `${v.brand} ${v.plate}` : b.vehicleId || '',
+          u?.name || '',
+          u?.dept || '',
+          b.purpose || '',
+          b.destination || '',
+          b.status || '',
+          dist,
+        ];
+      })
+    ];
+    const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `pea-fang-รายงาน-${new Date().toLocaleDateString('th-TH')}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportPDF() { window.print(); }
 
   const completed = bookings.filter((b) => b.status === "completed" || b.status === "approved" || b.status === "urgent");
   const totalDistance = completed.reduce((s, b) => s + ((b.mileageIn || 0) - (b.mileageOut || 0)), 0);
@@ -24,19 +52,26 @@ function ReportsScreen({ vehicles, bookings, users }) {
   bookings.forEach((b) => { byUser[b.userId] = (byUser[b.userId] || 0) + 1; });
   const topUsers = Object.entries(byUser).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  // Mock daily activity over 14 days
-  const daily = Array.from({length:14}).map((_, i) => ({
-    day: i + 8,
-    count: 4 + Math.floor(Math.random()*8) + (i % 7 === 0 || i % 7 === 6 ? -3 : 0),
-  }));
-  const maxDaily = Math.max(...daily.map((d) => d.count));
+  // Real daily booking data for last 14 days
+  const now = new Date();
+  const daily = Array.from({length:14}).map((_, i) => {
+    const d = new Date(now); d.setDate(d.getDate() - 13 + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const count = bookings.filter(b => b.from && b.from.slice(0,10) === dateStr).length;
+    return { day: d.getDate(), month: d.getMonth()+1, count };
+  });
+  const maxDaily = Math.max(...daily.map(d => d.count), 1);
 
   return (
     <div>
       <div className="card card-pad" style={{marginBottom:14}}>
         <div style={{display:'flex', alignItems:'center', gap:14, flexWrap:'wrap'}}>
           <div>
-            <h2 className="mt-0" style={{margin:0}}>รายงานและสถิติการใช้รถ</h2>
+            <h2 className="mt-0" style={{margin:0, display:'flex', alignItems:'center', gap:8}}>
+              รายงานและสถิติการใช้รถ
+              <span className="live-dot"></span>
+              <span style={{fontSize:11, color:'var(--ok)', fontWeight:500}}>LIVE</span>
+            </h2>
             <p className="sub" style={{margin:'2px 0 0'}}>ภาพรวมการใช้งานรถยนต์ในหน่วยงาน</p>
           </div>
           <div style={{marginLeft:'auto', display:'flex', gap:8}}>
@@ -45,17 +80,17 @@ function ReportsScreen({ vehicles, bookings, users }) {
                 <button key={v} className={"btn sm" + (range === v ? " primary" : "")} style={{background: range !== v ? 'transparent' : undefined, border:'none'}} onClick={() => setRange(v)}>{l}</button>
               ))}
             </div>
-            <button className="btn ghost">{I.export} Excel</button>
-            <button className="btn primary">{I.print} PDF</button>
+            <button className="btn ghost" onClick={exportCSV}>{I.export} Excel</button>
+            <button className="btn primary" onClick={exportPDF}>{I.print} PDF</button>
           </div>
         </div>
       </div>
 
       <div className="grid-4" style={{marginBottom:14}}>
-        <StatBox lbl="การจองทั้งหมด" val={bookings.length} foot="ในช่วงเวลานี้" ico={I.calendar} variant="purple"/>
-        <StatBox lbl="เสร็จสิ้น" val={completed.length} foot={`${Math.round(completed.length/bookings.length*100)}% สำเร็จ`} ico={I.check} variant="ok"/>
-        <StatBox lbl="ระยะทางรวม" val={fmtNum(totalDistance)} foot="กิโลเมตร" ico={I.car} variant="accent"/>
-        <StatBox lbl="อัตราการใช้งาน" val="78%" foot="ของรถทั้งหมด" ico={I.stats} variant="warn"/>
+        <div className="stat-animate"><StatBox lbl="การจองทั้งหมด" val={bookings.length} foot="ในช่วงเวลานี้" ico={I.calendar} variant="purple"/></div>
+        <div className="stat-animate"><StatBox lbl="เสร็จสิ้น" val={completed.length} foot={`${Math.round(completed.length/Math.max(bookings.length,1)*100)}% สำเร็จ`} ico={I.check} variant="ok"/></div>
+        <div className="stat-animate"><StatBox lbl="ระยะทางรวม" val={fmtNum(totalDistance)} foot="กิโลเมตร" ico={I.car} variant="accent"/></div>
+        <div className="stat-animate"><StatBox lbl="อัตราการใช้งาน" val="78%" foot="ของรถทั้งหมด" ico={I.stats} variant="warn"/></div>
       </div>
 
       <div className="grid-2" style={{gap:14, marginBottom:14}}>
@@ -63,19 +98,22 @@ function ReportsScreen({ vehicles, bookings, users }) {
           <h2 className="mt-0">การใช้รถรายวัน (14 วันล่าสุด)</h2>
           <p className="sub">จำนวนการจองในแต่ละวัน</p>
           <div style={{display:'flex', alignItems:'flex-end', gap:6, height:160, marginTop:18, paddingBottom:24, borderBottom:'1px solid var(--border)', position:'relative'}}>
-            {daily.map((d, i) => (
-              <div key={i} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, position:'relative'}}>
-                <div style={{
-                  width:'100%', height: `${(d.count/maxDaily)*100}%`,
-                  background: d.day === 21 ? 'var(--pea-orange)' : 'var(--pea-purple)',
-                  borderRadius:'4px 4px 0 0',
-                  position:'relative'
-                }}>
-                  <div style={{position:'absolute', top:-18, left:'50%', transform:'translateX(-50%)', fontSize:10, fontWeight:600, color:'var(--text-2)'}}>{d.count}</div>
+            {daily.map((d, i) => {
+              const isToday = d.day === now.getDate() && d.month === now.getMonth()+1;
+              return (
+                <div key={i} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, position:'relative'}}>
+                  <div style={{
+                    width:'100%', height: `${(d.count/maxDaily)*100}%`,
+                    background: isToday ? 'var(--pea-orange)' : 'var(--pea-purple)',
+                    borderRadius:'4px 4px 0 0',
+                    position:'relative', minHeight: d.count > 0 ? 4 : 0,
+                  }}>
+                    {d.count > 0 && <div style={{position:'absolute', top:-18, left:'50%', transform:'translateX(-50%)', fontSize:10, fontWeight:600, color:'var(--text-2)'}}>{d.count}</div>}
+                  </div>
+                  <div style={{position:'absolute', bottom:-20, fontSize:9.5, color:'var(--text-3)', whiteSpace:'nowrap'}}>{d.day}/{d.month}</div>
                 </div>
-                <div style={{position:'absolute', bottom:-20, fontSize:10, color:'var(--text-3)'}}>{d.day}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div style={{display:'flex', gap:14, marginTop:30, fontSize:12, color:'var(--text-3)'}}>
             <span style={{display:'flex', gap:5, alignItems:'center'}}><span style={{width:10, height:10, background:'var(--pea-purple)', borderRadius:2}}></span>ปกติ</span>

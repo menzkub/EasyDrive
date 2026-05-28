@@ -75,7 +75,11 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
         <div className="card card-pad">
           <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:14}}>
             <h2 className="mt-0" style={{margin:0}}>ไทม์ไลน์การใช้รถวันนี้</h2>
-            <div className="muted text-xs" style={{marginLeft:'auto'}}>06:00 – 20:00 · เรียลไทม์ <span style={{display:'inline-block', width:6, height:6, background:'var(--ok)', borderRadius:'50%', marginLeft:4, animation:'pulse 2s infinite'}}></span></div>
+            <div className="muted text-xs" style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:6}}>
+              06:00 – 20:00 · เรียลไทม์
+              <span className="live-dot"></span>
+              <span style={{fontSize:10, color:'var(--ok)', fontWeight:600}}>LIVE</span>
+            </div>
           </div>
           <TimelineView vehicles={vehicles.slice(0, 10)} bookings={todaysBookings} users={users} onSelectVehicle={onSelectVehicle}/>
         </div>

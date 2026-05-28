@@ -56,6 +56,17 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Realtime subscriptions — reload data on any change
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const channel = supabase.channel('pea-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, loadAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, loadAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, loadAllData)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [currentUser?.id]);
+
   async function initUser(userId) {
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (profile?.status === 'approved') {
@@ -440,7 +451,7 @@ function App() {
         {route === "approvals" && <ApprovalsScreen bookings={bookings} vehicles={vehicles} users={users} mileageCorrections={mileageCorrections} user={currentUser} onApprove={handleApprove} onReject={handleReject} onApproveMileage={handleApproveMileageCorrection} onRejectMileage={handleRejectMileageCorrection} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)}/>}
         {route === "members" && <MembersScreen users={users} user={currentUser} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
-        {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users}/>}
+        {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
         {route === "settings" && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast}/>}
       </main>
 
