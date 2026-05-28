@@ -13,7 +13,7 @@ import { NotificationCenter, generateNotifications } from './screens/Notificatio
 import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
 import { VEHICLE_TYPES, FUEL_TYPES } from './data'
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakButton } from './TweaksPanel'
-import { supabase } from './supabase'
+import { supabase, isConfigured } from './supabase'
 
 const TWEAK_DEFAULTS = { theme: "purple-orange", density: "regular", dashboardLayout: "timeline" };
 
@@ -383,6 +383,20 @@ function App() {
       <div style={{display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--surface)', flexDirection:'column', gap:16}}>
         <div style={{width:54, height:54, borderRadius:14, background:'var(--pea-orange)', display:'grid', placeItems:'center', color:'white', fontWeight:700, fontSize:14}}>PEA</div>
         <div style={{color:'var(--text-2)', fontSize:14}}>กำลังโหลดระบบ...</div>
+      </div>
+    );
+  }
+
+  if (!isConfigured) {
+    return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'#f5f5f5',flexDirection:'column',gap:16,textAlign:'center',padding:24}}>
+        <div style={{width:54,height:54,borderRadius:14,background:'#F37021',display:'grid',placeItems:'center',color:'white',fontWeight:700,fontSize:14}}>PEA</div>
+        <div style={{fontSize:18,fontWeight:700,color:'#333'}}>ยังไม่ได้ตั้งค่า Environment Variables</div>
+        <div style={{fontSize:14,color:'#666',maxWidth:420,lineHeight:1.6}}>
+          กรุณาไปที่ <b>Vercel → Settings → Environment Variables</b><br/>
+          แล้วเพิ่ม <code style={{background:'#eee',padding:'2px 6px',borderRadius:4}}>VITE_SUPABASE_URL</code> และ <code style={{background:'#eee',padding:'2px 6px',borderRadius:4}}>VITE_SUPABASE_ANON_KEY</code><br/>
+          จากนั้น Redeploy
+        </div>
       </div>
     );
   }
