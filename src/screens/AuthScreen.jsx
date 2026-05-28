@@ -4,9 +4,8 @@ import { DEPARTMENTS, USERS } from '../data'
 
 function AuthScreen({ onLogin, registered, onRegister }) {
   const [mode, setMode] = React.useState("login"); // login | register | pending | forgot | forgot-sent
-  const [empId, setEmpId] = React.useState("62145");
-  const [password, setPassword] = React.useState("••••••••");
-  const [role, setRole] = React.useState("user");
+  const [empId, setEmpId] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [err, setErr] = React.useState("");
   const [forgotEmail, setForgotEmail] = React.useState("");
 
@@ -16,8 +15,9 @@ function AuthScreen({ onLogin, registered, onRegister }) {
 
   function doLogin() {
     setErr("");
-    const user = USERS.find((u) => u.role === role && u.status === "approved");
-    if (!user) { setErr("ไม่พบบัญชีที่ใช้งานได้"); return; }
+    if (!empId.trim() || !password.trim()) { setErr("กรุณากรอกรหัสพนักงานและรหัสผ่าน"); return; }
+    const user = USERS.find((u) => u.emp === empId.trim() && u.password === password && u.status === "approved");
+    if (!user) { setErr("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง"); return; }
     onLogin(user);
   }
   function doRegister() {
@@ -101,24 +101,6 @@ function AuthScreen({ onLogin, registered, onRegister }) {
                     </a>
                   </div>
                   <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}/>
-                </div>
-
-                <div style={{background:'var(--surface-2)', border:'1px dashed var(--border-strong)', borderRadius:10, padding:'12px 14px'}}>
-                  <div style={{fontSize:11.5, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10}}>โหมดทดลอง · เลือกบทบาท</div>
-                  <div style={{display:'flex', gap:6}}>
-                    {[
-                      { v:"user", l:"ผู้ใช้งาน" },
-                      { v:"manager", l:"ผู้จัดการ" },
-                      { v:"admin", l:"ผู้ดูแลระบบ" },
-                    ].map((r) => (
-                      <button key={r.v}
-                        className={"btn sm" + (role === r.v ? " primary" : " ghost")}
-                        style={{flex:1}}
-                        onClick={() => setRole(r.v)}>
-                        {r.l}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 {err && <div className="input-err">{err}</div>}

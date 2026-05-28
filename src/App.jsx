@@ -499,14 +499,6 @@ function App() {
       />
 
       <TweaksPanel>
-        <TweakSection label="บทบาทผู้ใช้งาน (ทดลองสลับ)"/>
-        <TweakRadio label="บทบาท" value={currentUser.role}
-          options={["user","manager","admin"]}
-          onChange={(v) => {
-            const u = users.find((u) => u.role === v && u.status === "approved");
-            if (u) setCurrentUser(u);
-          }}/>
-
         <TweakSection label="ธีมสี"/>
         <TweakColor label="พาเลตต์"
           value={t.theme === "blue" ? ["#1d4ed8","#f59e0b"] : t.theme === "teal" ? ["#0d9488","#f59e0b"] : ["#6E2A8C","#F37021"]}
@@ -526,7 +518,7 @@ function App() {
           onChange={(v) => setTweak("dashboardLayout", v)}/>
 
         <TweakSection label="ทางลัด"/>
-        <TweakButton label="กลับสู่หน้าเข้าสู่ระบบ" onClick={handleLogout}/>
+        <TweakButton label="ออกจากระบบ" onClick={handleLogout}/>
       </TweaksPanel>
     </div>
   );
