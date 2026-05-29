@@ -46,7 +46,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
     setErr("");
     if (!empId.trim() || !password.trim()) { setErr("กรุณากรอกรหัสพนักงานและรหัสผ่าน"); return; }
     setLoading(true);
-    const email = `${empId.trim()}@pea-fang.local`;
+    const email = `${empId.trim()}@easydrive.local`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setErr("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
@@ -91,7 +91,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
     if (reg.password.length < 6) { setErr("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
     setLoading(true);
     setErr("");
-    const authEmail = `${reg.emp.trim()}@pea-fang.local`;
+    const authEmail = `${reg.emp.trim()}@easydrive.local`;
     const { data, error } = await supabase.auth.signUp({ email: authEmail, password: reg.password });
     if (error) {
       setErr(error.message === 'User already registered' ? 'รหัสพนักงานนี้มีในระบบแล้ว' : error.message);
@@ -120,7 +120,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
     setErr("");
     if (!forgotEmail.trim()) { setErr("กรุณากรอกรหัสพนักงาน"); return; }
     setLoading(true);
-    const email = `${forgotEmail.trim()}@pea-fang.local`;
+    const email = `${forgotEmail.trim()}@easydrive.local`;
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     setLoading(false);
     if (error) { setErr("ไม่พบบัญชีนี้ในระบบ"); return; }

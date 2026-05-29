@@ -464,7 +464,7 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
       const desc = `วัตถุประสงค์: ${b.purpose || ''}\nปลายทาง: ${b.destination || ''}\nสถานะ: ${statusTH(b.status)}`;
       lines.push(
         'BEGIN:VEVENT',
-        `UID:pea-${b.id}@pea-fang.local`,
+        `UID:pea-${b.id}@easydrive.local`,
         `DTSTART:${fmtIcsDt(b.from)}`,
         `DTEND:${fmtIcsDt(b.to)}`,
         `DTSTAMP:${fmtIcsDt(b.createdAt || new Date())}`,
