@@ -1,7 +1,7 @@
 // Admin screens: Approvals (bookings) + Members (users)
 import React from 'react'
 import { I, StatusPill, VehicleIcon, Modal, fmtDate, fmtDateTime, fmtTime, fmtNum } from '../components'
-import { DEPARTMENTS } from '../data'
+import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 
 function ApprovalsScreen({ bookings, vehicles, users, mileageCorrections = [], user, onApprove, onReject, onApproveMileage, onRejectMileage, onSelectBooking, onPrintVoucher }) {
   const [tab, setTab] = React.useState("pending");
@@ -146,7 +146,8 @@ function ApprovalCard({ booking, vehicle, user, actor, onApprove, onReject, onSe
 }
 
 // ─── Members screen ────────────────────────────────────────────────
-function MembersScreen({ users, user, onApproveUser, onRejectUser, onChangeRole, onUpdateUser }) {
+function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, onChangeRole, onUpdateUser }) {
+  const DEPARTMENTS = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const [tab, setTab] = React.useState("pending");
   const [search, setSearch] = React.useState("");
   const [viewing, setViewing] = React.useState(null);

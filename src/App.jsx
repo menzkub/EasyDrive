@@ -29,6 +29,7 @@ function App() {
   const [users, setUsers] = React.useState([]);
   const [vehicleHistory, setVehicleHistory] = React.useState([]);
   const [mileageCorrections, setMileageCorrections] = React.useState([]);
+  const [departments, setDepartments] = React.useState([]);
 
   const [route, setRoute] = React.useState("dashboard");
   const [selectedVehicle, setSelectedVehicle] = React.useState(null);
@@ -50,7 +51,7 @@ function App() {
       if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         setVehicles([]); setBookings([]); setUsers([]);
-        setVehicleHistory([]); setMileageCorrections([]);
+        setVehicleHistory([]); setMileageCorrections([]); setDepartments([]);
       }
     });
     return () => subscription.unsubscribe();
@@ -63,6 +64,7 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, loadAllData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, loadAllData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, loadAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, loadAllData)
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [currentUser?.id]);
@@ -76,18 +78,20 @@ function App() {
   }
 
   async function loadAllData() {
-    const [v, b, u, vh, mc] = await Promise.all([
+    const [v, b, u, vh, mc, depts] = await Promise.all([
       supabase.from('vehicles').select('*').order('id'),
       supabase.from('bookings').select('*').order('"createdAt"', { ascending: false }),
       supabase.from('profiles').select('*').neq('status', 'rejected'),
       supabase.from('vehicle_history').select('*').order('at', { ascending: false }),
       supabase.from('mileage_corrections').select('*').order('"requestedAt"', { ascending: false }),
+      supabase.from('departments').select('*').eq('active', true).order('sort_order'),
     ]);
     setVehicles(v.data || []);
     setBookings(b.data || []);
     setUsers(u.data || []);
     setVehicleHistory(vh.data || []);
     setMileageCorrections(mc.data || []);
+    setDepartments(depts.data || []);
   }
 
   // ── Theme ──
@@ -413,7 +417,7 @@ function App() {
   }
 
   if (!currentUser) {
-    return <AuthScreen registered={registered} onLogin={handleLogin} onRegister={handleRegister}/>;
+    return <AuthScreen registered={registered} onLogin={handleLogin} onRegister={handleRegister} departments={departments}/>;
   }
 
   const counts = {
@@ -449,10 +453,10 @@ function App() {
         {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
         {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)}/>}
         {route === "approvals" && <ApprovalsScreen bookings={bookings} vehicles={vehicles} users={users} mileageCorrections={mileageCorrections} user={currentUser} onApprove={handleApprove} onReject={handleReject} onApproveMileage={handleApproveMileageCorrection} onRejectMileage={handleRejectMileageCorrection} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)}/>}
-        {route === "members" && <MembersScreen users={users} user={currentUser} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
+        {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
-        {route === "settings" && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast}/>}
+        {route === "settings" && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast}/>}
       </main>
 
       {selectedVehicle && <VehicleQuickModal vehicle={selectedVehicle} bookings={bookings} users={users} onClose={() => setSelectedVehicle(null)} onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}/>}

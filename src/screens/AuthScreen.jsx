@@ -1,9 +1,10 @@
 import React from 'react'
 import { I } from '../components'
-import { DEPARTMENTS } from '../data'
+import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
-function AuthScreen({ onLogin, registered, onRegister }) {
+function AuthScreen({ onLogin, registered, onRegister, departments }) {
+  const DEPARTMENTS = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const [mode, setMode] = React.useState("login");
   const [empId, setEmpId] = React.useState("");
   const [password, setPassword] = React.useState("");

@@ -88,8 +88,18 @@ CREATE TABLE IF NOT EXISTS mileage_corrections (
   "requestedAt"    TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ─── Departments ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS departments (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name        TEXT NOT NULL UNIQUE,
+  sort_order  INTEGER DEFAULT 0,
+  active      BOOLEAN DEFAULT TRUE,
+  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ─── Row Level Security ──────────────────────────────────────────────
 ALTER TABLE profiles            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE departments         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vehicles            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vehicle_history     ENABLE ROW LEVEL SECURITY;
@@ -100,7 +110,8 @@ CREATE POLICY "auth_read_profiles"    ON profiles            FOR SELECT TO authe
 CREATE POLICY "auth_read_vehicles"    ON vehicles            FOR SELECT TO authenticated USING (true);
 CREATE POLICY "auth_read_bookings"    ON bookings            FOR SELECT TO authenticated USING (true);
 CREATE POLICY "auth_read_history"     ON vehicle_history     FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_read_corrections" ON mileage_corrections FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_read_corrections"  ON mileage_corrections FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_read_departments"  ON departments         FOR SELECT TO authenticated USING (true);
 
 -- เขียน/แก้ไขข้อมูล (ตรวจสอบสิทธิ์ใน app code)
 CREATE POLICY "auth_write_profiles"    ON profiles            FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -108,3 +119,16 @@ CREATE POLICY "auth_write_vehicles"    ON vehicles            FOR ALL TO authent
 CREATE POLICY "auth_write_bookings"    ON bookings            FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_write_history"     ON vehicle_history     FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_write_corrections" ON mileage_corrections FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_write_departments" ON departments         FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ─── Default Departments ─────────────────────────────────────────────
+INSERT INTO departments (name, sort_order) VALUES
+  ('แผนกบริการลูกค้า',          1),
+  ('แผนกวิศวกรรม',               2),
+  ('แผนกก่อสร้างและปฏิบัติการ', 3),
+  ('แผนกบัญชีและการเงิน',        4),
+  ('แผนกบริหารงานทั่วไป',        5),
+  ('แผนกมิเตอร์',                6),
+  ('แผนกมิเตอร์และหม้อแปลง',     7),
+  ('แผนกปฏิบัติการระบบไฟฟ้า',    8)
+ON CONFLICT (name) DO NOTHING;

@@ -1,10 +1,12 @@
 import React from 'react'
 import { I, fmtDate } from '../components'
-import { DEPARTMENTS } from '../data'
+import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
-function SettingsScreen({ currentUser, bookings, vehicles, onUpdateProfile, pushToast }) {
+function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast }) {
   const [tab, setTab] = React.useState("account");
+  const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
+  const isAdmin = currentUser.role === 'admin';
 
   return (
     <div>
@@ -17,17 +19,19 @@ function SettingsScreen({ currentUser, bookings, vehicles, onUpdateProfile, push
           <button className={"tab" + (tab === "account" ? " active" : "")} onClick={() => setTab("account")}>👤 บัญชี</button>
           <button className={"tab" + (tab === "noti" ? " active" : "")} onClick={() => setTab("noti")}>🔔 การแจ้งเตือน</button>
           <button className={"tab" + (tab === "calendar" ? " active" : "")} onClick={() => setTab("calendar")}>📅 Calendar Sync</button>
+          {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => setTab("depts")}>🏢 จัดการแผนก</button>}
         </div>
-        {tab === "account"  && <AccountSettings currentUser={currentUser} onUpdateProfile={onUpdateProfile} pushToast={pushToast}/>}
+        {tab === "account"  && <AccountSettings currentUser={currentUser} deptNames={deptNames} onUpdateProfile={onUpdateProfile} pushToast={pushToast}/>}
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
         {tab === "calendar" && <CalendarSync currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
+        {tab === "depts"    && isAdmin && <DeptManager departments={departments || []} pushToast={pushToast}/>}
       </div>
     </div>
   );
 }
 
 // ─── Account Settings ──────────────────────────────────────────────
-function AccountSettings({ currentUser, onUpdateProfile, pushToast }) {
+function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast }) {
   const [editing, setEditing] = React.useState(false);
   const [form, setForm] = React.useState({
     name: currentUser.name || '',
@@ -172,7 +176,7 @@ function AccountSettings({ currentUser, onUpdateProfile, pushToast }) {
           <div className="field">
             <label className="field-lbl">แผนก</label>
             <select className="input" value={form.dept} onChange={e => setForm({...form, dept: e.target.value})}>
-              {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+              {deptNames.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
           <div className="field">
@@ -646,6 +650,144 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Dept Manager (admin only) ─────────────────────────────────────
+function DeptManager({ departments, pushToast }) {
+  const [newName, setNewName] = React.useState('');
+  const [adding, setAdding] = React.useState(false);
+  const [editId, setEditId] = React.useState(null);
+  const [editName, setEditName] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  const sorted = [...departments].sort((a, b) => a.sort_order - b.sort_order);
+
+  async function addDept() {
+    const name = newName.trim();
+    if (!name) return;
+    setAdding(true);
+    const maxOrder = departments.reduce((m, d) => Math.max(m, d.sort_order || 0), 0);
+    const id = `dept-${Date.now()}`;
+    const { error } = await supabase.from('departments').insert({ id, name, sort_order: maxOrder + 1, active: true });
+    setAdding(false);
+    if (error) { pushToast({ type: 'error', msg: error.message.includes('unique') ? 'ชื่อแผนกนี้มีอยู่แล้ว' : error.message }); return; }
+    setNewName('');
+    pushToast({ type: 'ok', msg: `เพิ่มแผนก "${name}" เรียบร้อยแล้ว` });
+  }
+
+  async function saveEdit(dept) {
+    const name = editName.trim();
+    if (!name || name === dept.name) { setEditId(null); return; }
+    setSaving(true);
+    const { error } = await supabase.from('departments').update({ name }).eq('id', dept.id);
+    setSaving(false);
+    if (error) { pushToast({ type: 'error', msg: error.message.includes('unique') ? 'ชื่อแผนกนี้มีอยู่แล้ว' : error.message }); return; }
+    setEditId(null);
+    pushToast({ type: 'ok', msg: 'แก้ไขชื่อแผนกแล้ว' });
+  }
+
+  async function toggleActive(dept) {
+    await supabase.from('departments').update({ active: !dept.active }).eq('id', dept.id);
+    pushToast({ type: 'ok', msg: `${dept.active ? 'ซ่อน' : 'เปิดใช้'} แผนก "${dept.name}" แล้ว` });
+  }
+
+  async function moveOrder(dept, dir) {
+    const idx = sorted.findIndex(d => d.id === dept.id);
+    const swap = sorted[idx + dir];
+    if (!swap) return;
+    await Promise.all([
+      supabase.from('departments').update({ sort_order: swap.sort_order }).eq('id', dept.id),
+      supabase.from('departments').update({ sort_order: dept.sort_order }).eq('id', swap.id),
+    ]);
+  }
+
+  async function deleteDept(dept) {
+    if (!window.confirm(`ลบแผนก "${dept.name}" หรือไม่?\n(หากมีสมาชิกอยู่ในแผนกนี้ ข้อมูลสมาชิกจะไม่ถูกลบ)`)) return;
+    await supabase.from('departments').delete().eq('id', dept.id);
+    pushToast({ type: 'ok', msg: `ลบแผนก "${dept.name}" แล้ว` });
+  }
+
+  return (
+    <div>
+      <div style={{padding:'12px 14px', background:'var(--info-bg)', borderRadius:9, marginBottom:18, fontSize:13, color:'#1e4f88', lineHeight:1.6}}>
+        <b>🏢 จัดการแผนก</b><br/>
+        แผนกที่เปิดใช้งานจะแสดงในฟอร์มสมัครสมาชิกและแก้ไขโปรไฟล์ ซ่อนแผนกเพื่อไม่ให้เลือกใหม่ (ไม่ลบข้อมูลเดิม)
+      </div>
+
+      {/* Add new department */}
+      <div style={{display:'flex', gap:8, marginBottom:18}}>
+        <input className="input" value={newName} onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addDept()}
+          placeholder="ชื่อแผนกใหม่..." style={{flex:1}}/>
+        <button className="btn primary" onClick={addDept} disabled={adding || !newName.trim()}>
+          {adding ? 'กำลังเพิ่ม...' : '+ เพิ่มแผนก'}
+        </button>
+      </div>
+
+      {/* Department list */}
+      <div className="col gap-2">
+        {sorted.length === 0 && (
+          <div style={{textAlign:'center', padding:'28px 0', color:'var(--text-3)'}}>
+            <div style={{fontSize:32, marginBottom:8}}>🏢</div>
+            ยังไม่มีแผนก — เพิ่มแผนกแรกด้านบน
+          </div>
+        )}
+        {sorted.map((dept, idx) => (
+          <div key={dept.id} style={{
+            display:'flex', alignItems:'center', gap:10, padding:'12px 14px',
+            border: `1px solid ${dept.active ? 'var(--border)' : 'var(--border)'}`,
+            borderRadius:10, background: dept.active ? 'var(--surface)' : 'var(--surface-2)',
+            opacity: dept.active ? 1 : 0.6,
+          }}>
+            {/* Reorder buttons */}
+            <div className="col gap-1" style={{flexShrink:0}}>
+              <button className="btn ghost" style={{padding:'2px 6px', fontSize:11, minWidth:0}}
+                onClick={() => moveOrder(dept, -1)} disabled={idx === 0}>▲</button>
+              <button className="btn ghost" style={{padding:'2px 6px', fontSize:11, minWidth:0}}
+                onClick={() => moveOrder(dept, 1)} disabled={idx === sorted.length - 1}>▼</button>
+            </div>
+
+            {/* Name or edit input */}
+            <div style={{flex:1, minWidth:0}}>
+              {editId === dept.id ? (
+                <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                  <input className="input" value={editName} autoFocus
+                    onChange={e => setEditName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(dept); if (e.key === 'Escape') setEditId(null); }}
+                    style={{flex:1, padding:'6px 10px'}}/>
+                  <button className="btn sm primary" onClick={() => saveEdit(dept)} disabled={saving}>บันทึก</button>
+                  <button className="btn sm ghost" onClick={() => setEditId(null)}>ยกเลิก</button>
+                </div>
+              ) : (
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <span style={{fontWeight:500, fontSize:14}}>{dept.name}</span>
+                  {!dept.active && <span className="pill" style={{fontSize:11}}>ซ่อน</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            {editId !== dept.id && (
+              <div style={{display:'flex', gap:6, flexShrink:0}}>
+                <button className="btn sm ghost" title="แก้ไขชื่อ"
+                  onClick={() => { setEditId(dept.id); setEditName(dept.name); }}>✏️</button>
+                <button className="btn sm ghost" title={dept.active ? 'ซ่อนแผนก' : 'เปิดใช้แผนก'}
+                  onClick={() => toggleActive(dept)}>
+                  {dept.active ? '🙈 ซ่อน' : '👁️ แสดง'}
+                </button>
+                <button className="btn sm danger" title="ลบแผนก"
+                  onClick={() => deleteDept(dept)}>🗑️</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="text-xs muted" style={{marginTop:12, lineHeight:1.6}}>
+        {sorted.length} แผนก · {departments.filter(d => d.active).length} เปิดใช้งาน · {departments.filter(d => !d.active).length} ซ่อน
+      </div>
     </div>
   );
 }
