@@ -424,24 +424,116 @@ function NotificationSettings({ pushToast }) {
 
 // ─── Calendar Sync ──────────────────────────────────────────────────
 function CalendarSync({ currentUser, bookings, vehicles }) {
-  const [providers, setProviders] = React.useState({
-    google:  { connected: false, email: '', lastSync: null, calendar: '' },
-    outlook: { connected: false, email: '', lastSync: null },
-    apple:   { connected: false, email: '', lastSync: null },
-  });
-  const [autoSync, setAutoSync] = React.useState(true);
-  const [syncFilters, setSyncFilters] = React.useState({ myBookings: true, teamBookings: false, approvedOnly: true });
-  const [showSubscribeUrl, setShowSubscribeUrl] = React.useState(false);
+  const [modal, setModal] = React.useState(null); // 'google' | 'outlook' | null
+  const [showUrl, setShowUrl] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
 
-  const myBookings = bookings.filter(b => b.userId === currentUser.id);
-  const subscribeUrl = `webcal://pea-fang-vehicle-booking-system.vercel.app/api/calendar/${currentUser.id}.ics`;
+  const myBookings = React.useMemo(() =>
+    bookings.filter(b => b.userId === currentUser.id && b.from && b.to)
+      .sort((a, b) => new Date(a.from) - new Date(b.from)),
+    [bookings, currentUser.id]
+  );
+  const upcomingBookings = myBookings.filter(b => new Date(b.to) >= new Date());
 
-  function toggleProvider(key) {
-    setProviders({...providers, [key]: providers[key].connected
-      ? { connected: false, email: '', lastSync: null }
-      : { connected: true, email: currentUser.email || `${currentUser.emp}@pea.co.th`, lastSync: 'เมื่อกี้', calendar: 'PEA FANG จองรถ' }
-    });
+  function fmtIcsDt(dt) {
+    return new Date(dt).toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
   }
+  function esc(str) {
+    return (str || '').replace(/\\/g, '\\\\').replace(/[,;]/g, s => '\\' + s).replace(/\n/g, '\\n');
+  }
+  function statusTH(s) {
+    return { booked:'จองแล้ว', approved:'อนุมัติ', rejected:'ไม่อนุมัติ', cancelled:'ยกเลิก', checkin:'รับรถแล้ว', checkout:'คืนรถแล้ว' }[s] || s;
+  }
+
+  function buildICS() {
+    const lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'PRODID:-//PEA FANG//Vehicle Booking System//TH',
+      'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+      'X-WR-CALNAME:PEA FANG การจองรถ',
+    ];
+    for (const b of myBookings) {
+      const v = vehicles.find(v => v.id === b.vehicleId);
+      const summary = `จองรถ ${v?.plate || ''} · ${b.purpose || ''}`.trim();
+      const desc = `วัตถุประสงค์: ${b.purpose || ''}\nปลายทาง: ${b.destination || ''}\nสถานะ: ${statusTH(b.status)}`;
+      lines.push(
+        'BEGIN:VEVENT',
+        `UID:pea-${b.id}@pea-fang.local`,
+        `DTSTART:${fmtIcsDt(b.from)}`,
+        `DTEND:${fmtIcsDt(b.to)}`,
+        `DTSTAMP:${fmtIcsDt(b.createdAt || new Date())}`,
+        `SUMMARY:${esc(summary)}`,
+        `DESCRIPTION:${esc(desc)}`,
+        `LOCATION:${esc(b.destination || '')}`,
+        `STATUS:${b.status === 'approved' ? 'CONFIRMED' : b.status === 'rejected' ? 'CANCELLED' : 'TENTATIVE'}`,
+        'END:VEVENT',
+      );
+    }
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+  }
+
+  function downloadICS() {
+    const blob = new Blob([buildICS()], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `pea-fang-${currentUser.emp}.ics`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printSchedule() {
+    const rows = myBookings.map(b => {
+      const v = vehicles.find(v => v.id === b.vehicleId);
+      return `<tr>
+        <td>${new Date(b.from).toLocaleString('th-TH')}</td>
+        <td>${new Date(b.to).toLocaleString('th-TH')}</td>
+        <td>${v?.plate || '-'} ${v?.brand || ''}</td>
+        <td>${b.purpose || '-'}</td>
+        <td>${b.destination || '-'}</td>
+        <td>${statusTH(b.status)}</td>
+      </tr>`;
+    }).join('');
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">
+<title>ตารางการจองรถ - ${currentUser.name}</title>
+<style>
+  body{font-family:Sarabun,sans-serif;font-size:12px;margin:24px}
+  h2{margin:0 0 4px;color:#4b2d8c} p{margin:0 0 16px;color:#666}
+  table{width:100%;border-collapse:collapse}
+  th{background:#4b2d8c;color:#fff;padding:7px 10px;text-align:left}
+  td{border:1px solid #ddd;padding:6px 10px}
+  tr:nth-child(even)td{background:#f9f7ff}
+</style></head><body>
+<h2>ตารางการจองรถ</h2>
+<p>${currentUser.name} · ${currentUser.dept} · พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}</p>
+<table><thead><tr><th>เริ่ม</th><th>สิ้นสุด</th><th>รถ</th><th>วัตถุประสงค์</th><th>ปลายทาง</th><th>สถานะ</th></tr></thead>
+<tbody>${rows}</tbody></table></body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  }
+
+  function googleUrl(b) {
+    const v = vehicles.find(v => v.id === b.vehicleId);
+    const text = encodeURIComponent(`จองรถ ${v?.plate || ''} · ${b.purpose || ''}`);
+    const s = fmtIcsDt(b.from); const e = fmtIcsDt(b.to);
+    const details = encodeURIComponent(`วัตถุประสงค์: ${b.purpose || ''}\nปลายทาง: ${b.destination || ''}`);
+    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${s}/${e}&details=${details}&location=${encodeURIComponent(b.destination || '')}`;
+  }
+
+  function outlookUrl(b) {
+    const v = vehicles.find(v => v.id === b.vehicleId);
+    const subj = encodeURIComponent(`จองรถ ${v?.plate || ''} · ${b.purpose || ''}`);
+    const s = new Date(b.from).toISOString().slice(0,19);
+    const e = new Date(b.to).toISOString().slice(0,19);
+    const body = encodeURIComponent(`วัตถุประสงค์: ${b.purpose || ''}\nปลายทาง: ${b.destination || ''}`);
+    return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${subj}&startdt=${s}&enddt=${e}&body=${body}&location=${encodeURIComponent(b.destination || '')}&allday=false`;
+  }
+
+  const PROVIDERS = [
+    { key:'google',  name:'Google Calendar',  icon:'🗓️', desc:'เพิ่มนัดหมายใน Google Calendar', action:() => setModal('google') },
+    { key:'outlook', name:'Microsoft Outlook', icon:'📧', desc:'เพิ่มนัดหมายใน Outlook Calendar', action:() => setModal('outlook') },
+    { key:'apple',   name:'Apple Calendar',    icon:'🍎', desc:'ดาวน์โหลด .ics นำเข้า Calendar บน Mac/iPhone', action:downloadICS },
+  ];
 
   return (
     <div>
@@ -452,69 +544,108 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
         <div style={{flex:1}}>
           <b style={{fontSize:13.5}}>ซิงค์การจองรถไปยังปฏิทินส่วนตัวของคุณ</b>
           <div className="text-sm" style={{color:'var(--text-2)', lineHeight:1.5}}>
-            เมื่อเชื่อมต่อแล้ว การจองที่ได้รับการอนุมัติจะปรากฏในปฏิทินส่วนตัวอัตโนมัติ
+            เพิ่มการจองเข้าปฏิทิน Google, Outlook หรือดาวน์โหลด .ics สำหรับ Apple Calendar
           </div>
         </div>
         <div style={{textAlign:'right'}}>
-          <div style={{fontSize:11, color:'var(--text-3)'}}>การจองในปฏิทิน</div>
+          <div style={{fontSize:11, color:'var(--text-3)'}}>การจองทั้งหมด</div>
           <div style={{fontSize:22, fontWeight:700, color:'var(--pea-purple)'}}>{myBookings.length}</div>
         </div>
       </div>
 
       <div style={{fontSize:12.5, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>
-        ปฏิทินที่เชื่อมต่อ
+        เพิ่มในปฏิทิน
       </div>
       <div className="col gap-2" style={{marginBottom:22}}>
-        {[
-          { key: 'google', name: 'Google Calendar', icon: '🗓️' },
-          { key: 'outlook', name: 'Microsoft Outlook', icon: '📧' },
-          { key: 'apple', name: 'Apple Calendar', icon: '🍎' },
-        ].map(({ key, name, icon }) => (
-          <div key={key} style={{
-            display:'flex', alignItems:'center', gap:14, padding:'14px 16px',
-            border: providers[key].connected ? '1.5px solid var(--ok)' : '1px solid var(--border)',
-            borderRadius:10,
-            background: providers[key].connected ? 'var(--ok-bg)' : 'var(--surface)',
-          }}>
+        {PROVIDERS.map(({ key, name, icon, desc, action }) => (
+          <div key={key} style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px', border:'1px solid var(--border)', borderRadius:10, background:'var(--surface)'}}>
             <div style={{width:42, height:42, borderRadius:10, background:'white', border:'1px solid var(--border)', display:'grid', placeItems:'center', fontSize:22}}>{icon}</div>
             <div style={{flex:1, minWidth:0}}>
-              <div style={{display:'flex', alignItems:'center', gap:8}}>
-                <b style={{fontSize:14}}>{name}</b>
-                {providers[key].connected && <span className="pill done"><span className="dot"></span>เชื่อมต่อแล้ว</span>}
-              </div>
-              <div className="text-xs muted" style={{marginTop:2}}>
-                {providers[key].connected ? `${providers[key].email} · ซิงค์ล่าสุด ${providers[key].lastSync}` : `ส่งการจองไปแสดงใน ${name} อัตโนมัติ`}
-              </div>
+              <b style={{fontSize:14}}>{name}</b>
+              <div className="text-xs muted" style={{marginTop:2}}>{desc}</div>
             </div>
-            <button className={"btn sm " + (providers[key].connected ? "danger" : "primary")} onClick={() => toggleProvider(key)}>
-              {providers[key].connected ? <>{I.x} ยกเลิก</> : <>{I.plus} เชื่อมต่อ</>}
+            <button className="btn sm primary" onClick={action}>
+              {key === 'apple' ? <>{I.download} นำเข้า</> : <>{I.plus} เพิ่มนัด</>}
             </button>
           </div>
         ))}
       </div>
 
       <div style={{fontSize:12.5, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>
-        ส่งออก / Subscribe URL
+        ส่งออก / Subscribe
       </div>
       <div className="card card-pad" style={{padding:'16px'}}>
-        <div style={{display:'flex', gap:10, marginBottom:14, flexWrap:'wrap'}}>
-          <button className="btn ghost">{I.download} ดาวน์โหลด .ics</button>
-          <button className="btn ghost">{I.print} พิมพ์ตารางการจอง</button>
-          <button className="btn" onClick={() => setShowSubscribeUrl(!showSubscribeUrl)}>
-            {I.qr} {showSubscribeUrl ? 'ซ่อน' : 'แสดง'} Subscribe URL
+        <div style={{display:'flex', gap:10, marginBottom:showUrl ? 14 : 0, flexWrap:'wrap'}}>
+          <button className="btn ghost" onClick={downloadICS}>{I.download} ดาวน์โหลด .ics</button>
+          <button className="btn ghost" onClick={printSchedule}>{I.print} พิมพ์ตารางการจอง</button>
+          <button className="btn" onClick={() => setShowUrl(!showUrl)}>
+            {I.qr} {showUrl ? 'ซ่อน' : 'แสดง'} Subscribe URL
           </button>
         </div>
-        {showSubscribeUrl && (
+        {showUrl && (
           <div>
-            <div className="text-xs muted" style={{marginBottom:6}}>คัดลอก URL นี้ Subscribe ในปฏิทินที่ใช้ (รองรับ webcal:// และ ICS)</div>
-            <div style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:8, fontFamily:'var(--font-mono)', fontSize:11.5}}>
-              <code style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{subscribeUrl}</code>
-              <button className="btn sm primary" onClick={() => navigator.clipboard?.writeText(subscribeUrl)}>คัดลอก</button>
+            <div className="text-xs muted" style={{marginBottom:6}}>คัดลอก URL นี้เพื่อ Subscribe ในแอปปฏิทินที่รองรับ webcal://</div>
+            <div style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:8, fontFamily:'var(--font-mono)', fontSize:11}}>
+              <code style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                webcal://pea-fang-vehicle-booking.vercel.app/api/calendar/{currentUser.id}.ics
+              </code>
+              <button className="btn sm primary" onClick={() => {
+                navigator.clipboard?.writeText(`webcal://pea-fang-vehicle-booking.vercel.app/api/calendar/${currentUser.id}.ics`);
+                setCopied(true); setTimeout(() => setCopied(false), 2000);
+              }}>{copied ? '✓ คัดลอกแล้ว' : 'คัดลอก'}</button>
             </div>
             <div className="text-xs" style={{color:'var(--warn)', marginTop:6}}>{I.warn} URL ส่วนตัว — ห้ามแชร์กับผู้อื่น</div>
           </div>
         )}
       </div>
+
+      {/* Modal: Google / Outlook per-event links */}
+      {modal && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal" style={{width:520}} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{modal === 'google' ? '🗓️ เพิ่มใน Google Calendar' : '📧 เพิ่มใน Microsoft Outlook'}</h2>
+              <button className="btn ghost sm" onClick={() => setModal(null)}>{I.x}</button>
+            </div>
+            <div className="modal-body">
+              {upcomingBookings.length === 0 ? (
+                <div style={{textAlign:'center', padding:'28px 0', color:'var(--text-3)'}}>
+                  <div style={{fontSize:36, marginBottom:10}}>📅</div>
+                  <div>ไม่มีการจองที่กำลังจะมาถึง</div>
+                  <div className="text-xs muted" style={{marginTop:4}}>ดาวน์โหลด .ics เพื่อนำเข้าการจองที่ผ่านมา</div>
+                </div>
+              ) : (
+                <div className="col gap-2">
+                  <div className="text-xs muted" style={{marginBottom:6}}>คลิก "เปิด" เพื่อเพิ่มนัดหมายในปฏิทินทีละรายการ</div>
+                  {upcomingBookings.map(b => {
+                    const v = vehicles.find(v => v.id === b.vehicleId);
+                    const url = modal === 'google' ? googleUrl(b) : outlookUrl(b);
+                    return (
+                      <div key={b.id} style={{display:'flex', alignItems:'center', gap:12, padding:'10px 12px', border:'1px solid var(--border)', borderRadius:9, background:'var(--surface-2)'}}>
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{fontWeight:600, fontSize:13}}>{v?.plate || '-'} · {b.purpose || '-'}</div>
+                          <div className="text-xs muted">
+                            {new Date(b.from).toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'})} →{' '}
+                            {new Date(b.to).toLocaleString('th-TH', {timeStyle:'short'})}
+                          </div>
+                          {b.destination && <div className="text-xs muted">📍 {b.destination}</div>}
+                        </div>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="btn sm primary" style={{flexShrink:0}}>
+                          เปิด ↗
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={downloadICS}>{I.download} ดาวน์โหลด .ics (นำเข้าทั้งหมด)</button>
+              <button className="btn ghost" onClick={() => setModal(null)}>ปิด</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

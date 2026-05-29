@@ -11,22 +11,16 @@ function AuthScreen({ onLogin, registered, onRegister }) {
   const [loading, setLoading] = React.useState(false);
   const [forgotEmail, setForgotEmail] = React.useState("");
 
+  const [mfaFactorId, setMfaFactorId] = React.useState('');
+  const [mfaChallengeId, setMfaChallengeId] = React.useState('');
+  const [mfaCode, setMfaCode] = React.useState('');
+  const [mfaErr, setMfaErr] = React.useState('');
+
   const [reg, setReg] = React.useState({
     name: "", emp: "", dept: DEPARTMENTS[0], email: "", phone: "", password: "", confirm: "",
   });
 
-  async function doLogin() {
-    setErr("");
-    if (!empId.trim() || !password.trim()) { setErr("กรุณากรอกรหัสพนักงานและรหัสผ่าน"); return; }
-    setLoading(true);
-    const email = `${empId.trim()}@pea-fang.local`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setErr("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
-      setLoading(false);
-      return;
-    }
-    // Load profile
+  async function finishLogin() {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     setLoading(false);
@@ -41,6 +35,49 @@ function AuthScreen({ onLogin, registered, onRegister }) {
       return;
     }
     onLogin(profile);
+  }
+
+  async function doLogin() {
+    setErr("");
+    if (!empId.trim() || !password.trim()) { setErr("กรุณากรอกรหัสพนักงานและรหัสผ่าน"); return; }
+    setLoading(true);
+    const email = `${empId.trim()}@pea-fang.local`;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setErr("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+      setLoading(false);
+      return;
+    }
+    // Check if 2FA is required
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totp = factors?.totp?.find(f => f.status === 'verified');
+      if (totp) {
+        const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: totp.id });
+        setMfaFactorId(totp.id);
+        setMfaChallengeId(challenge.id);
+        setMfaCode('');
+        setMfaErr('');
+        setLoading(false);
+        setMode("mfa");
+        return;
+      }
+    }
+    await finishLogin();
+  }
+
+  async function doVerifyMfa() {
+    setMfaErr('');
+    if (!mfaCode.trim()) { setMfaErr('กรุณากรอกรหัส OTP'); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code: mfaCode.trim() });
+    if (error) {
+      setMfaErr('รหัสไม่ถูกต้อง หรือหมดอายุแล้ว กรุณาลองใหม่');
+      setLoading(false);
+      return;
+    }
+    await finishLogin();
   }
 
   async function doRegister() {
@@ -257,6 +294,40 @@ function AuthScreen({ onLogin, registered, onRegister }) {
               </button>
               <div style={{textAlign:'center', marginTop:14, fontSize:13, color:'var(--text-2)'}}>
                 ไม่ได้รับอีเมล? <a style={{color:'var(--pea-purple)', fontWeight:600, cursor:'pointer'}} onClick={() => setMode("forgot")}>ส่งใหม่อีกครั้ง</a>
+              </div>
+            </>
+          )}
+
+          {mode === "mfa" && (
+            <>
+              <div style={{display:'inline-flex', alignItems:'center', gap:6, color:'var(--text-3)', fontSize:13, cursor:'pointer', marginBottom:14}}
+                onClick={async () => { await supabase.auth.signOut(); setMode("login"); setMfaCode(''); }}>
+                {I.arrowLeft} กลับ
+              </div>
+              <div style={{width:52, height:52, borderRadius:14, background:'linear-gradient(135deg, var(--pea-purple), var(--pea-purple-deep))', display:'grid', placeItems:'center', marginBottom:16}}>
+                <span style={{fontSize:26}}>🛡️</span>
+              </div>
+              <h2 style={{fontSize:24, fontWeight:700, margin:'0 0 4px', letterSpacing:'-0.01em'}}>ยืนยันตัวตน 2 ชั้น</h2>
+              <p className="muted" style={{margin:'0 0 26px', fontSize:13.5, lineHeight:1.6}}>
+                กรอกรหัส 6 หลักจากแอป Authenticator<br/>
+                <span style={{fontSize:12}}>(Google Authenticator, Microsoft Authenticator, Authy)</span>
+              </p>
+              <div className="col gap-3">
+                <div className="field">
+                  <label className="field-lbl">รหัส OTP (6 หลัก)</label>
+                  <input className="input" value={mfaCode} autoFocus
+                    onChange={e => setMfaCode(e.target.value.replace(/\D/g,'').slice(0,6))}
+                    onKeyDown={e => e.key === 'Enter' && mfaCode.length === 6 && doVerifyMfa()}
+                    placeholder="000000" maxLength={6}
+                    style={{letterSpacing:8, fontSize:26, textAlign:'center', fontWeight:700, padding:'14px 16px'}}/>
+                </div>
+                {mfaErr && <div className="input-err">{mfaErr}</div>}
+                <button className="btn primary lg" onClick={doVerifyMfa} disabled={loading || mfaCode.length < 6} style={{marginTop:4}}>
+                  {loading ? 'กำลังตรวจสอบ...' : '🛡️ ยืนยัน'}
+                </button>
+                <div style={{padding:'12px 14px', background:'var(--info-bg)', borderRadius:9, fontSize:12.5, color:'#1e4f88', lineHeight:1.6}}>
+                  รหัสจะเปลี่ยนทุก 30 วินาที — ถ้ากรอกผิดให้รอรหัสใหม่แล้วลองอีกครั้ง
+                </div>
               </div>
             </>
           )}
