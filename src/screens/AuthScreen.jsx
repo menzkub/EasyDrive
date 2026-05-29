@@ -145,7 +145,18 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
     <div className="auth-wrap">
       <div className="auth-side" style={{paddingBottom:136}}>
         <div style={{display:'flex', alignItems:'center', gap:14, position:'relative', zIndex:2}}>
-          <div className="brand-logo" style={{width:54, height:54, fontSize:14, background:'var(--pea-orange)'}}>ED</div>
+          <div className="brand-logo" style={{width:54, height:54, background:'var(--pea-orange)'}}>
+            <svg width="34" height="34" viewBox="0 0 32 32" fill="none">
+              <rect x="3" y="17" width="26" height="7" rx="3" fill="white"/>
+              <path d="M9 17 Q9.5 9.5 16 9.5 Q22.5 9.5 23 17 Z" fill="white"/>
+              <path d="M11.5 17 Q12 12 16 12 Q20 12 20.5 17 Z" fill="rgba(243,112,33,0.5)"/>
+              <circle cx="9" cy="25" r="4.5" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.8"/>
+              <circle cx="9" cy="25" r="1.8" fill="white"/>
+              <circle cx="23" cy="25" r="4.5" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.8"/>
+              <circle cx="23" cy="25" r="1.8" fill="white"/>
+              <rect x="26.5" y="19" width="4.5" height="2.5" rx="1.2" fill="rgba(255,224,80,0.95)"/>
+            </svg>
+          </div>
           <div>
             <div style={{fontWeight:700, fontSize:18, letterSpacing:'0.04em'}}>EasyDrive</div>
             <div style={{opacity:0.75, fontSize:13}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
@@ -244,7 +255,18 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
           <div style={{position:'absolute', width:150, height:150, borderRadius:'50%', background:'rgba(250,166,26,0.14)', bottom:-70, left:-40, pointerEvents:'none'}}/>
           <div style={{position:'relative', zIndex:1}}>
             <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:14}}>
-              <div style={{width:42, height:42, borderRadius:11, background:'var(--pea-orange)', display:'grid', placeItems:'center', color:'white', fontWeight:700, fontSize:12, flexShrink:0, boxShadow:'0 4px 12px rgba(243,112,33,0.5)'}}>PEA</div>
+              <div style={{width:42, height:42, borderRadius:11, background:'var(--pea-orange)', display:'grid', placeItems:'center', flexShrink:0, boxShadow:'0 4px 12px rgba(243,112,33,0.5)'}}>
+                <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+                  <rect x="3" y="17" width="26" height="7" rx="3" fill="white"/>
+                  <path d="M9 17 Q9.5 9.5 16 9.5 Q22.5 9.5 23 17 Z" fill="white"/>
+                  <path d="M11.5 17 Q12 12 16 12 Q20 12 20.5 17 Z" fill="rgba(243,112,33,0.5)"/>
+                  <circle cx="9" cy="25" r="4.5" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.8"/>
+                  <circle cx="9" cy="25" r="1.8" fill="white"/>
+                  <circle cx="23" cy="25" r="4.5" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.8"/>
+                  <circle cx="23" cy="25" r="1.8" fill="white"/>
+                  <rect x="26.5" y="19" width="4.5" height="2.5" rx="1.2" fill="rgba(255,224,80,0.95)"/>
+                </svg>
+              </div>
               <div>
                 <div style={{fontWeight:700, fontSize:15, letterSpacing:'0.04em'}}>EasyDrive</div>
                 <div style={{fontSize:11.5, opacity:0.8}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
