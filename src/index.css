@@ -207,9 +207,11 @@
 [data-dark="1"] .modal-foot { background: var(--surface-2); }
 [data-dark="1"] .cal-cell.weekend { background: var(--surface-2); }
 [data-dark="1"] .cal-cell.today .date-num { background: var(--pea-purple); }
-[data-dark="1"] .input, [data-dark="1"] .select, [data-dark="1"] .textarea { background: var(--surface-2); color: var(--text); }
+[data-dark="1"] .input, [data-dark="1"] .select, [data-dark="1"] .textarea { background-color: var(--surface-2); color: var(--text); }
 [data-dark="1"] .select {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%237A6E96' d='M0 0h12L6 8z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
 [data-dark="1"] .auth-form { background: var(--surface); }
 

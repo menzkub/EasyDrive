@@ -128,9 +128,10 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
   async function startEnroll2FA() {
     setMfaErr('');
     setMfaLoading(true);
-    // unenroll any leftover unverified factors to avoid "already exists" error
+    // unenroll ALL existing TOTP factors (both verified and unverified with this name)
     const { data: existing } = await supabase.auth.mfa.listFactors();
-    for (const f of (existing?.totp || []).filter(f => f.status === 'unverified')) {
+    const allTotp = existing?.totp || existing?.all?.filter(f => f.factor_type === 'totp') || [];
+    for (const f of allTotp) {
       await supabase.auth.mfa.unenroll({ factorId: f.id });
     }
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'EasyDrive Authenticator' });
