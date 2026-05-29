@@ -1,5 +1,5 @@
 import React from 'react'
-import { I, fmtDate } from '../components'
+import { I, fmtDate, ConfirmDialog } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
@@ -663,6 +663,7 @@ function DeptManager({ departments, pushToast }) {
   const [editId, setEditId] = React.useState(null);
   const [editName, setEditName] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [deletingDept, setDeletingDept] = React.useState(null);
 
   const sorted = [...departments].sort((a, b) => a.sort_order - b.sort_order);
 
@@ -674,9 +675,9 @@ function DeptManager({ departments, pushToast }) {
     const id = `dept-${Date.now()}`;
     const { error } = await supabase.from('departments').insert({ id, name, sort_order: maxOrder + 1, active: true });
     setAdding(false);
-    if (error) { pushToast({ type: 'error', msg: error.message.includes('unique') ? 'ชื่อแผนกนี้มีอยู่แล้ว' : error.message }); return; }
+    if (error) { pushToast({ kind: 'danger', title: error.message.includes('unique') ? 'ชื่อแผนกนี้มีอยู่แล้ว' : error.message }); return; }
     setNewName('');
-    pushToast({ type: 'ok', msg: `เพิ่มแผนก "${name}" เรียบร้อยแล้ว` });
+    pushToast({ kind: 'ok', title: `เพิ่มแผนก "${name}" เรียบร้อยแล้ว` });
   }
 
   async function saveEdit(dept) {
@@ -685,14 +686,14 @@ function DeptManager({ departments, pushToast }) {
     setSaving(true);
     const { error } = await supabase.from('departments').update({ name }).eq('id', dept.id);
     setSaving(false);
-    if (error) { pushToast({ type: 'error', msg: error.message.includes('unique') ? 'ชื่อแผนกนี้มีอยู่แล้ว' : error.message }); return; }
+    if (error) { pushToast({ kind: 'danger', title: error.message.includes('unique') ? 'ชื่อแผนกนี้มีอยู่แล้ว' : error.message }); return; }
     setEditId(null);
-    pushToast({ type: 'ok', msg: 'แก้ไขชื่อแผนกแล้ว' });
+    pushToast({ kind: 'ok', title: 'แก้ไขชื่อแผนกแล้ว' });
   }
 
   async function toggleActive(dept) {
     await supabase.from('departments').update({ active: !dept.active }).eq('id', dept.id);
-    pushToast({ type: 'ok', msg: `${dept.active ? 'ซ่อน' : 'เปิดใช้'} แผนก "${dept.name}" แล้ว` });
+    pushToast({ kind: 'ok', title: `${dept.active ? 'ซ่อน' : 'เปิดใช้'} แผนก "${dept.name}" แล้ว` });
   }
 
   async function moveOrder(dept, dir) {
@@ -705,10 +706,9 @@ function DeptManager({ departments, pushToast }) {
     ]);
   }
 
-  async function deleteDept(dept) {
-    if (!window.confirm(`ลบแผนก "${dept.name}" หรือไม่?\n(หากมีสมาชิกอยู่ในแผนกนี้ ข้อมูลสมาชิกจะไม่ถูกลบ)`)) return;
+  async function doDeleteDept(dept) {
     await supabase.from('departments').delete().eq('id', dept.id);
-    pushToast({ type: 'ok', msg: `ลบแผนก "${dept.name}" แล้ว` });
+    pushToast({ kind: 'ok', title: `ลบแผนก "${dept.name}" แล้ว` });
   }
 
   return (
@@ -780,7 +780,7 @@ function DeptManager({ departments, pushToast }) {
                   {dept.active ? '🙈 ซ่อน' : '👁️ แสดง'}
                 </button>
                 <button className="btn sm danger" title="ลบแผนก"
-                  onClick={() => deleteDept(dept)}>🗑️</button>
+                  onClick={() => setDeletingDept(dept)}>🗑️</button>
               </div>
             )}
           </div>
@@ -790,6 +790,19 @@ function DeptManager({ departments, pushToast }) {
       <div className="text-xs muted" style={{marginTop:12, lineHeight:1.6}}>
         {sorted.length} แผนก · {departments.filter(d => d.active).length} เปิดใช้งาน · {departments.filter(d => !d.active).length} ซ่อน
       </div>
+
+      {deletingDept && (
+        <ConfirmDialog
+          confirm={{
+            kind: "negative",
+            title: `ลบแผนก "${deletingDept.name}"?`,
+            message: "หากมีสมาชิกอยู่ในแผนกนี้ ข้อมูลสมาชิกจะไม่ถูกลบ — แต่แผนกจะหายออกจากรายการ",
+            confirmLabel: "ลบแผนก",
+            onConfirm: () => doDeleteDept(deletingDept),
+          }}
+          onClose={() => setDeletingDept(null)}
+        />
+      )}
     </div>
   );
 }

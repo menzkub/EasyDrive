@@ -71,8 +71,8 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
         <StatBox lbl="บำรุงรักษา" val={counts.maintenance} foot="นำเข้าศูนย์" ico={I.wrench} variant="warn"/>
       </div>
 
-      <div className="grid-3" style={{gridTemplateColumns:'2fr 1fr', gap:18, alignItems:'start', marginBottom:18}}>
-        <div className="card card-pad">
+      <div className="grid-3 dash-main-grid" style={{gridTemplateColumns:'2fr 1fr', gap:18, alignItems:'start', marginBottom:18}}>
+        <div className="card card-pad dash-timeline-card">
           <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:14}}>
             <h2 className="mt-0" style={{margin:0}}>ไทม์ไลน์การใช้รถวันนี้</h2>
             <div className="muted text-xs" style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:6}}>
@@ -109,7 +109,7 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
           </div>
           <div style={{display:'flex', alignItems:'center', gap:10, marginLeft:'auto'}}>
             <div style={{position:'relative'}}>
-              <input className="input" placeholder="ค้นหาทะเบียน/ยี่ห้อ..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:230, fontSize:13}}/>
+              <input className="input" placeholder="ค้นหาทะเบียน/ยี่ห้อ..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:'min(230px, 100%)', fontSize:13}}/>
               <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)'}}>{I.search}</div>
             </div>
           </div>
