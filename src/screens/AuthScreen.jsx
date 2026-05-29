@@ -11,6 +11,10 @@ function AuthScreen({ onLogin, registered, onRegister }) {
   const [loading, setLoading] = React.useState(false);
   const [forgotEmail, setForgotEmail] = React.useState("");
 
+  const [showPw, setShowPw] = React.useState(false);
+  const [showRegPw, setShowRegPw] = React.useState(false);
+  const [showRegConfirm, setShowRegConfirm] = React.useState(false);
+
   const [mfaFactorId, setMfaFactorId] = React.useState('');
   const [mfaChallengeId, setMfaChallengeId] = React.useState('');
   const [mfaCode, setMfaCode] = React.useState('');
@@ -185,8 +189,16 @@ function AuthScreen({ onLogin, registered, onRegister }) {
                       ลืมรหัสผ่าน?
                     </a>
                   </div>
-                  <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && doLogin()}/>
+                  <div style={{position:'relative'}}>
+                    <input className="input" type={showPw ? "text" : "password"} value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && doLogin()}
+                      style={{paddingRight:42}}/>
+                    <button type="button" onClick={() => setShowPw(!showPw)}
+                      style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', fontSize:16, padding:4, lineHeight:1}}>
+                      {showPw ? '🙈' : '👁️'}
+                    </button>
+                  </div>
                 </div>
                 {err && <div className="input-err">{err}</div>}
                 <button className="btn primary lg" onClick={doLogin} disabled={loading} style={{marginTop:8}}>
@@ -233,11 +245,25 @@ function AuthScreen({ onLogin, registered, onRegister }) {
                 <div className="grid-2">
                   <div className="field">
                     <label className="field-lbl">รหัสผ่าน <span className="req">*</span></label>
-                    <input className="input" type="password" value={reg.password} onChange={(e) => setReg({...reg, password:e.target.value})}/>
+                    <div style={{position:'relative'}}>
+                      <input className="input" type={showRegPw ? "text" : "password"} value={reg.password}
+                        onChange={(e) => setReg({...reg, password:e.target.value})} style={{paddingRight:42}}/>
+                      <button type="button" onClick={() => setShowRegPw(!showRegPw)}
+                        style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', fontSize:16, padding:4, lineHeight:1}}>
+                        {showRegPw ? '🙈' : '👁️'}
+                      </button>
+                    </div>
                   </div>
                   <div className="field">
                     <label className="field-lbl">ยืนยันรหัสผ่าน <span className="req">*</span></label>
-                    <input className="input" type="password" value={reg.confirm} onChange={(e) => setReg({...reg, confirm:e.target.value})}/>
+                    <div style={{position:'relative'}}>
+                      <input className="input" type={showRegConfirm ? "text" : "password"} value={reg.confirm}
+                        onChange={(e) => setReg({...reg, confirm:e.target.value})} style={{paddingRight:42}}/>
+                      <button type="button" onClick={() => setShowRegConfirm(!showRegConfirm)}
+                        style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', fontSize:16, padding:4, lineHeight:1}}>
+                        {showRegConfirm ? '🙈' : '👁️'}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 {err && <div className="input-err">{err}</div>}
