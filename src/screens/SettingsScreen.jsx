@@ -593,10 +593,10 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
             <div className="text-xs muted" style={{marginBottom:6}}>คัดลอก URL นี้เพื่อ Subscribe ในแอปปฏิทินที่รองรับ webcal://</div>
             <div style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:8, fontFamily:'var(--font-mono)', fontSize:11}}>
               <code style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
-                webcal://easydrive.vercel.app/api/calendar/{currentUser.id}.ics
+                webcal://easydrive-fang.vercel.app/api/calendar/{currentUser.id}.ics
               </code>
               <button className="btn sm primary" onClick={() => {
-                navigator.clipboard?.writeText(`webcal://easydrive.vercel.app/api/calendar/${currentUser.id}.ics`);
+                navigator.clipboard?.writeText(`webcal://easydrive-fang.vercel.app/api/calendar/${currentUser.id}.ics`);
                 setCopied(true); setTimeout(() => setCopied(false), 2000);
               }}>{copied ? '✓ คัดลอกแล้ว' : 'คัดลอก'}</button>
             </div>
