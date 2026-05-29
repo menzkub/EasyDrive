@@ -269,7 +269,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
                 <div className="field">
                   <label className="field-lbl">รหัสพนักงาน <span className="req">*</span></label>
                   <input className="input" value={empId} onChange={(e) => setEmpId(e.target.value)}
-                    placeholder="เช่น 508087" onKeyDown={(e) => e.key === 'Enter' && doLogin()}/>
+                    placeholder="รหัสพนักงาน" onKeyDown={(e) => e.key === 'Enter' && doLogin()}/>
                 </div>
                 <div className="field">
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
