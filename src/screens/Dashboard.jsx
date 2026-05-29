@@ -7,6 +7,8 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
   const [filter, setFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
 
+  const thaiDate = React.useMemo(() => new Date().toLocaleDateString('th-TH', { weekday:'long', year:'numeric', month:'long', day:'numeric' }), []);
+
   const todaysBookings = bookings.filter((b) => b.from.startsWith(today));
   const activeApproved = todaysBookings.filter((b) => b.status === "approved" || b.status === "urgent");
   const pendingApprovals = bookings.filter((b) => b.status === "booked").length;
@@ -43,7 +45,7 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
       <div className="card" style={{padding:'18px 22px', marginBottom:18, background:'linear-gradient(135deg, var(--pea-purple-deep) 0%, var(--pea-purple) 100%)', color:'white', border:'none'}}>
         <div style={{display:'flex', alignItems:'center', gap:18, flexWrap:'wrap'}}>
           <div style={{flex:'1 1 280px', minWidth:0}}>
-            <div style={{fontSize:12, opacity:0.7, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:4}}>วันนี้ · พฤหัสบดี 21 พฤษภาคม 2569</div>
+            <div style={{fontSize:12, opacity:0.7, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:4}}>วันนี้ · {thaiDate}</div>
             <div style={{fontSize:20, fontWeight:600, letterSpacing:'-0.01em'}}>สวัสดี, คุณ{user.name.split(' ')[0]} 👋</div>
             <div style={{fontSize:13, opacity:0.78, marginTop:2}}>
               {user.role === "admin" ? `คุณมี ${pendingApprovals} การจองรอการอนุมัติ และ ${users.filter(u => u.status === "pending").length} สมาชิกใหม่รอการตรวจสอบ` :
@@ -87,17 +89,7 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
         <div className="card card-pad">
           <h2 className="mt-0">การแจ้งเตือน</h2>
           <p className="sub">รายการที่ต้องดำเนินการ</p>
-          <div className="col gap-2" style={{marginTop:2}}>
-            <AlertItem kind="urgent" title="ภารกิจด่วน" body="รถ V008 ถูกเรียกใช้งานด่วน (ไฟดับ ต.แม่ข่า)" time="5 นาทีที่แล้ว"/>
-            {(user.role === "manager" || user.role === "admin") && (
-              <AlertItem kind="warn" title={`${pendingApprovals} รายการรออนุมัติ`} body="กรุณาตรวจสอบคำขอจองรถใหม่" time="ตอนนี้" onClick={() => setRoute("approvals")}/>
-            )}
-            <AlertItem kind="warn" title="ใกล้ถึงเวลาใช้รถ" body="รถ V005 ครบกำหนดเช็คระยะ 30 พ.ค. (อีก 9 วัน)" time="วันนี้"/>
-            <AlertItem kind="info" title="พ.ร.บ. ใกล้ครบกำหนด" body="รถ V009 และ V015 ครบกำหนด มิ.ย. นี้" time="วันนี้"/>
-            {user.role === "admin" && (
-              <AlertItem kind="info" title="สมาชิกใหม่ 3 ราย" body="ปวีณา, ณัฐพล, สุภาวดี รอการอนุมัติ" time="2 ชม." onClick={() => setRoute("members")}/>
-            )}
-          </div>
+          <DashAlerts user={user} vehicles={vehicles} bookings={bookings} users={users} todaysBookings={todaysBookings} pendingApprovals={pendingApprovals} setRoute={setRoute}/>
         </div>
       </div>
 
@@ -200,7 +192,7 @@ function StatBox({ lbl, val, foot, ico, variant }) {
   );
 }
 
-function AlertItem({ kind, title, body, time, onClick }) {
+function AlertItem({ kind, title, body, time = null, onClick }) {
   const colors = {
     urgent: { bg: 'var(--danger-bg)', fg: 'var(--danger)' },
     warn: { bg: 'var(--warn-bg)', fg: 'var(--warn)' },
@@ -216,7 +208,53 @@ function AlertItem({ kind, title, body, time, onClick }) {
         <div style={{fontSize:13, fontWeight:600, color:c.fg, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{title}</div>
         <div style={{fontSize:12, color:'var(--text-2)', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{body}</div>
       </div>
-      <div className="text-xs muted" style={{whiteSpace:'nowrap', flexShrink:0}}>{time}</div>
+      {time && <div className="text-xs muted" style={{whiteSpace:'nowrap', flexShrink:0}}>{time}</div>}
+    </div>
+  );
+}
+
+function DashAlerts({ user, vehicles, bookings, users, todaysBookings, pendingApprovals, setRoute }) {
+  const urgentBookings = todaysBookings.filter(b => b.status === "urgent");
+  const pendingMembers = users.filter(u => u.status === "pending");
+  const maintenanceVehicles = vehicles.filter(v => v.status === "maintenance");
+
+  const alerts = [];
+
+  urgentBookings.forEach(b => {
+    const u = users.find(u => u.id === b.userId);
+    alerts.push({ kind: "urgent", title: "จองด่วน", body: `รถ ${b.vehicleId} · ${u?.name || ''} · ${b.destination}`, key: b.id });
+  });
+
+  if ((user.role === "manager" || user.role === "admin") && pendingApprovals > 0) {
+    alerts.push({ kind: "warn", title: `${pendingApprovals} รายการรออนุมัติ`, body: "กรุณาตรวจสอบคำขอจองรถใหม่", key: "approvals", onClick: () => setRoute("approvals") });
+  }
+
+  if (maintenanceVehicles.length > 0) {
+    const ids = maintenanceVehicles.map(v => v.id).join(", ");
+    alerts.push({ kind: "warn", title: "รถอยู่ในการบำรุงรักษา", body: `${ids} · ${maintenanceVehicles.length} คัน`, key: "maint" });
+  }
+
+  if (user.role === "admin" && pendingMembers.length > 0) {
+    const names = pendingMembers.slice(0, 3).map(u => u.name.split(' ')[0]).join(", ");
+    const extra = pendingMembers.length > 3 ? ` และอีก ${pendingMembers.length - 3} ราย` : "";
+    alerts.push({ kind: "info", title: `สมาชิกใหม่ ${pendingMembers.length} ราย`, body: `${names}${extra} รอการอนุมัติ`, key: "members", onClick: () => setRoute("members") });
+  }
+
+  if (alerts.length === 0) {
+    return (
+      <div style={{textAlign:'center', padding:'28px 0 16px', color:'var(--text-3)'}}>
+        <div style={{fontSize:28, marginBottom:8}}>✅</div>
+        <div style={{fontSize:13, fontWeight:500}}>ไม่มีการแจ้งเตือน</div>
+        <div style={{fontSize:12, marginTop:4}}>ทุกอย่างเรียบร้อยดี</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="col gap-2" style={{marginTop:2}}>
+      {alerts.map(a => (
+        <AlertItem key={a.key} kind={a.kind} title={a.title} body={a.body} onClick={a.onClick}/>
+      ))}
     </div>
   );
 }
@@ -225,7 +263,7 @@ function TimelineView({ vehicles, bookings, users, onSelectVehicle }) {
   const startH = 6;
   const endH = 20;
   const totalH = endH - startH;
-  const now = new Date('2026-05-21T10:30');
+  const now = new Date();
   const nowPct = ((now.getHours() + now.getMinutes()/60 - startH) / totalH) * 100;
 
   return (
