@@ -126,7 +126,26 @@ function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
       {isOpen && <div className="sidebar-backdrop" onClick={onClose}></div>}
       <aside className={"sidebar" + (isOpen ? " open" : "")}>
         <div className="brand">
-          <div className="brand-logo">PEA</div>
+          <div className="brand-logo">
+            <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Road */}
+              <rect x="2" y="20" width="28" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
+              <rect x="14" y="21" width="4" height="2" rx="1" fill="rgba(255,255,255,0.5)"/>
+              {/* Car body */}
+              <path d="M6 20v-4l3-5h14l3 5v4H6z" fill="white"/>
+              {/* Cabin */}
+              <path d="M10 11l2-3h8l2 3H10z" fill="rgba(243,112,33,0.9)"/>
+              {/* Windshield */}
+              <path d="M11 11l1.5-2.5h7L21 11H11z" fill="rgba(255,255,255,0.7)"/>
+              {/* Wheels */}
+              <circle cx="10" cy="20" r="3" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+              <circle cx="10" cy="20" r="1.2" fill="white"/>
+              <circle cx="22" cy="20" r="3" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+              <circle cx="22" cy="20" r="1.2" fill="white"/>
+              {/* Headlight */}
+              <rect x="24" y="16" width="3" height="2" rx="1" fill="rgba(255,230,100,0.9)"/>
+            </svg>
+          </div>
           <div className="brand-text">
             <b>EasyDrive</b>
             <small>ระบบจองรถใช้งาน</small>
