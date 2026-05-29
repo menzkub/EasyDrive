@@ -149,7 +149,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
             ตรวจสอบสถานะรถ จองล่วงหน้า และอนุมัติได้
             ในระบบเดียว — โปร่งใส ตรวจสอบได้ ทุกขั้นตอน
           </p>
-          <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, marginTop:36, maxWidth:480}}>
+          <div className="auth-stats" style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, marginTop:36, maxWidth:480}}>
             {[
               { n: "24+", l: "คันในระบบ" }, { n: "8", l: "ประเภทรถ" },
               { n: "24/7", l: "เรียลไทม์" }, { n: "100%", l: "ตรวจสอบได้" },

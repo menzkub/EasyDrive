@@ -487,7 +487,7 @@ a { color: inherit; text-decoration: none; }
 .auth-wrap {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  grid-template-columns: 1fr 1.1fr;
   background: var(--bg);
 }
 .auth-side {
@@ -514,10 +514,10 @@ a { color: inherit; text-decoration: none; }
 }
 .auth-form {
   display: flex; align-items: center; justify-content: center;
-  padding: 48px;
+  padding: 48px 56px;
   background: var(--surface);
 }
-.auth-form-inner { width: 100%; max-width: 420px; }
+.auth-form-inner { width: 100%; max-width: 500px; }
 
 /* Print */
 @media print {
@@ -544,8 +544,12 @@ a { color: inherit; text-decoration: none; }
   .main { padding: 16px; }
   .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
   .grid-2 { grid-template-columns: 1fr !important; }
-  .auth-wrap { grid-template-columns: 1fr; }
-  .auth-side { display: none; }
+  /* Auth: compact side panel — show branding only, hide stats/paragraph */
+  .auth-wrap { grid-template-columns: 240px 1fr; }
+  .auth-side { padding: 32px 24px; }
+  .auth-side p, .auth-stats { display: none !important; }
+  .auth-side h1 { font-size: 20px; margin-bottom: 0; line-height: 1.3; }
+  .auth-side h1 br { display: none; }
   .topbar { padding: 0 16px; }
   .topbar h1 { font-size: 15px; }
 }
