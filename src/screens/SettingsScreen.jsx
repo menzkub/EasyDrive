@@ -87,7 +87,7 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
 
   async function loadMfa() {
     const { data } = await supabase.auth.mfa.listFactors();
-    setMfaFactors(data?.totp || []);
+    setMfaFactors(data?.totp || data?.all?.filter(f => f.factor_type === 'totp') || []);
   }
 
   async function loadSession() {
@@ -128,13 +128,25 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
   async function startEnroll2FA() {
     setMfaErr('');
     setMfaLoading(true);
-    // unenroll ALL existing TOTP factors (both verified and unverified with this name)
-    const { data: existing } = await supabase.auth.mfa.listFactors();
-    const allTotp = existing?.totp || existing?.all?.filter(f => f.factor_type === 'totp') || [];
-    for (const f of allTotp) {
-      await supabase.auth.mfa.unenroll({ factorId: f.id });
+
+    // Step 1: try to enroll
+    let { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'EasyDrive Authenticator' });
+
+    // Step 2: if "already exists" — find the conflicting factor and unenroll it, then retry
+    if (error?.message?.toLowerCase().includes('already exists') || error?.message?.toLowerCase().includes('friendly name')) {
+      const { data: existing } = await supabase.auth.mfa.listFactors();
+      const allFactors = [
+        ...(existing?.totp || []),
+        ...(existing?.all?.filter(f => f.factor_type === 'totp') || []),
+      ];
+      const unique = [...new Map(allFactors.map(f => [f.id, f])).values()];
+      for (const f of unique) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id });
+      }
+      // Retry enrollment after clearing
+      ({ data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'EasyDrive Authenticator' }));
     }
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'EasyDrive Authenticator' });
+
     setMfaLoading(false);
     if (error) { setMfaErr(error.message); return; }
     setMfaQr(data.totp.qr_code);
