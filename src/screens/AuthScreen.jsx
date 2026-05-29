@@ -254,7 +254,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
             <div style={{fontSize:12, opacity:0.72, marginTop:6}}>Vehicle Booking System · จ.เชียงใหม่</div>
           </div>
         </div>
-        <div className="auth-form-inner">
+        <div className="auth-form-card">
           {mode === "login" && (
             <>
               <div style={{width:40, height:4, background:'linear-gradient(90deg, var(--pea-purple), var(--pea-orange))', borderRadius:4, marginBottom:18, animation:'formSlideIn 0.4s ease-out both'}}/>
