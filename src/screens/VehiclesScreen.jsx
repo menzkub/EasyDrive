@@ -213,11 +213,30 @@ function VehicleHistoryModal({ vehicle, history, onClose }) {
 }
 
 function VehicleForm({ vehicle, users = [], onSave, onClose }) {
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const nextServiceISO = new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10);
+  const nextYearISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
   const [form, setForm] = React.useState(vehicle || {
-    plate: "", brand: "", type: "sedan", year: 2024, fuel: "gasohol", seats: 5,
-    mileage: 0, lastService: "2026-05-21", nextService: "2026-11-21",
-    taxDue: "2027-05-21", insuranceDue: "2027-05-21", owner: "", status: "available",
+    nickname: "", vehicleCode: "", regDate: "",
+    plate: "", brand: "", type: "sedan", year: new Date().getFullYear(), fuel: "gasohol", seats: 5,
+    mileage: 0, lastService: todayISO, nextService: nextServiceISO,
+    taxDue: nextYearISO, insuranceDue: nextYearISO, owner: "", status: "available",
   });
+
+  function calcAge(regDate) {
+    if (!regDate) return null;
+    const reg = new Date(regDate);
+    const now = new Date();
+    let years = now.getFullYear() - reg.getFullYear();
+    let months = now.getMonth() - reg.getMonth();
+    if (months < 0) { years--; months += 12; }
+    if (years < 0) return null;
+    if (years === 0 && months === 0) return "น้อยกว่า 1 เดือน";
+    if (years === 0) return `${months} เดือน`;
+    if (months === 0) return `${years} ปี`;
+    return `${years} ปี ${months} เดือน`;
+  }
+  const vehicleAge = calcAge(form.regDate);
   const [unavailReason, setUnavailReason] = React.useState("");
   const [editNote, setEditNote] = React.useState("");
   const [photo, setPhoto] = React.useState(false);
@@ -252,6 +271,28 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
         </button>
       </>}>
       <div className="col gap-3">
+        <div className="grid-2">
+          <div className="field">
+            <label className="field-lbl">ชื่อเรียกรถ</label>
+            <input className="input" value={form.nickname} onChange={(e) => setForm({...form, nickname:e.target.value})} placeholder="เช่น รถตู้หลังบ้าน, ปิกอัพดำ"/>
+          </div>
+          <div className="field">
+            <label className="field-lbl">รหัสยานพาหนะ</label>
+            <input className="input" value={form.vehicleCode} onChange={(e) => setForm({...form, vehicleCode:e.target.value})} placeholder="เช่น VH-001, PEA-007"/>
+          </div>
+        </div>
+        <div className="grid-2">
+          <div className="field">
+            <label className="field-lbl">วันที่จดทะเบียน</label>
+            <input className="input" type="date" value={form.regDate} onChange={(e) => setForm({...form, regDate:e.target.value})}/>
+          </div>
+          <div className="field">
+            <label className="field-lbl">อายุการใช้งาน</label>
+            <div className="input" style={{display:'flex', alignItems:'center', background:'var(--surface-2)', cursor:'default', color: vehicleAge ? 'var(--text)' : 'var(--text-3)', fontWeight: vehicleAge ? 600 : 400}}>
+              {vehicleAge || '— กรอกวันที่จดทะเบียนก่อน'}
+            </div>
+          </div>
+        </div>
         <div className="grid-2">
           <div className="field">
             <label className="field-lbl">ทะเบียน <span className="req">*</span></label>
