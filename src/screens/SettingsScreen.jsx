@@ -3,6 +3,26 @@ import { I, fmtDate, ConfirmDialog } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
+function calcPwStrength(pw) {
+  const checks = [
+    { key: 'length',   label: 'อย่างน้อย 8 ตัวอักษร',   ok: pw.length >= 8 },
+    { key: 'upper',    label: 'ตัวพิมพ์ใหญ่ A-Z',        ok: /[A-Z]/.test(pw) },
+    { key: 'lower',    label: 'ตัวพิมพ์เล็ก a-z',        ok: /[a-z]/.test(pw) },
+    { key: 'number',   label: 'ตัวเลข 0-9',               ok: /[0-9]/.test(pw) },
+    { key: 'special',  label: 'อักขระพิเศษ !@#$%^&*',    ok: /[^A-Za-z0-9]/.test(pw) },
+  ];
+  const score = checks.filter(c => c.ok).length;
+  const missing = checks.filter(c => !c.ok);
+  let label = '', color = '';
+  if (pw.length > 0) {
+    if (score <= 2)      { label = 'อ่อนแอ';     color = 'var(--danger)'; }
+    else if (score === 3){ label = 'ปานกลาง';   color = 'var(--warn)'; }
+    else if (score === 4){ label = 'ดี';          color = 'var(--info)'; }
+    else                 { label = 'แข็งแกร่ง';  color = 'var(--ok)'; }
+  }
+  return { score, checks, missing, label, color };
+}
+
 function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast }) {
   const [tab, setTab] = React.useState("account");
   const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
@@ -92,7 +112,9 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
 
   async function changePassword() {
     setPwErr('');
-    if (pwForm.newPw.length < 6) { setPwErr('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'); return; }
+    const { score } = calcPwStrength(pwForm.newPw);
+    if (pwForm.newPw.length < 8) { setPwErr('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'); return; }
+    if (score < 3) { setPwErr('รหัสผ่านอ่อนแอเกินไป — เพิ่มตัวพิมพ์ใหญ่ ตัวเลข หรืออักขระพิเศษ'); return; }
     if (pwForm.newPw !== pwForm.confirmPw) { setPwErr('รหัสผ่านไม่ตรงกัน'); return; }
     setPwLoading(true);
     const { error } = await supabase.auth.updateUser({ password: pwForm.newPw });
@@ -106,6 +128,11 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
   async function startEnroll2FA() {
     setMfaErr('');
     setMfaLoading(true);
+    // unenroll any leftover unverified factors to avoid "already exists" error
+    const { data: existing } = await supabase.auth.mfa.listFactors();
+    for (const f of (existing?.totp || []).filter(f => f.status === 'unverified')) {
+      await supabase.auth.mfa.unenroll({ factorId: f.id });
+    }
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'EasyDrive Authenticator' });
     setMfaLoading(false);
     if (error) { setMfaErr(error.message); return; }
@@ -220,11 +247,39 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
             <div className="col gap-2">
               <div className="field">
                 <label className="field-lbl">รหัสผ่านใหม่</label>
-                <input className="input" type="password" value={pwForm.newPw} onChange={e => setPwForm({...pwForm, newPw: e.target.value})} placeholder="อย่างน้อย 6 ตัวอักษร"/>
+                <input className="input" type="password" value={pwForm.newPw} onChange={e => setPwForm({...pwForm, newPw: e.target.value})} placeholder="อย่างน้อย 8 ตัวอักษร"/>
               </div>
+              {pwForm.newPw.length > 0 && (() => {
+                const { score, checks, missing, label, color } = calcPwStrength(pwForm.newPw);
+                return (
+                  <div style={{padding:'10px 12px', background:'var(--surface)', borderRadius:8, border:'1px solid var(--border)'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:8}}>
+                      <div style={{display:'flex', gap:3, flex:1}}>
+                        {[1,2,3,4,5].map(i => (
+                          <div key={i} style={{flex:1, height:5, borderRadius:3,
+                            background: i <= score ? color : 'var(--border)',
+                            transition:'background 0.2s'}}/>
+                        ))}
+                      </div>
+                      <span style={{fontSize:11, fontWeight:700, color, minWidth:60, textAlign:'right'}}>{label}</span>
+                    </div>
+                    <div style={{display:'flex', flexWrap:'wrap', gap:'4px 12px'}}>
+                      {checks.map(c => (
+                        <span key={c.key} style={{fontSize:11, color: c.ok ? 'var(--ok)' : 'var(--text-3)', display:'flex', alignItems:'center', gap:3}}>
+                          <span style={{fontSize:10}}>{c.ok ? '✓' : '✗'}</span> {c.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="field">
                 <label className="field-lbl">ยืนยันรหัสผ่านใหม่</label>
-                <input className="input" type="password" value={pwForm.confirmPw} onChange={e => setPwForm({...pwForm, confirmPw: e.target.value})} placeholder="กรอกรหัสผ่านซ้ำ"/>
+                <input className="input" type="password" value={pwForm.confirmPw} onChange={e => setPwForm({...pwForm, confirmPw: e.target.value})} placeholder="กรอกรหัสผ่านซ้ำ"
+                  style={pwForm.confirmPw && pwForm.newPw !== pwForm.confirmPw ? {borderColor:'var(--danger)'} : {}}/>
+                {pwForm.confirmPw && pwForm.newPw !== pwForm.confirmPw && (
+                  <div style={{fontSize:12, color:'var(--danger)', marginTop:4}}>รหัสผ่านไม่ตรงกัน</div>
+                )}
               </div>
               {pwErr && <div style={{color:'var(--danger)', fontSize:13}}>{pwErr}</div>}
               <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
