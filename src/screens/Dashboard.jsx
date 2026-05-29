@@ -211,15 +211,15 @@ function AlertItem({ kind, title, body, time, onClick }) {
   };
   const c = colors[kind] || colors.info;
   return (
-    <div style={{display:'flex', gap:10, padding:'10px 12px', background:c.bg, borderRadius:9, cursor: onClick ? 'pointer' : 'default'}} onClick={onClick}>
+    <div style={{display:'flex', gap:10, padding:'10px 12px', background:c.bg, borderRadius:9, cursor: onClick ? 'pointer' : 'default', overflow:'hidden', minWidth:0}} onClick={onClick}>
       <div style={{width:24, height:24, background:c.fg, color:'white', borderRadius:6, display:'grid', placeItems:'center', flexShrink:0}}>
         {I.warn}
       </div>
-      <div style={{flex:1, minWidth:0}}>
-        <div style={{fontSize:13, fontWeight:600, color:c.fg}}>{title}</div>
-        <div style={{fontSize:12, color:'var(--text-2)', lineHeight:1.4}}>{body}</div>
+      <div style={{flex:1, minWidth:0, overflow:'hidden'}}>
+        <div style={{fontSize:13, fontWeight:600, color:c.fg, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{title}</div>
+        <div style={{fontSize:12, color:'var(--text-2)', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{body}</div>
       </div>
-      <div className="text-xs muted" style={{whiteSpace:'nowrap'}}>{time}</div>
+      <div className="text-xs muted" style={{whiteSpace:'nowrap', flexShrink:0}}>{time}</div>
     </div>
   );
 }

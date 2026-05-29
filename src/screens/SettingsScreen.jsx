@@ -150,20 +150,22 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
   return (
     <div className="col gap-3">
       {/* Profile card */}
-      <div style={{display:'flex', gap:16, alignItems:'center', padding:'16px 18px', background:'linear-gradient(135deg, var(--pea-purple-50), var(--pea-orange-50))', borderRadius:12}}>
-        <div className="avatar lg" style={{width:64, height:64, fontSize:24, background:'var(--pea-purple)'}}>{currentUser.name.charAt(0)}</div>
-        <div style={{flex:1}}>
-          <div style={{fontSize:18, fontWeight:700}}>{currentUser.name}</div>
-          <div className="text-sm muted">{currentUser.role === "admin" ? "ผู้ดูแลระบบ" : currentUser.role === "manager" ? "ผู้จัดการ" : "ผู้ใช้งาน"} · {currentUser.dept}</div>
+      <div className="profile-card" style={{display:'flex', gap:16, alignItems:'center', padding:'16px 18px', background:'linear-gradient(135deg, var(--pea-purple-50), var(--pea-orange-50))', borderRadius:12}}>
+        <div className="avatar lg" style={{width:64, height:64, fontSize:24, background:'var(--pea-purple)', flexShrink:0}}>{currentUser.name.charAt(0)}</div>
+        <div style={{flex:1, minWidth:0}}>
+          <div style={{fontSize:18, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{currentUser.name}</div>
+          <div className="text-sm muted" style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{currentUser.role === "admin" ? "ผู้ดูแลระบบ" : currentUser.role === "manager" ? "ผู้จัดการ" : "ผู้ใช้งาน"} · {currentUser.dept}</div>
           <div className="text-xs muted" style={{marginTop:2}}>รหัส {currentUser.emp} · สมาชิกตั้งแต่ {fmtDate(currentUser.joined)}</div>
         </div>
-        {!editing
-          ? <button className="btn ghost" onClick={() => setEditing(true)}>{I.edit} แก้ไขโปรไฟล์</button>
-          : <div style={{display:'flex', gap:8}}>
-              <button className="btn ghost" onClick={() => { setEditing(false); setForm({ name: currentUser.name, dept: currentUser.dept, email: currentUser.email||'', phone: currentUser.phone||'' }); }}>ยกเลิก</button>
-              <button className="btn primary" onClick={saveProfile} disabled={saving}>{saving ? 'กำลังบันทึก...' : 'บันทึก'}</button>
-            </div>
-        }
+        <div className="profile-card-actions">
+          {!editing
+            ? <button className="btn ghost" onClick={() => setEditing(true)}>{I.edit} แก้ไขโปรไฟล์</button>
+            : <div style={{display:'flex', gap:8}}>
+                <button className="btn ghost" onClick={() => { setEditing(false); setForm({ name: currentUser.name, dept: currentUser.dept, email: currentUser.email||'', phone: currentUser.phone||'' }); }}>ยกเลิก</button>
+                <button className="btn primary" onClick={saveProfile} disabled={saving}>{saving ? 'กำลังบันทึก...' : 'บันทึก'}</button>
+              </div>
+          }
+        </div>
       </div>
 
       {/* Editable fields */}

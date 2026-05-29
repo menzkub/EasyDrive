@@ -74,14 +74,16 @@ function ReportsScreen({ vehicles, bookings, users = [], onRefresh }) {
             </h2>
             <p className="sub" style={{margin:'2px 0 0'}}>ภาพรวมการใช้งานรถยนต์ในหน่วยงาน</p>
           </div>
-          <div style={{marginLeft:'auto', display:'flex', gap:8}}>
+          <div className="reports-toolbar">
             <div style={{display:'flex', background:'var(--surface-2)', borderRadius:8, padding:3}}>
               {[["week","สัปดาห์"],["month","เดือนนี้"],["quarter","ไตรมาส"],["year","ทั้งปี"]].map(([v,l]) => (
                 <button key={v} className={"btn sm" + (range === v ? " primary" : "")} style={{background: range !== v ? 'transparent' : undefined, border:'none'}} onClick={() => setRange(v)}>{l}</button>
               ))}
             </div>
-            <button className="btn ghost" onClick={exportCSV}>{I.export} Excel</button>
-            <button className="btn primary" onClick={exportPDF}>{I.print} PDF</button>
+            <div style={{display:'flex', gap:8}}>
+              <button className="btn ghost" onClick={exportCSV}>{I.export} Excel</button>
+              <button className="btn primary" onClick={exportPDF}>{I.print} PDF</button>
+            </div>
           </div>
         </div>
       </div>

@@ -175,8 +175,11 @@ function MonthView({ refDate, bookings, vehicles, users, onSelectBooking, onSele
     <div className="card card-pad">
       <h2 className="mt-0" style={{marginBottom:14}}>{monthName}</h2>
       <div className="cal-grid">
-        {["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสฯ","ศุกร์","เสาร์"].map((d) => (
-          <div key={d} className="cal-head">{d}</div>
+        {[["อาทิตย์","อา"],["จันทร์","จ"],["อังคาร","อ"],["พุธ","พ"],["พฤหัสฯ","พฤ"],["ศุกร์","ศ"],["เสาร์","ส"]].map(([full, short]) => (
+          <div key={full} className="cal-head">
+            <span className="cal-day-full">{full}</span>
+            <span className="cal-day-short">{short}</span>
+          </div>
         ))}
         {cells.map((c, i) => {
           const evts = dayEvents(c.fullDate);

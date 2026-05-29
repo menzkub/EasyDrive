@@ -87,7 +87,7 @@ function Stepper({ step }) {
             }}>
               {step > s.n ? I.check : s.n}
             </div>
-            <div style={{fontSize:13.5, fontWeight: step === s.n ? 600 : 500, color: step >= s.n ? 'var(--text)' : 'var(--text-3)'}}>{s.l}</div>
+            <div className="stepper-label" style={{fontSize:13.5, fontWeight: step === s.n ? 600 : 500, color: step >= s.n ? 'var(--text)' : 'var(--text-3)'}}>{s.l}</div>
           </div>
           {i < steps.length - 1 && <div style={{flex:1, height:2, background: step > s.n ? 'var(--pea-purple)' : 'var(--border)', transition:'background 0.15s'}}></div>}
         </React.Fragment>

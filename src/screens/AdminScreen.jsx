@@ -33,12 +33,12 @@ function ApprovalsScreen({ bookings, vehicles, users, mileageCorrections = [], u
             <h2 className="mt-0" style={{margin:0}}>อนุมัติการจองรถ</h2>
             <p className="sub" style={{margin:'2px 0 0'}}>ตรวจสอบและอนุมัติคำขอจองรถจากผู้ใช้งาน</p>
           </div>
-          <div style={{marginLeft:'auto', display:'flex', gap:8, alignItems:'center'}}>
-            <div style={{position:'relative'}}>
-              <input className="input" placeholder="ค้นหาผู้จอง / รถ / สถานที่..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:280, fontSize:13}}/>
+          <div className="search-export-row">
+            <div style={{position:'relative', flex:1}}>
+              <input className="input" placeholder="ค้นหาผู้จอง / รถ / สถานที่..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:'100%', fontSize:13}}/>
               <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)'}}>{I.search}</div>
             </div>
-            <button className="btn ghost">{I.export} Export</button>
+            <button className="btn ghost" style={{flexShrink:0}}>{I.export} Export</button>
           </div>
         </div>
       </div>
