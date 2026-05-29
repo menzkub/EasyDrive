@@ -6,6 +6,20 @@ import { supabase } from '../supabase'
 function AuthScreen({ onLogin, registered, onRegister, departments }) {
   const DEPARTMENTS = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const [mode, setMode] = React.useState("login");
+
+  // ── Public stats from Supabase (no auth required) ──
+  const [stats, setStats] = React.useState({ vehicles: null, types: null, bookings: null });
+  React.useEffect(() => {
+    Promise.all([
+      supabase.from('vehicles').select('type'),
+      supabase.from('bookings').select('id', { count: 'exact', head: true }),
+    ]).then(([vRes, bRes]) => {
+      if (vRes.data) {
+        const types = new Set(vRes.data.map(v => v.type)).size;
+        setStats({ vehicles: vRes.data.length, types, bookings: bRes.count ?? 0 });
+      }
+    });
+  }, []);
   const [empId, setEmpId] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [err, setErr] = React.useState("");
@@ -171,11 +185,13 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
           </p>
           <div className="auth-stats" style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, marginTop:32, maxWidth:480}}>
             {[
-              { n: "24+", l: "คันในระบบ" }, { n: "8", l: "ประเภทรถ" },
-              { n: "24/7", l: "เรียลไทม์" }, { n: "100%", l: "ตรวจสอบได้" },
+              { n: stats.vehicles !== null ? `${stats.vehicles}` : '—', l: "คันในระบบ" },
+              { n: stats.types !== null ? `${stats.types}` : '—', l: "ประเภทรถ" },
+              { n: stats.bookings !== null ? `${stats.bookings}` : '—', l: "การจองทั้งหมด" },
+              { n: "24/7", l: "เรียลไทม์" },
             ].map((s, i) => (
               <div key={i} style={{background:'rgba(0,0,0,0.2)', backdropFilter:'blur(8px)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:12, padding:'14px 16px'}}>
-                <div style={{fontSize:24, fontWeight:700, letterSpacing:'-0.01em'}}>{s.n}</div>
+                <div style={{fontSize:24, fontWeight:700, letterSpacing:'-0.01em', minHeight:32}}>{s.n}</div>
                 <div style={{fontSize:12, opacity:0.7}}>{s.l}</div>
               </div>
             ))}
