@@ -22,9 +22,9 @@ function App() {
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('pea-dark') === '1');
 
   React.useEffect(() => {
-    document.documentElement.dataset.dark = isDark ? '1' : '';
+    document.documentElement.dataset.dark = (isDark && currentUser) ? '1' : '';
     localStorage.setItem('pea-dark', isDark ? '1' : '0');
-  }, [isDark]);
+  }, [isDark, currentUser]);
 
   const [appReady, setAppReady] = React.useState(false);
   const [loaderFading, setLoaderFading] = React.useState(false);
