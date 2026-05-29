@@ -20,6 +20,7 @@ const TWEAK_DEFAULTS = { theme: "purple-orange", density: "regular", dashboardLa
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('pea-dark') === '1');
+  const [currentUser, setCurrentUser] = React.useState(null);
 
   React.useEffect(() => {
     document.documentElement.dataset.dark = (isDark && currentUser) ? '1' : '';
@@ -28,7 +29,6 @@ function App() {
 
   const [appReady, setAppReady] = React.useState(false);
   const [loaderFading, setLoaderFading] = React.useState(false);
-  const [currentUser, setCurrentUser] = React.useState(null);
   const [registered, setRegistered] = React.useState(false);
 
   const [vehicles, setVehicles] = React.useState([]);
