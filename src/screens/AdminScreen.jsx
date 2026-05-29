@@ -175,7 +175,7 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
           </div>
           <div style={{marginLeft:'auto', display:'flex', gap:8, alignItems:'center'}}>
             <div style={{position:'relative'}}>
-              <input className="input" placeholder="ค้นหาชื่อ / รหัสพนักงาน / แผนก..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:300, fontSize:13}}/>
+              <input className="input" placeholder="ค้นหาชื่อ / รหัสพนักงาน / แผนก..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:'min(300px, 100%)', fontSize:13}}/>
               <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)'}}>{I.search}</div>
             </div>
           </div>
@@ -188,7 +188,8 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
           <button className={"tab" + (tab === "approved" ? " active" : "")} onClick={() => setTab("approved")}>สมาชิกในระบบ <span className="count">{approved.length}</span></button>
         </div>
 
-        <div className="card" style={{overflowX:'auto', border:'none', boxShadow:'none'}}>
+        {/* Desktop table */}
+        <div className="member-table-wrap card" style={{overflowX:'auto', border:'none', boxShadow:'none'}}>
           <table className="table">
             <thead>
               <tr>
@@ -249,6 +250,51 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
             <div style={{textAlign:'center', padding:'48px 0', color:'var(--text-3)'}}>ไม่มีสมาชิกในหมวดนี้</div>
           )}
         </div>
+
+        {/* Mobile card list */}
+        <div className="member-cards-wrap col gap-2">
+          {list.length === 0 && (
+            <div style={{textAlign:'center', padding:'48px 0', color:'var(--text-3)'}}>ไม่มีสมาชิกในหมวดนี้</div>
+          )}
+          {list.map((u) => (
+            <div key={u.id} style={{border:'1px solid var(--border)', borderRadius:12, padding:'12px 14px', background:'var(--surface)'}}>
+              <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:10}}>
+                <div className="avatar" style={{flexShrink:0}}>{u.name.charAt(0)}</div>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontWeight:600, fontSize:14}}>{u.name}</div>
+                  <div className="text-xs muted" style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{u.email}</div>
+                </div>
+                {tab === "pending" ? (
+                  <span className="pill pending" style={{flexShrink:0}}><span className="dot"></span>รออนุมัติ</span>
+                ) : (
+                  <span className="pill done" style={{flexShrink:0, fontSize:11}}>{u.role === "admin" ? "แอดมิน" : u.role === "manager" ? "ผู้จัดการ" : "ผู้ใช้"}</span>
+                )}
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:10, fontSize:12.5}}>
+                <div><span className="muted">รหัส: </span><b style={{fontFamily:'var(--font-mono)'}}>{u.emp}</b></div>
+                <div><span className="muted">สังกัด: </span>{u.dept}</div>
+                <div><span className="muted">โทร: </span>{u.phone || '—'}</div>
+                <div><span className="muted">สมัคร: </span>{fmtDate(u.joined)}</div>
+              </div>
+              {tab === "pending" ? (
+                <div style={{display:'flex', gap:8}}>
+                  <button className="btn" style={{flex:1, background:'var(--ok)', color:'white', borderColor:'var(--ok)'}} onClick={() => onApproveUser(u.id)}>{I.check} อนุมัติ</button>
+                  <button className="btn danger" style={{flex:1}} onClick={() => onRejectUser(u.id)}>{I.x} ปฏิเสธ</button>
+                </div>
+              ) : (
+                <div style={{display:'flex', gap:8}}>
+                  <select className="select" value={u.role} onChange={(e) => onChangeRole(u.id, e.target.value)} style={{flex:1, fontSize:13}}>
+                    <option value="user">ผู้ใช้งาน</option>
+                    <option value="manager">ผู้จัดการ</option>
+                    <option value="admin">ผู้ดูแลระบบ</option>
+                  </select>
+                  <button className="btn ghost" onClick={() => setViewing(u)}>{I.search}</button>
+                  <button className="btn ghost" onClick={() => setEditing(u)} title="แก้ไข">{I.edit}</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {viewing && (
@@ -263,6 +309,7 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
       {editing && (
         <MemberEditModal
           user={editing}
+          departments={departments}
           onClose={() => setEditing(null)}
           onSave={(data) => { onUpdateUser(editing.id, data); setEditing(null); }}
         />
@@ -313,7 +360,8 @@ function MemberDetailModal({ user, onClose, onEdit, onApprove, onReject }) {
 }
 
 // ─── Member Edit Modal ───────────────────────────────────────────
-function MemberEditModal({ user, onClose, onSave }) {
+function MemberEditModal({ user, onClose, onSave, departments }) {
+  const depts = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const [form, setForm] = React.useState({
     name: user.name, emp: user.emp, dept: user.dept,
     email: user.email, phone: user.phone, role: user.role,
@@ -339,7 +387,7 @@ function MemberEditModal({ user, onClose, onSave }) {
         <div className="field">
           <label className="field-lbl">สังกัด</label>
           <select className="select" value={form.dept} onChange={(e) => setForm({...form, dept:e.target.value})}>
-            {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
+            {depts.map((d) => <option key={d}>{d}</option>)}
           </select>
         </div>
         <div className="grid-2">

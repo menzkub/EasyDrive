@@ -553,6 +553,8 @@ a { color: inherit; text-decoration: none; }
 .search-export-row { display: flex; gap: 8px; margin-left: auto; align-items: center; }
 .reports-toolbar   { display: flex; gap: 8px; margin-left: auto; align-items: center; }
 .profile-card-actions { flex-shrink: 0; }
+/* Members responsive: desktop = table, mobile = cards */
+.member-cards-wrap { display: none; }
 
 /* Responsive */
 @media (max-width: 1100px) {
@@ -683,8 +685,14 @@ a { color: inherit; text-decoration: none; }
   .toast-stack { left: 12px; right: 12px; top: auto; bottom: 80px; width: auto; }
   .toast { min-width: 0; width: 100%; }
 
-  /* Login */
+  /* Login — hide side panel, show form only */
   .auth-wrap { display: block; }
+  .auth-side { display: none; }
+  .auth-form { padding: 24px 18px; min-height: 100vh; align-items: flex-start; padding-top: 40px; }
+
+  /* Members — show cards, hide table */
+  .member-table-wrap { display: none; }
+  .member-cards-wrap { display: flex; }
 
   /* Stepper — hide labels on mobile, show only circles */
   .step-label { display: none; }
