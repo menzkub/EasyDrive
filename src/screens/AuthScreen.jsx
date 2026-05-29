@@ -129,17 +129,37 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
 
   return (
     <div className="auth-wrap">
-      <div className="auth-side">
-        <div style={{display:'flex', alignItems:'center', gap:14}}>
-          <div className="brand-logo" style={{width:54, height:54, fontSize:14, background:'var(--pea-orange)'}}>PEA</div>
+      <div className="auth-side" style={{paddingBottom:136}}>
+        <div style={{display:'flex', alignItems:'center', gap:14, position:'relative', zIndex:2}}>
+          <div className="brand-logo" style={{width:54, height:54, fontSize:14, background:'var(--pea-orange)'}}>ED</div>
           <div>
             <div style={{fontWeight:700, fontSize:18, letterSpacing:'0.04em'}}>EasyDrive</div>
             <div style={{opacity:0.75, fontSize:13}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
           </div>
         </div>
 
-        <div style={{marginTop:'auto', position:'relative', zIndex:1}}>
-          <div style={{fontSize:13, opacity:0.7, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:14}}>Vehicle Booking System</div>
+        {/* Floating status badges */}
+        <div style={{position:'absolute', top:90, right:28, animation:'floatBadge1 4.5s ease-in-out infinite', zIndex:2}}>
+          <div style={{background:'rgba(255,255,255,0.13)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:12, padding:'9px 13px', display:'flex', alignItems:'center', gap:8}}>
+            <div style={{width:8, height:8, borderRadius:'50%', background:'#4abe8a', boxShadow:'0 0 6px #4abe8a'}}/>
+            <span style={{color:'white', fontSize:12, fontWeight:600}}>อนุมัติแล้ว</span>
+          </div>
+        </div>
+        <div style={{position:'absolute', top:168, left:18, animation:'floatBadge2 5.5s ease-in-out infinite', zIndex:2}}>
+          <div style={{background:'rgba(255,255,255,0.11)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.18)', borderRadius:12, padding:'9px 13px', display:'flex', alignItems:'center', gap:8}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FAA61A" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+            <span style={{color:'white', fontSize:12, fontWeight:600}}>จองล่วงหน้า</span>
+          </div>
+        </div>
+        <div style={{position:'absolute', bottom:172, right:22, animation:'floatBadge3 3.8s ease-in-out infinite', zIndex:2}}>
+          <div style={{background:'rgba(243,112,33,0.22)', backdropFilter:'blur(10px)', border:'1px solid rgba(243,112,33,0.35)', borderRadius:12, padding:'9px 13px', display:'flex', alignItems:'center', gap:8}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FAA61A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+            <span style={{color:'white', fontSize:12, fontWeight:600}}>Check-in สำเร็จ</span>
+          </div>
+        </div>
+
+        <div style={{marginTop:'auto', position:'relative', zIndex:2}}>
+          <div style={{fontSize:12, opacity:0.65, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14}}>Vehicle Booking System</div>
           <h1 style={{fontSize:38, lineHeight:1.15, margin:'0 0 18px', fontWeight:700, letterSpacing:'-0.015em', textWrap:'balance'}}>
             ระบบจองรถใช้งาน<br/>
             <span style={{color:'var(--pea-orange-light)'}}>เพื่อภารกิจไฟฟ้า</span>
@@ -149,20 +169,56 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
             ตรวจสอบสถานะรถ จองล่วงหน้า และอนุมัติได้
             ในระบบเดียว — โปร่งใส ตรวจสอบได้ ทุกขั้นตอน
           </p>
-          <div className="auth-stats" style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, marginTop:36, maxWidth:480}}>
+          <div className="auth-stats" style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14, marginTop:32, maxWidth:480}}>
             {[
               { n: "24+", l: "คันในระบบ" }, { n: "8", l: "ประเภทรถ" },
               { n: "24/7", l: "เรียลไทม์" }, { n: "100%", l: "ตรวจสอบได้" },
             ].map((s, i) => (
-              <div key={i} style={{background:'rgba(0,0,0,0.18)', backdropFilter:'blur(8px)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:12, padding:'14px 16px'}}>
+              <div key={i} style={{background:'rgba(0,0,0,0.2)', backdropFilter:'blur(8px)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:12, padding:'14px 16px'}}>
                 <div style={{fontSize:24, fontWeight:700, letterSpacing:'-0.01em'}}>{s.n}</div>
                 <div style={{fontSize:12, opacity:0.7}}>{s.l}</div>
               </div>
             ))}
           </div>
+          <div style={{marginTop:24, fontSize:11, opacity:0.45, letterSpacing:'0.03em'}}>
+            © 2026 Provincial Electricity Authority — Fang District
+          </div>
         </div>
-        <div style={{position:'relative', zIndex:1, marginTop:32, fontSize:11.5, opacity:0.55, letterSpacing:'0.03em'}}>
-          © 2026 Provincial Electricity Authority — Fang District
+
+        {/* Animated car scene */}
+        <div style={{position:'absolute', bottom:0, left:0, right:0, height:128, overflow:'hidden', zIndex:1}}>
+          {/* Road */}
+          <div style={{position:'absolute', bottom:0, left:'-5%', right:'-5%', height:52, background:'rgba(0,0,0,0.38)', borderTop:'2px solid rgba(255,255,255,0.12)'}}>
+            {/* Scrolling center line */}
+            <div style={{position:'absolute', top:'50%', transform:'translateY(-50%)', display:'flex', gap:24, animation:'roadScroll 0.65s linear infinite', width:'300%'}}>
+              {Array.from({length: 28}).map((_, i) => (
+                <div key={i} style={{width:44, height:4, background:'rgba(255,255,255,0.42)', borderRadius:2, flexShrink:0}}/>
+              ))}
+            </div>
+          </div>
+          {/* Floating car */}
+          <div style={{position:'absolute', bottom:16, left:'50%', animation:'authCarFloat 2.8s ease-in-out infinite'}}>
+            <svg width="172" height="60" viewBox="0 0 172 60" fill="none">
+              <ellipse cx="86" cy="57" rx="72" ry="5" fill="rgba(0,0,0,0.22)"/>
+              <rect x="5" y="25" width="162" height="22" rx="6" fill="white" fillOpacity="0.93"/>
+              <path d="M34 25 L54 5 L118 5 L136 25Z" fill="white" fillOpacity="0.88"/>
+              <path d="M56 7 L56 25 L94 25 L94 7Z" fill="rgba(110,42,140,0.22)"/>
+              <path d="M96 7 L96 25 L131 25 L118 7Z" fill="rgba(110,42,140,0.22)"/>
+              <line x1="95" y1="5" x2="95" y2="25" stroke="rgba(0,0,0,0.1)" strokeWidth="2"/>
+              <rect x="5" y="25" width="162" height="3" rx="2" fill="rgba(255,255,255,0.42)"/>
+              <line x1="80" y1="26" x2="80" y2="46" stroke="rgba(0,0,0,0.07)" strokeWidth="1.5"/>
+              <circle cx="44" cy="47" r="12" fill="#12062A"/>
+              <circle cx="128" cy="47" r="12" fill="#12062A"/>
+              <circle cx="44" cy="47" r="6.5" fill="rgba(255,255,255,0.28)"/>
+              <circle cx="128" cy="47" r="6.5" fill="rgba(255,255,255,0.28)"/>
+              <circle cx="44" cy="47" r="2.5" fill="rgba(255,255,255,0.65)"/>
+              <circle cx="128" cy="47" r="2.5" fill="rgba(255,255,255,0.65)"/>
+              <rect x="160" y="29" width="11" height="9" rx="3" fill="#FFE566" fillOpacity="0.96"/>
+              <ellipse cx="168" cy="33" rx="20" ry="7" fill="#FFE566" fillOpacity="0.14"/>
+              <rect x="1" y="29" width="9" height="9" rx="3" fill="#FF4444" fillOpacity="0.82"/>
+              <ellipse cx="5" cy="33" rx="14" ry="6" fill="#FF4444" fillOpacity="0.1"/>
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -185,8 +241,9 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
         <div className="auth-form-inner">
           {mode === "login" && (
             <>
-              <h2 style={{fontSize:24, fontWeight:700, margin:'0 0 4px', letterSpacing:'-0.01em'}}>ยินดีต้อนรับกลับมา</h2>
-              <p className="muted" style={{margin:'0 0 28px', fontSize:13.5}}>เข้าสู่ระบบด้วยรหัสพนักงาน PEA</p>
+              <div style={{width:40, height:4, background:'linear-gradient(90deg, var(--pea-purple), var(--pea-orange))', borderRadius:4, marginBottom:18, animation:'formSlideIn 0.4s ease-out both'}}/>
+              <h2 style={{fontSize:24, fontWeight:700, margin:'0 0 4px', letterSpacing:'-0.01em', animation:'formSlideIn 0.4s 0.05s ease-out both'}}>ยินดีต้อนรับกลับมา</h2>
+              <p className="muted" style={{margin:'0 0 28px', fontSize:13.5, animation:'formSlideIn 0.4s 0.1s ease-out both'}}>เข้าสู่ระบบด้วยรหัสพนักงาน</p>
               {registered && (
                 <div style={{background:'var(--ok-bg)', border:'1px solid #c5e5d2', borderRadius:10, padding:'10px 14px', fontSize:13, color:'var(--ok)', marginBottom:18}}>
                   <b>สมัครสมาชิกสำเร็จ</b> · กรุณารอผู้ดูแลระบบอนุมัติบัญชี
@@ -229,6 +286,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
 
           {mode === "register" && (
             <>
+              <div style={{width:40, height:4, background:'linear-gradient(90deg, var(--pea-purple), var(--pea-orange))', borderRadius:4, marginBottom:18}}/>
               <h2 style={{fontSize:24, fontWeight:700, margin:'0 0 4px', letterSpacing:'-0.01em'}}>สมัครสมาชิก</h2>
               <p className="muted" style={{margin:'0 0 22px', fontSize:13.5}}>บัญชีต้องผ่านการอนุมัติจากผู้ดูแลระบบก่อนใช้งาน</p>
               <div className="col gap-3">

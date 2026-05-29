@@ -27,6 +27,7 @@ function App() {
   }, [isDark]);
 
   const [appReady, setAppReady] = React.useState(false);
+  const [loaderFading, setLoaderFading] = React.useState(false);
   const [currentUser, setCurrentUser] = React.useState(null);
   const [registered, setRegistered] = React.useState(false);
 
@@ -51,7 +52,8 @@ function App() {
   React.useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) await initUser(session.user.id);
-      setAppReady(true);
+      setLoaderFading(true);
+      setTimeout(() => setAppReady(true), 420);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_OUT') {
@@ -401,9 +403,34 @@ function App() {
   // ── Loading screen ──
   if (!appReady) {
     return (
-      <div style={{display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--surface)', flexDirection:'column', gap:16}}>
-        <div style={{width:54, height:54, borderRadius:14, background:'var(--pea-orange)', display:'grid', placeItems:'center', color:'white', fontWeight:700, fontSize:14}}>PEA</div>
-        <div style={{color:'var(--text-2)', fontSize:14}}>กำลังโหลดระบบ...</div>
+      <div className={`app-loader${loaderFading ? ' out' : ''}`}>
+        <div className="app-loader-car">
+          <svg width="150" height="56" viewBox="0 0 150 56" fill="none">
+            <ellipse cx="75" cy="53" rx="64" ry="5" fill="rgba(0,0,0,0.25)"/>
+            <rect x="4" y="22" width="142" height="21" rx="5" fill="white" fillOpacity="0.92"/>
+            <path d="M30 22 L48 4 L102 4 L120 22Z" fill="white" fillOpacity="0.88"/>
+            <path d="M50 6 L50 22 L83 22 L83 6Z" fill="rgba(110,42,140,0.22)"/>
+            <path d="M85 6 L85 22 L116 22 L104 6Z" fill="rgba(110,42,140,0.22)"/>
+            <line x1="84" y1="4" x2="84" y2="22" stroke="rgba(0,0,0,0.1)" strokeWidth="2"/>
+            <rect x="4" y="22" width="142" height="3" rx="2" fill="rgba(255,255,255,0.4)"/>
+            <line x1="72" y1="23" x2="72" y2="42" stroke="rgba(0,0,0,0.08)" strokeWidth="1.5"/>
+            <circle cx="38" cy="43" r="11" fill="#1A0A2A"/>
+            <circle cx="112" cy="43" r="11" fill="#1A0A2A"/>
+            <circle cx="38" cy="43" r="6" fill="rgba(255,255,255,0.28)"/>
+            <circle cx="112" cy="43" r="6" fill="rgba(255,255,255,0.28)"/>
+            <circle cx="38" cy="43" r="2.5" fill="rgba(255,255,255,0.65)"/>
+            <circle cx="112" cy="43" r="2.5" fill="rgba(255,255,255,0.65)"/>
+            <rect x="140" y="26" width="9" height="8" rx="3" fill="#FFE566" fillOpacity="0.95"/>
+            <ellipse cx="147" cy="30" rx="18" ry="7" fill="#FFE566" fillOpacity="0.14"/>
+            <rect x="1" y="26" width="8" height="8" rx="3" fill="#FF4444" fillOpacity="0.85"/>
+          </svg>
+        </div>
+        <div className="app-loader-road"><div className="app-loader-road-inner"/></div>
+        <div className="app-loader-name">EasyDrive</div>
+        <div className="app-loader-sub">ระบบจองรถใช้งาน · กำลังโหลด...</div>
+        <div className="app-loader-dots">
+          <div className="app-loader-dot"/><div className="app-loader-dot"/><div className="app-loader-dot"/>
+        </div>
       </div>
     );
   }
