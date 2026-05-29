@@ -1,5 +1,5 @@
 import React from 'react'
-import { I, StatusPill, VehicleIcon, Modal, ConfirmDialog, fmtDate, fmtNum, daysUntil, fmtDateTime } from '../components'
+import { I, StatusPill, VehicleIcon, Modal, ConfirmDialog, fmtDate, fmtNum, daysUntil, fmtDateTime, SearchInput } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
 function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], user, onUpdateVehicle, onAddVehicle }) {
@@ -31,10 +31,7 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
             <p className="sub" style={{margin:'2px 0 0'}}>เพิ่ม แก้ไข และจัดการสถานะรถยนต์ในระบบ</p>
           </div>
           <div style={{display:'flex', gap:8, marginLeft:'auto', alignItems:'center', flexWrap:'wrap'}}>
-            <div style={{position:'relative'}}>
-              <input className="input" placeholder="ค้นหา..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:200, fontSize:13}}/>
-              <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)'}}>{I.search}</div>
-            </div>
+            <SearchInput value={search} onChange={setSearch} placeholder="ค้นหา..." style={{width:'min(200px,100%)'}} />
             <select className="select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{width:150, padding:'7px 28px 7px 12px', fontSize:13}}>
               <option value="all">ทุกประเภท</option>
               {Object.entries(VEHICLE_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}

@@ -13,16 +13,16 @@ function CalendarScreen({ vehicles, bookings, users, onSelectBooking }) {
   return (
     <div>
       <div className="card card-pad" style={{marginBottom:14}}>
-        <div style={{display:'flex', alignItems:'center', gap:12, flexWrap:'wrap'}}>
-          <div>
-            <h2 className="mt-0" style={{margin:0}}>ปฏิทินการจอง</h2>
-            <p className="sub" style={{margin:'2px 0 0'}}>ภาพรวมการใช้รถยนต์ทั้งหน่วยงาน</p>
-          </div>
-          <div style={{display:'flex', gap:6, marginLeft:'auto', alignItems:'center'}}>
-            <select className="select" value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)} style={{width:220}}>
-              <option value="all">รถยนต์ทั้งหมด ({vehicles.length})</option>
-              {vehicles.map((v) => <option key={v.id} value={v.id}>{v.id} · {v.plate.split(' ').slice(0,2).join(' ')} · {v.brand}</option>)}
-            </select>
+        <div style={{marginBottom:10}}>
+          <h2 className="mt-0" style={{margin:'0 0 2px'}}>ปฏิทินการจอง</h2>
+          <p className="sub" style={{margin:0}}>ภาพรวมการใช้รถยนต์ทั้งหน่วยงาน</p>
+        </div>
+        <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
+          <select className="select" value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)} style={{flex:'1 1 160px', minWidth:0}}>
+            <option value="all">รถยนต์ทั้งหมด ({vehicles.length})</option>
+            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.id} · {v.plate.split(' ').slice(0,2).join(' ')} · {v.brand}</option>)}
+          </select>
+          <div style={{display:'flex', gap:6, alignItems:'center', flexShrink:0}}>
             <div style={{display:'flex', background:'var(--surface-2)', borderRadius:8, padding:3}}>
               <button className={"btn sm" + (view === "month" ? " primary" : "")} style={{background: view !== "month" ? 'transparent' : undefined, border:'none'}} onClick={() => setView("month")}>เดือน</button>
               <button className={"btn sm" + (view === "week" ? " primary" : "")} style={{background: view !== "week" ? 'transparent' : undefined, border:'none'}} onClick={() => setView("week")}>สัปดาห์</button>

@@ -1,6 +1,6 @@
 // Admin screens: Approvals (bookings) + Members (users)
 import React from 'react'
-import { I, StatusPill, VehicleIcon, Modal, fmtDate, fmtDateTime, fmtTime, fmtNum } from '../components'
+import { I, StatusPill, VehicleIcon, Modal, fmtDate, fmtDateTime, fmtTime, fmtNum, SearchInput } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 
 function ApprovalsScreen({ bookings, vehicles, users, mileageCorrections = [], user, onApprove, onReject, onApproveMileage, onRejectMileage, onSelectBooking, onPrintVoucher }) {
@@ -34,10 +34,7 @@ function ApprovalsScreen({ bookings, vehicles, users, mileageCorrections = [], u
             <p className="sub" style={{margin:'2px 0 0'}}>ตรวจสอบและอนุมัติคำขอจองรถจากผู้ใช้งาน</p>
           </div>
           <div className="search-export-row">
-            <div style={{position:'relative', flex:1}}>
-              <input className="input" placeholder="ค้นหาผู้จอง / รถ / สถานที่..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:'100%', fontSize:13}}/>
-              <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)'}}>{I.search}</div>
-            </div>
+            <SearchInput value={search} onChange={setSearch} placeholder="ค้นหาผู้จอง / รถ / สถานที่..." style={{flex:1}}/>
             <button className="btn ghost" style={{flexShrink:0}}>{I.export} Export</button>
           </div>
         </div>
@@ -174,10 +171,7 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
             <p className="sub" style={{margin:'2px 0 0'}}>อนุมัติผู้ใช้งานและกำหนดบทบาทในระบบ</p>
           </div>
           <div style={{marginLeft:'auto', display:'flex', gap:8, alignItems:'center'}}>
-            <div style={{position:'relative'}}>
-              <input className="input" placeholder="ค้นหาชื่อ / รหัสพนักงาน / แผนก..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:'min(300px, 100%)', fontSize:13}}/>
-              <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)'}}>{I.search}</div>
-            </div>
+            <SearchInput value={search} onChange={setSearch} placeholder="ค้นหาชื่อ / รหัสพนักงาน / แผนก..." style={{width:'min(300px,100%)'}}/>
           </div>
         </div>
       </div>

@@ -396,8 +396,43 @@ function ToastStack({ toasts }) {
   );
 }
 
+// ─── Search Input with clear button ──────────────────────────────────
+function SearchInput({ value, onChange, placeholder, style, inputStyle }) {
+  return (
+    <div style={{position:'relative', ...style}}>
+      <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)', pointerEvents:'none', zIndex:1}}>
+        {I.search}
+      </div>
+      <input
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder || 'ค้นหา...'}
+        style={{padding:'7px 34px 7px 32px', width:'100%', fontSize:13, ...inputStyle}}
+      />
+      {value && (
+        <button
+          onClick={() => onChange('')}
+          title="ล้างการค้นหา"
+          style={{
+            position:'absolute', right:6, top:'50%', transform:'translateY(-50%)',
+            background:'var(--surface-2)', border:'1px solid var(--border)',
+            borderRadius:5, cursor:'pointer', color:'var(--text-3)',
+            width:22, height:22, display:'flex', alignItems:'center', justifyContent:'center',
+            padding:0, lineHeight:1,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export {
   I, VehicleIcon, StatusPill, STATUS_LABEL,
-  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack,
+  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, SearchInput,
   fmtDate, fmtDateTime, fmtTime, fmtNum, daysUntil,
 };

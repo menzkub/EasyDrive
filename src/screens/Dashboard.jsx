@@ -1,5 +1,5 @@
 import React from 'react'
-import { I, VehicleIcon, StatusPill, fmtNum, fmtTime } from '../components'
+import { I, VehicleIcon, StatusPill, fmtNum, fmtTime, SearchInput } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES, TODAY } from '../data'
 
 function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle }) {
@@ -108,10 +108,7 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
             <p className="sub" style={{margin:'2px 0 0'}}>รถยนต์ทั้งหมดในระบบ — สถานะอัพเดทเรียลไทม์</p>
           </div>
           <div style={{display:'flex', alignItems:'center', gap:10, marginLeft:'auto'}}>
-            <div style={{position:'relative'}}>
-              <input className="input" placeholder="ค้นหาทะเบียน/ยี่ห้อ..." value={search} onChange={(e) => setSearch(e.target.value)} style={{padding:'7px 12px 7px 32px', width:'min(230px, 100%)', fontSize:13}}/>
-              <div style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-3)'}}>{I.search}</div>
-            </div>
+            <SearchInput value={search} onChange={setSearch} placeholder="ค้นหาทะเบียน/ยี่ห้อ..." style={{width:'min(230px,100%)'}} />
           </div>
         </div>
 
