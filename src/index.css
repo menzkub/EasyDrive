@@ -72,6 +72,57 @@
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
+/* Dark mode */
+[data-dark="1"] {
+  --bg: #120F1A;
+  --surface: #1C1728;
+  --surface-2: #241F32;
+  --border: #342B44;
+  --border-strong: #44395A;
+  --text: #EDE8F5;
+  --text-2: #B3A8CC;
+  --text-3: #7A6E96;
+  --text-inv: #1F1530;
+  --pea-purple-50: #2A1E3C;
+  --pea-purple-100: #3A2A52;
+  --pea-orange-50: #2D1E0F;
+  --ok-bg: #0D2318;
+  --warn-bg: #251A00;
+  --danger-bg: #250F0F;
+  --info-bg: #0D1B2D;
+  --muted-bg: #1C1728;
+  --status-available-bg: #0D2318;
+  --status-available: #4EBE8A;
+  --status-booked-bg: #251A00;
+  --status-booked: #D4A020;
+  --status-approved-bg: #0D1B2D;
+  --status-approved: #5A9EE0;
+  --status-urgent-bg: #250F0F;
+  --status-urgent: #E06060;
+  --status-maintenance-bg: #1C1728;
+  --status-maintenance: #A070CC;
+  --status-unavailable-bg: #1C1728;
+  --status-unavailable: #8B829E;
+  --sh-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --sh-md: 0 4px 14px rgba(0,0,0,0.5);
+  --sh-lg: 0 12px 32px rgba(0,0,0,0.6);
+}
+[data-dark="1"] .btn:not(.primary):not(.accent):not(.danger) { background: var(--surface-2); border-color: var(--border); }
+[data-dark="1"] .btn:not(.primary):not(.accent):not(.danger):hover { background: var(--border); }
+[data-dark="1"] .btn.ghost { background: transparent; border-color: var(--border); }
+[data-dark="1"] .btn.ghost:hover { background: var(--surface-2); }
+[data-dark="1"] .modal-foot { background: var(--surface-2); }
+[data-dark="1"] .cal-cell.weekend { background: var(--surface-2); }
+[data-dark="1"] .cal-cell.today .date-num { background: var(--pea-purple); }
+[data-dark="1"] .input, [data-dark="1"] .select, [data-dark="1"] .textarea { background: var(--surface-2); color: var(--text); }
+[data-dark="1"] .select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%237A6E96' d='M0 0h12L6 8z'/></svg>");
+}
+[data-dark="1"] .auth-form { background: var(--surface); }
+
+/* Auth mobile hero — hidden on desktop, shown on mobile */
+.auth-mobile-hero { display: none; }
+
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 body {
@@ -685,10 +736,21 @@ a { color: inherit; text-decoration: none; }
   .toast-stack { left: 12px; right: 12px; top: auto; bottom: 80px; width: auto; }
   .toast { min-width: 0; width: 100%; }
 
-  /* Login — hide side panel, show form only */
+  /* Login — hide side panel, show mobile hero */
   .auth-wrap { display: block; }
   .auth-side { display: none; }
-  .auth-form { padding: 24px 18px; min-height: 100vh; align-items: flex-start; padding-top: 40px; }
+  .auth-form { padding: 0 0 48px; min-height: 100vh; align-items: stretch; flex-direction: column; justify-content: flex-start; }
+  .auth-form-inner { padding: 0 18px; max-width: 100%; }
+  .auth-mobile-hero {
+    display: block;
+    background: linear-gradient(135deg, var(--pea-purple-deep) 0%, var(--pea-purple) 60%, #9B4DB8 100%);
+    color: white;
+    padding: 28px 22px 26px;
+    border-radius: 0 0 24px 24px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
 
   /* Members — show cards, hide table */
   .member-table-wrap { display: none; }

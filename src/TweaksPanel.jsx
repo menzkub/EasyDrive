@@ -1,7 +1,7 @@
 import React from 'react'
 
 const __TWEAKS_STYLE = `
-  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:900;width:280px;
     max-height:calc(100vh - 32px);display:flex;flex-direction:column;
     background:rgba(250,249,247,.78);color:#29261b;
     -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
@@ -122,7 +122,7 @@ function TweaksPanel({ title = 'Tweaks', children }) {
       <button
         onClick={() => setOpen(true)}
         style={{
-          position:'fixed', right:16, bottom:16, zIndex:2147483646,
+          position:'fixed', right:16, bottom:16, zIndex:900,
           background:'rgba(250,249,247,.9)', border:'.5px solid rgba(255,255,255,.6)',
           borderRadius:10, padding:'6px 12px', cursor:'pointer',
           fontSize:11.5, fontWeight:600, color:'#29261b',

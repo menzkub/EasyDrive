@@ -19,6 +19,12 @@ const TWEAK_DEFAULTS = { theme: "purple-orange", density: "regular", dashboardLa
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [isDark, setIsDark] = React.useState(() => localStorage.getItem('pea-dark') === '1');
+
+  React.useEffect(() => {
+    document.documentElement.dataset.dark = isDark ? '1' : '';
+    localStorage.setItem('pea-dark', isDark ? '1' : '0');
+  }, [isDark]);
 
   const [appReady, setAppReady] = React.useState(false);
   const [currentUser, setCurrentUser] = React.useState(null);
@@ -445,6 +451,8 @@ function App() {
         onMenuClick={() => setDrawerOpen(true)}
         onBellClick={() => setNotiOpen(!notiOpen)}
         unreadCount={unreadCount}
+        isDark={isDark}
+        onDarkToggle={() => setIsDark(d => !d)}
       />
       <main className="main">
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}

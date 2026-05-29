@@ -167,6 +167,21 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
       </div>
 
       <div className="auth-form">
+        <div className="auth-mobile-hero">
+          <div style={{position:'absolute', width:220, height:220, borderRadius:'50%', background:'rgba(243,112,33,0.22)', top:-90, right:-50, pointerEvents:'none'}}/>
+          <div style={{position:'absolute', width:150, height:150, borderRadius:'50%', background:'rgba(250,166,26,0.14)', bottom:-70, left:-40, pointerEvents:'none'}}/>
+          <div style={{position:'relative', zIndex:1}}>
+            <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:14}}>
+              <div style={{width:42, height:42, borderRadius:11, background:'var(--pea-orange)', display:'grid', placeItems:'center', color:'white', fontWeight:700, fontSize:12, flexShrink:0, boxShadow:'0 4px 12px rgba(243,112,33,0.5)'}}>PEA</div>
+              <div>
+                <div style={{fontWeight:700, fontSize:15, letterSpacing:'0.04em'}}>PEA FANG</div>
+                <div style={{fontSize:11.5, opacity:0.8}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
+              </div>
+            </div>
+            <div style={{fontSize:22, fontWeight:700, lineHeight:1.2, letterSpacing:'-0.01em'}}>ระบบจองรถใช้งาน</div>
+            <div style={{fontSize:12, opacity:0.72, marginTop:6}}>Vehicle Booking System · จ.เชียงใหม่</div>
+          </div>
+        </div>
         <div className="auth-form-inner">
           {mode === "login" && (
             <>
