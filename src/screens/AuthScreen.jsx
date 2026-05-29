@@ -133,7 +133,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
         <div style={{display:'flex', alignItems:'center', gap:14}}>
           <div className="brand-logo" style={{width:54, height:54, fontSize:14, background:'var(--pea-orange)'}}>PEA</div>
           <div>
-            <div style={{fontWeight:700, fontSize:18, letterSpacing:'0.04em'}}>PEA FANG</div>
+            <div style={{fontWeight:700, fontSize:18, letterSpacing:'0.04em'}}>EasyDrive</div>
             <div style={{opacity:0.75, fontSize:13}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
           </div>
         </div>
@@ -174,7 +174,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
             <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:14}}>
               <div style={{width:42, height:42, borderRadius:11, background:'var(--pea-orange)', display:'grid', placeItems:'center', color:'white', fontWeight:700, fontSize:12, flexShrink:0, boxShadow:'0 4px 12px rgba(243,112,33,0.5)'}}>PEA</div>
               <div>
-                <div style={{fontWeight:700, fontSize:15, letterSpacing:'0.04em'}}>PEA FANG</div>
+                <div style={{fontWeight:700, fontSize:15, letterSpacing:'0.04em'}}>EasyDrive</div>
                 <div style={{fontSize:11.5, opacity:0.8}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
               </div>
             </div>

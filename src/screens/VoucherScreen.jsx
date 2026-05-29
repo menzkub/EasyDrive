@@ -23,7 +23,7 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
               position:'absolute', inset:0, display:'grid', placeItems:'center',
               pointerEvents:'none', opacity:0.05, zIndex:0
             }}>
-              <div style={{fontSize:140, fontWeight:900, transform:'rotate(-20deg)', color:'var(--pea-purple)'}}>PEA FANG</div>
+              <div style={{fontSize:140, fontWeight:900, transform:'rotate(-20deg)', color:'var(--pea-purple)'}}>EasyDrive</div>
             </div>
 
             {/* Header */}
@@ -32,7 +32,7 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
               <div style={{flex:1}}>
                 <div style={{fontSize:11, color:'var(--text-3)', letterSpacing:'0.08em', textTransform:'uppercase'}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
                 <div style={{fontSize:22, fontWeight:700, color:'var(--pea-purple)', letterSpacing:'-0.01em'}}>ใบจองรถยนต์ใช้งาน</div>
-                <div style={{fontSize:12.5, color:'var(--text-2)', marginTop:2}}>Vehicle Booking Voucher · PEA FANG District</div>
+                <div style={{fontSize:12.5, color:'var(--text-2)', marginTop:2}}>Vehicle Booking Voucher · EasyDrive District</div>
               </div>
               <div style={{textAlign:'right'}}>
                 <div style={{fontSize:11, color:'var(--text-3)'}}>เลขที่ใบจอง</div>

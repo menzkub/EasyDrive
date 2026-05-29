@@ -128,7 +128,7 @@ function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
         <div className="brand">
           <div className="brand-logo">PEA</div>
           <div className="brand-text">
-            <b>PEA FANG</b>
+            <b>EasyDrive</b>
             <small>ระบบจองรถใช้งาน</small>
           </div>
         </div>

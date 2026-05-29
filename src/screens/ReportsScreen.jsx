@@ -29,7 +29,7 @@ function ReportsScreen({ vehicles, bookings, users = [], onRefresh }) {
     const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `pea-fang-รายงาน-${new Date().toLocaleDateString('th-TH')}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `easydrive-รายงาน-${new Date().toLocaleDateString('th-TH')}.csv`; a.click();
     URL.revokeObjectURL(url);
   }
 

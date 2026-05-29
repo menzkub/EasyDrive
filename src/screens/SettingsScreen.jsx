@@ -106,7 +106,7 @@ function AccountSettings({ currentUser, deptNames, onUpdateProfile, pushToast })
   async function startEnroll2FA() {
     setMfaErr('');
     setMfaLoading(true);
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'PEA FANG Authenticator' });
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'EasyDrive Authenticator' });
     setMfaLoading(false);
     if (error) { setMfaErr(error.message); return; }
     setMfaQr(data.totp.qr_code);
@@ -454,9 +454,9 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
   function buildICS() {
     const lines = [
       'BEGIN:VCALENDAR', 'VERSION:2.0',
-      'PRODID:-//PEA FANG//Vehicle Booking System//TH',
+      'PRODID:-//EasyDrive//Vehicle Booking System//TH',
       'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-      'X-WR-CALNAME:PEA FANG การจองรถ',
+      'X-WR-CALNAME:EasyDrive การจองรถ',
     ];
     for (const b of myBookings) {
       const v = vehicles.find(v => v.id === b.vehicleId);
@@ -483,7 +483,7 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
     const blob = new Blob([buildICS()], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `pea-fang-${currentUser.emp}.ics`; a.click();
+    a.href = url; a.download = `easydrive-${currentUser.emp}.ics`; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -593,10 +593,10 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
             <div className="text-xs muted" style={{marginBottom:6}}>คัดลอก URL นี้เพื่อ Subscribe ในแอปปฏิทินที่รองรับ webcal://</div>
             <div style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:8, fontFamily:'var(--font-mono)', fontSize:11}}>
               <code style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
-                webcal://pea-fang-vehicle-booking.vercel.app/api/calendar/{currentUser.id}.ics
+                webcal://easydrive.vercel.app/api/calendar/{currentUser.id}.ics
               </code>
               <button className="btn sm primary" onClick={() => {
-                navigator.clipboard?.writeText(`webcal://pea-fang-vehicle-booking.vercel.app/api/calendar/${currentUser.id}.ics`);
+                navigator.clipboard?.writeText(`webcal://easydrive.vercel.app/api/calendar/${currentUser.id}.ics`);
                 setCopied(true); setTimeout(() => setCopied(false), 2000);
               }}>{copied ? '✓ คัดลอกแล้ว' : 'คัดลอก'}</button>
             </div>
