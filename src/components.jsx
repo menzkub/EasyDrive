@@ -701,20 +701,70 @@ const CMD_ITEMS = {
   ],
 };
 
-function CommandMenu({ open, onClose, role, setRoute, onLogout }) {
+function CommandMenu({ open, onClose, role, setRoute, onLogout, bookings = [], vehicles = [], users = [], onSelectBooking, onSelectVehicle }) {
   const [q, setQ] = React.useState('');
   const [idx, setIdx] = React.useState(0);
   const inputRef = React.useRef(null);
   const listRef = React.useRef(null);
 
-  const items = React.useMemo(() => {
-    const base = CMD_ITEMS[role] || CMD_ITEMS.user;
-    const logoutItem = { key: '__logout', label: 'ออกจากระบบ', icon: 'logout', group: 'บัญชี', action: onLogout };
-    const all = [...base, logoutItem];
-    if (!q) return all;
-    const lq = q.toLowerCase();
-    return all.filter(i => i.label.toLowerCase().includes(lq) || i.group.toLowerCase().includes(lq));
-  }, [q, role, onLogout]);
+  const STATUS_TH = { approved:'อนุมัติแล้ว', booked:'รออนุมัติ', urgent:'ภารกิจด่วน', rejected:'ไม่อนุมัติ', completed:'เสร็จสิ้น', pending:'รอดำเนินการ' };
+
+  const allItems = React.useMemo(() => {
+    const nav = (CMD_ITEMS[role] || CMD_ITEMS.user).map(i => ({ ...i, type: 'nav' }));
+    const logoutItem = { key: '__logout', label: 'ออกจากระบบ', icon: 'logout', group: 'บัญชี', type: 'nav', action: onLogout };
+
+    if (!q.trim()) return [...nav, logoutItem];
+
+    const lq = q.toLowerCase().trim();
+
+    const navHits = [...nav, logoutItem].filter(i =>
+      i.label.toLowerCase().includes(lq) || i.group.toLowerCase().includes(lq)
+    );
+
+    const bookingHits = bookings.filter(b => {
+      const v = vehicles.find(x => x.id === b.vehicleId);
+      return (
+        b.id?.toLowerCase().includes(lq) ||
+        b.purpose?.toLowerCase().includes(lq) ||
+        b.destination?.toLowerCase().includes(lq) ||
+        v?.plate?.toLowerCase().includes(lq) ||
+        v?.brand?.toLowerCase().includes(lq)
+      );
+    }).slice(0, 5).map(b => {
+      const v = vehicles.find(x => x.id === b.vehicleId);
+      return {
+        key: 'booking-' + b.id, type: 'booking', group: 'การจอง',
+        label: b.purpose || b.id,
+        sub: `${v?.plate?.split(' ').slice(0,2).join(' ') || b.vehicleId} · ${STATUS_TH[b.status] || b.status}`,
+        icon: 'car', data: b,
+      };
+    });
+
+    const vehicleHits = vehicles.filter(v =>
+      v.plate?.toLowerCase().includes(lq) ||
+      v.brand?.toLowerCase().includes(lq) ||
+      v.id?.toLowerCase().includes(lq)
+    ).slice(0, 5).map(v => ({
+      key: 'veh-' + v.id, type: 'vehicle', group: 'รถยนต์',
+      label: v.brand,
+      sub: `${v.plate?.split(' ').slice(0,2).join(' ')} · ${v.id}`,
+      icon: 'car', data: v,
+    }));
+
+    const canSeeUsers = role === 'admin' || role === 'manager';
+    const userHits = canSeeUsers ? users.filter(u =>
+      u.name?.toLowerCase().includes(lq) ||
+      u.emp?.toLowerCase().includes(lq) ||
+      u.dept?.toLowerCase().includes(lq)
+    ).slice(0, 5).map(u => ({
+      key: 'user-' + u.id, type: 'user', group: 'สมาชิก',
+      label: u.name,
+      sub: `${u.emp} · ${u.dept}`,
+      icon: 'users', data: u,
+    })) : [];
+
+    return [...navHits, ...bookingHits, ...vehicleHits, ...userHits];
+  }, [q, role, bookings, vehicles, users, onLogout]);
 
   React.useEffect(() => { setIdx(0); }, [q]);
 
@@ -727,94 +777,111 @@ function CommandMenu({ open, onClose, role, setRoute, onLogout }) {
     if (!open) return;
     const handler = (e) => {
       if (e.key === 'Escape') { onClose(); return; }
-      if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(i => Math.min(i + 1, items.length - 1)); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(i => Math.min(i + 1, allItems.length - 1)); }
       if (e.key === 'ArrowUp')   { e.preventDefault(); setIdx(i => Math.max(i - 1, 0)); }
-      if (e.key === 'Enter') {
-        const item = items[idx];
-        if (!item) return;
-        onClose();
-        if (item.action) item.action();
-        else setRoute(item.key);
-      }
+      if (e.key === 'Enter') { selectItem(allItems[idx]); }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open, items, idx]);
+  }, [open, allItems, idx]);
 
   React.useEffect(() => {
-    const el = listRef.current?.children[idx];
+    const el = listRef.current?.querySelectorAll('[data-item]')[idx];
     el?.scrollIntoView({ block: 'nearest' });
   }, [idx]);
 
+  function selectItem(item) {
+    if (!item) return;
+    onClose();
+    if (item.action) { item.action(); return; }
+    if (item.type === 'booking' && onSelectBooking) { onSelectBooking(item.data); return; }
+    if (item.type === 'vehicle') { setRoute('vehicles'); if (onSelectVehicle) onSelectVehicle(item.data); return; }
+    if (item.type === 'user') { setRoute('members'); return; }
+    setRoute(item.key);
+  }
+
   if (!open) return null;
 
-  const groups = [...new Set(items.map(i => i.group))];
+  const groups = [...new Set(allItems.map(i => i.group))];
+  let flatIdx = 0;
 
   return (
-    <div className="modal-overlay" style={{zIndex:3000, alignItems:'flex-start', paddingTop:'10vh'}} onClick={onClose}>
+    <div className="modal-overlay" style={{zIndex:3000, alignItems:'flex-start', paddingTop:'8vh'}} onClick={onClose}>
       <div style={{
-        width:'min(92vw, 520px)',
+        width:'min(94vw, 560px)',
         background:'var(--surface)',
         borderRadius:16,
-        boxShadow:'0 24px 64px rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.12)',
+        boxShadow:'0 24px 64px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.1)',
         overflow:'hidden',
         animation:'slideUp 0.15s ease-out',
       }} onClick={e => e.stopPropagation()}>
+
         {/* Search input */}
-        <div style={{display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderBottom:'1px solid var(--border)'}}>
+        <div style={{display:'flex', alignItems:'center', gap:10, padding:'13px 16px', borderBottom:'1px solid var(--border)'}}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input
-            ref={inputRef}
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="พิมพ์คำสั่งหรือค้นหา..."
+          <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)}
+            placeholder="ค้นหาการจอง รถ สมาชิก หรือคำสั่ง..."
             style={{flex:1, border:'none', outline:'none', background:'transparent', fontSize:15, color:'var(--text)', fontFamily:'inherit'}}
           />
-          {q && (
-            <button onClick={() => setQ('')} style={{background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:2, display:'flex', alignItems:'center'}}>
+          {q ? (
+            <button onClick={() => setQ('')} style={{background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:2, display:'flex'}}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
+          ) : (
+            <kbd style={{fontSize:11, color:'var(--text-3)', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, padding:'2px 6px', fontFamily:'var(--font-mono)', flexShrink:0}}>⌘K</kbd>
           )}
         </div>
 
         {/* Results */}
-        <div ref={listRef} style={{maxHeight:'min(60vh, 400px)', overflowY:'auto', padding:'6px 0'}}>
-          {items.length === 0 ? (
-            <div style={{padding:'28px 16px', textAlign:'center', color:'var(--text-3)', fontSize:14}}>ไม่พบผลลัพธ์</div>
+        <div ref={listRef} style={{maxHeight:'min(62vh, 440px)', overflowY:'auto', padding:'4px 0'}}>
+          {allItems.length === 0 ? (
+            <div style={{padding:'32px 16px', textAlign:'center', color:'var(--text-3)', fontSize:14}}>
+              <div style={{fontSize:28, marginBottom:8}}>🔍</div>
+              ไม่พบผลลัพธ์สำหรับ "{q}"
+            </div>
           ) : groups.map(group => {
-            const groupItems = items.filter(i => i.group === group);
+            const groupItems = allItems.filter(i => i.group === group);
             return (
               <React.Fragment key={group}>
-                <div style={{padding:'6px 14px 2px', fontSize:11, fontWeight:600, color:'var(--text-3)', letterSpacing:'0.06em', textTransform:'uppercase'}}>{group}</div>
+                <div style={{padding:'8px 14px 3px', fontSize:10.5, fontWeight:700, color:'var(--text-3)', letterSpacing:'0.07em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:6}}>
+                  {group === 'นำทาง' && '🧭'}
+                  {group === 'การจอง' && '📋'}
+                  {group === 'รถยนต์' && '🚗'}
+                  {group === 'สมาชิก' && '👥'}
+                  {group === 'ตั้งค่า' && '⚙️'}
+                  {group === 'บัญชี' && '👤'}
+                  {group}
+                </div>
                 {groupItems.map(item => {
-                  const globalIdx = items.indexOf(item);
-                  const active = globalIdx === idx;
+                  const curIdx = flatIdx++;
+                  const active = curIdx === idx;
+                  const isDanger = item.key === '__logout';
                   return (
-                    <button key={item.key}
-                      onMouseEnter={() => setIdx(globalIdx)}
-                      onClick={() => { onClose(); if (item.action) item.action(); else setRoute(item.key); }}
+                    <button key={item.key} data-item
+                      onMouseEnter={() => setIdx(curIdx)}
+                      onClick={() => selectItem(item)}
                       style={{
                         display:'flex', alignItems:'center', gap:11,
-                        width:'100%', padding:'10px 14px',
+                        width:'100%', padding:'9px 14px',
                         border:'none', textAlign:'left', cursor:'pointer',
                         background: active ? 'var(--pea-purple-50)' : 'transparent',
-                        color: active ? 'var(--pea-purple)' : item.key === '__logout' ? 'var(--danger)' : 'var(--text)',
-                        borderRadius: active ? 0 : 0,
-                        transition:'background 0.1s',
-                        fontSize: 14,
+                        transition:'background 0.08s',
                       }}
                     >
                       <span style={{
-                        width:30, height:30, borderRadius:8, flexShrink:0,
-                        background: active ? 'var(--pea-purple-100)' : 'var(--surface-2)',
+                        width:32, height:32, borderRadius:9, flexShrink:0,
+                        background: active ? 'var(--pea-purple-100)' : isDanger ? 'var(--danger-bg)' : 'var(--surface-2)',
                         display:'grid', placeItems:'center',
-                        color: item.key === '__logout' ? 'var(--danger)' : active ? 'var(--pea-purple)' : 'var(--text-2)',
+                        color: isDanger ? 'var(--danger)' : active ? 'var(--pea-purple)' : 'var(--text-2)',
                       }}>
-                        {React.cloneElement(I[item.icon] || I.dashboard, { width: 15, height: 15 })}
+                        {React.cloneElement(I[item.icon] || I.dashboard, { width:15, height:15 })}
                       </span>
-                      <span style={{flex:1}}>{item.label}</span>
+                      <span style={{flex:1, minWidth:0}}>
+                        <span style={{display:'block', fontSize:13.5, fontWeight:500, color: isDanger ? 'var(--danger)' : active ? 'var(--pea-purple)' : 'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{item.label}</span>
+                        {item.sub && <span style={{display:'block', fontSize:11.5, color:'var(--text-3)', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{item.sub}</span>}
+                      </span>
                       {active && (
-                        <kbd style={{fontSize:11, color:'var(--text-3)', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, padding:'2px 6px', fontFamily:'var(--font-mono)'}}>↵</kbd>
+                        <kbd style={{fontSize:11, color:'var(--text-3)', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, padding:'2px 6px', fontFamily:'var(--font-mono)', flexShrink:0}}>↵</kbd>
                       )}
                     </button>
                   );
@@ -826,10 +893,10 @@ function CommandMenu({ open, onClose, role, setRoute, onLogout }) {
 
         {/* Footer */}
         <div style={{display:'flex', gap:14, padding:'8px 16px', borderTop:'1px solid var(--border)', fontSize:11.5, color:'var(--text-3)'}}>
-          <span><kbd style={{background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:4, padding:'1px 5px', fontFamily:'var(--font-mono)', marginRight:4}}>↑↓</kbd>เลื่อน</span>
-          <span><kbd style={{background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:4, padding:'1px 5px', fontFamily:'var(--font-mono)', marginRight:4}}>↵</kbd>เปิด</span>
-          <span><kbd style={{background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:4, padding:'1px 5px', fontFamily:'var(--font-mono)', marginRight:4}}>Esc</kbd>ปิด</span>
-          <span style={{marginLeft:'auto'}}>⌘K</span>
+          {[['↑↓','เลื่อน'],['↵','เปิด'],['Esc','ปิด']].map(([k,l]) => (
+            <span key={k}><kbd style={{background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:4, padding:'1px 5px', fontFamily:'var(--font-mono)', marginRight:4}}>{k}</kbd>{l}</span>
+          ))}
+          {q && allItems.length > 0 && <span style={{marginLeft:'auto', color:'var(--text-3)'}}>{allItems.length} ผลลัพธ์</span>}
         </div>
       </div>
     </div>

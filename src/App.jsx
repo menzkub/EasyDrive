@@ -602,7 +602,11 @@ function App() {
         </div>
       )}
       <NotificationCenter open={notiOpen} notifications={notifications} onClose={() => setNotiOpen(false)} onMarkRead={(id) => setReadNotifications(new Set([...readNotifications, id]))} onMarkAllRead={() => setReadNotifications(new Set(notifications.map((n) => n.id)))} onNavigate={(r) => setRoute(r)}/>
-      <CommandMenu open={cmdOpen} onClose={() => setCmdOpen(false)} role={currentUser?.role} setRoute={(r) => { setRoute(r); setCmdOpen(false); }} onLogout={confirmLogout}/>
+      <CommandMenu open={cmdOpen} onClose={() => setCmdOpen(false)} role={currentUser?.role} setRoute={(r) => { setRoute(r); setCmdOpen(false); }} onLogout={confirmLogout}
+        bookings={bookings} vehicles={vehicles} users={users}
+        onSelectBooking={(b) => { setSelectedBooking(b); setCmdOpen(false); }}
+        onSelectVehicle={(v) => { setSelectedVehicle(v); setCmdOpen(false); }}
+      />
 
       <TweaksPanel>
         <TweakSection label="ธีมสี"/>
