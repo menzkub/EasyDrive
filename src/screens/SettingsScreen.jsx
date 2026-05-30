@@ -26,13 +26,14 @@ function calcPwStrength(pw) {
   return { score, checks, missing, label, color };
 }
 
-function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange, demoEnabled, onSetDemoEnabled, onDeleteDemoBookings }) {
+function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange, demoEnabled, onSetDemoEnabled, onDeleteDemoBookings, appConfig, onSaveConfig, defaultConfig }) {
   const [tab, setTab] = React.useState(activeTab || "account");
   const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const isAdmin = currentUser.role === 'admin';
+  const adminOnlyTabs = ["depts", "demo", "data", "manual", "dev", "about"];
 
   React.useEffect(() => {
-    if (activeTab) setTab((activeTab === "depts" || activeTab === "manual" || activeTab === "dev" || activeTab === "about" || activeTab === "demo") && !isAdmin ? "account" : activeTab);
+    if (activeTab) setTab(adminOnlyTabs.includes(activeTab) && !isAdmin ? "account" : activeTab);
   }, [activeTab]);
 
   function changeTab(t) {
@@ -52,6 +53,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
           <button className={"tab" + (tab === "noti" ? " active" : "")} onClick={() => changeTab("noti")}>🔔 การแจ้งเตือน</button>
           <button className={"tab" + (tab === "calendar" ? " active" : "")} onClick={() => changeTab("calendar")}>📅 Calendar Sync</button>
           {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => changeTab("depts")}>🏢 จัดการแผนก</button>}
+          {isAdmin && <button className={"tab" + (tab === "data" ? " active" : "")} onClick={() => changeTab("data")}>🗂️ ข้อมูลระบบ</button>}
           {isAdmin && <button className={"tab" + (tab === "demo" ? " active" : "")} onClick={() => changeTab("demo")}>🎮 ทดสอบระบบ</button>}
           {isAdmin && <button className={"tab" + (tab === "manual" ? " active" : "")} onClick={() => changeTab("manual")}>📖 คู่มือ</button>}
           {isAdmin && <button className={"tab" + (tab === "dev" ? " active" : "")} onClick={() => changeTab("dev")}>🛠️ นักพัฒนา</button>}
@@ -61,6 +63,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
         {tab === "calendar" && <CalendarSync currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
         {tab === "depts"    && isAdmin && <DeptManager departments={departments || []} pushToast={pushToast}/>}
+        {tab === "data"     && isAdmin && <DataSettings appConfig={appConfig} onSaveConfig={onSaveConfig} defaultConfig={defaultConfig} pushToast={pushToast}/>}
         {tab === "demo"     && isAdmin && <DemoSettings demoEnabled={demoEnabled} onSetDemoEnabled={onSetDemoEnabled} bookings={bookings} onDeleteAll={onDeleteDemoBookings}/>}
         {tab === "manual"   && isAdmin && <div style={{marginTop:14, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', height:600}}><ManualScreen role="admin"/></div>}
         {tab === "dev"      && isAdmin && <div style={{marginTop:14}}><DevGuideScreen/></div>}
@@ -738,6 +741,283 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
               <button className="btn ghost" onClick={() => setModal(null)}>ปิด</button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Data Settings (admin only) ────────────────────────────────────
+function DataSettings({ appConfig, onSaveConfig, defaultConfig, pushToast }) {
+  const [subTab, setSubTab] = React.useState('checklist');
+  const [saving, setSaving] = React.useState(false);
+  const [setupNeeded, setSetupNeeded] = React.useState(false);
+
+  // Live editable copies — initialised from appConfig (or defaultConfig fallback)
+  const [checklist, setChecklist] = React.useState(() => appConfig?.checklist || defaultConfig?.checklist || []);
+  const [purposes, setPurposes] = React.useState(() => appConfig?.purposes || defaultConfig?.purposes || []);
+  const [vehicleTypes, setVehicleTypes] = React.useState(() => appConfig?.vehicleTypes || defaultConfig?.vehicleTypes || {});
+  const [fuelTypes, setFuelTypes] = React.useState(() => appConfig?.fuelTypes || defaultConfig?.fuelTypes || {});
+
+  // Inline editing states
+  const [editingCl, setEditingCl] = React.useState(null); // {idx, label, hint}
+  const [newCl, setNewCl] = React.useState({ label: '', hint: '' });
+  const [editingPurpose, setEditingPurpose] = React.useState(null); // {idx, value}
+  const [newPurpose, setNewPurpose] = React.useState('');
+  const [editingFuel, setEditingFuel] = React.useState(null); // {key, label}
+  const [newFuel, setNewFuel] = React.useState({ key: '', label: '' });
+
+  async function save(key, value) {
+    setSaving(true);
+    try {
+      await onSaveConfig(key, value);
+      pushToast({ kind: 'ok', title: 'บันทึกสำเร็จ', body: 'อัปเดตข้อมูลระบบแล้ว' });
+      setSetupNeeded(false);
+    } catch (e) {
+      if (e.message?.includes('42P01') || e.code === '42P01') {
+        setSetupNeeded(true);
+        pushToast({ kind: 'warn', title: 'ยังไม่มีตาราง app_config', body: 'ดูคำแนะนำการติดตั้งด้านล่าง' });
+      } else {
+        pushToast({ kind: 'error', title: 'บันทึกไม่สำเร็จ', body: e.message });
+      }
+    }
+    setSaving(false);
+  }
+
+  // ── Checklist helpers ──
+  function moveClItem(idx, dir) {
+    const arr = [...checklist];
+    const to = idx + dir;
+    if (to < 0 || to >= arr.length) return;
+    [arr[idx], arr[to]] = [arr[to], arr[idx]];
+    setChecklist(arr);
+  }
+  function deleteClItem(idx) { setChecklist(checklist.filter((_, i) => i !== idx)); }
+  function addClItem() {
+    if (!newCl.label.trim()) return;
+    const id = newCl.label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now();
+    setChecklist([...checklist, { id, label: newCl.label.trim(), hint: newCl.hint.trim() }]);
+    setNewCl({ label: '', hint: '' });
+  }
+
+  // ── Purposes helpers ──
+  function movePurpose(idx, dir) {
+    const arr = [...purposes];
+    const to = idx + dir;
+    if (to < 0 || to >= arr.length) return;
+    [arr[idx], arr[to]] = [arr[to], arr[idx]];
+    setPurposes(arr);
+  }
+  function deletePurpose(idx) { setPurposes(purposes.filter((_, i) => i !== idx)); }
+  function addPurpose() {
+    if (!newPurpose.trim()) return;
+    setPurposes([...purposes, newPurpose.trim()]);
+    setNewPurpose('');
+  }
+
+  // ── Fuel type helpers ──
+  function deleteFuelType(key) { const ft = {...fuelTypes}; delete ft[key]; setFuelTypes(ft); }
+  function addFuelType() {
+    if (!newFuel.key.trim() || !newFuel.label.trim()) return;
+    setFuelTypes({ ...fuelTypes, [newFuel.key.trim()]: newFuel.label.trim() });
+    setNewFuel({ key: '', label: '' });
+  }
+
+  const SQL_SETUP = `-- รัน SQL นี้ใน Supabase SQL Editor
+CREATE TABLE IF NOT EXISTS app_config (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth_read" ON app_config FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`;
+
+  const VEHICLE_ICONS = ['sedan', 'pickup', 'van', 'truck6', 'truck3', 'crane', 'bucket', 'ev'];
+
+  return (
+    <div style={{marginTop:16}}>
+      <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:16}}>
+        {[['checklist','✅ รายการตรวจสอบ'],['purposes','📋 วัตถุประสงค์'],['vehicleTypes','🚗 ประเภทรถ'],['fuelTypes','⛽ เชื้อเพลิง']].map(([k,l]) => (
+          <button key={k} className={"btn sm" + (subTab === k ? " primary" : " ghost")} onClick={() => setSubTab(k)}>{l}</button>
+        ))}
+      </div>
+
+      {setupNeeded && (
+        <div style={{background:'var(--warn-bg)', border:'1px solid var(--warn)', borderRadius:10, padding:'12px 14px', marginBottom:16}}>
+          <div style={{fontWeight:600, color:'var(--warn)', marginBottom:6}}>ต้องสร้างตาราง app_config ใน Supabase ก่อน</div>
+          <pre style={{fontSize:11, margin:0, whiteSpace:'pre-wrap', fontFamily:'var(--font-mono)', color:'var(--text-2)', userSelect:'all'}}>{SQL_SETUP}</pre>
+        </div>
+      )}
+
+      {/* ── Checklist ── */}
+      {subTab === 'checklist' && (
+        <div>
+          <p className="muted" style={{margin:'0 0 12px', fontSize:13}}>รายการตรวจสอบสภาพรถก่อนออก — {checklist.length} รายการ</p>
+          <div style={{display:'flex', flexDirection:'column', gap:6, marginBottom:14}}>
+            {checklist.map((item, i) => (
+              <div key={item.id} style={{background:'var(--bg-2)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'flex-start', gap:8}}>
+                <div style={{flex:1, minWidth:0}}>
+                  {editingCl?.idx === i ? (
+                    <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                      <input className="input" value={editingCl.label} onChange={e => setEditingCl({...editingCl, label: e.target.value})} placeholder="ชื่อรายการ" style={{fontSize:13}}/>
+                      <input className="input" value={editingCl.hint} onChange={e => setEditingCl({...editingCl, hint: e.target.value})} placeholder="คำอธิบาย (hint)" style={{fontSize:12}}/>
+                      <div style={{display:'flex', gap:6}}>
+                        <button className="btn sm primary" onClick={() => {
+                          const arr = [...checklist];
+                          arr[i] = { ...arr[i], label: editingCl.label, hint: editingCl.hint };
+                          setChecklist(arr); setEditingCl(null);
+                        }}>บันทึก</button>
+                        <button className="btn sm ghost" onClick={() => setEditingCl(null)}>ยกเลิก</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{fontWeight:500, fontSize:13.5}}>{i+1}. {item.label}</div>
+                      {item.hint && <div style={{fontSize:11.5, color:'var(--text-3)', marginTop:2}}>{item.hint}</div>}
+                    </>
+                  )}
+                </div>
+                {editingCl?.idx !== i && (
+                  <div style={{display:'flex', gap:4, flexShrink:0}}>
+                    <button className="btn icon ghost sm" onClick={() => moveClItem(i, -1)} disabled={i === 0} title="ขึ้น">↑</button>
+                    <button className="btn icon ghost sm" onClick={() => moveClItem(i, 1)} disabled={i === checklist.length-1} title="ลง">↓</button>
+                    <button className="btn icon ghost sm" onClick={() => setEditingCl({idx:i, label:item.label, hint:item.hint||''})}>✏️</button>
+                    <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => deleteClItem(i)}>🗑</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{background:'var(--bg-2)', border:'1px dashed var(--border)', borderRadius:8, padding:'10px 12px', marginBottom:12}}>
+            <div style={{fontWeight:500, fontSize:13, marginBottom:8}}>+ เพิ่มรายการใหม่</div>
+            <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+              <input className="input" value={newCl.label} onChange={e => setNewCl({...newCl, label:e.target.value})} placeholder="ชื่อรายการ *" style={{flex:'2 1 140px', fontSize:13}}/>
+              <input className="input" value={newCl.hint} onChange={e => setNewCl({...newCl, hint:e.target.value})} placeholder="คำอธิบาย (ไม่บังคับ)" style={{flex:'3 1 200px', fontSize:13}}/>
+              <button className="btn sm primary" onClick={addClItem} disabled={!newCl.label.trim()}>เพิ่ม</button>
+            </div>
+          </div>
+          <button className="btn primary" onClick={() => save('checklist', checklist)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกรายการตรวจสอบ'}</button>
+        </div>
+      )}
+
+      {/* ── Purposes ── */}
+      {subTab === 'purposes' && (
+        <div>
+          <p className="muted" style={{margin:'0 0 12px', fontSize:13}}>วัตถุประสงค์การใช้รถ — {purposes.length} รายการ</p>
+          <div style={{display:'flex', flexDirection:'column', gap:5, marginBottom:14}}>
+            {purposes.map((p, i) => (
+              <div key={i} style={{background:'var(--bg-2)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', display:'flex', alignItems:'center', gap:8}}>
+                <span style={{flex:1, fontSize:13.5}}>
+                  {editingPurpose?.idx === i ? (
+                    <input className="input" value={editingPurpose.value} onChange={e => setEditingPurpose({...editingPurpose, value: e.target.value})} style={{fontSize:13, width:'100%'}}/>
+                  ) : `${i+1}. ${p}`}
+                </span>
+                <div style={{display:'flex', gap:4, flexShrink:0}}>
+                  {editingPurpose?.idx === i ? (
+                    <>
+                      <button className="btn sm primary" onClick={() => {
+                        const arr = [...purposes]; arr[i] = editingPurpose.value; setPurposes(arr); setEditingPurpose(null);
+                      }}>บันทึก</button>
+                      <button className="btn sm ghost" onClick={() => setEditingPurpose(null)}>ยกเลิก</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn icon ghost sm" onClick={() => movePurpose(i, -1)} disabled={i === 0}>↑</button>
+                      <button className="btn icon ghost sm" onClick={() => movePurpose(i, 1)} disabled={i === purposes.length-1}>↓</button>
+                      <button className="btn icon ghost sm" onClick={() => setEditingPurpose({idx:i, value:p})}>✏️</button>
+                      <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => deletePurpose(i)}>🗑</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'var(--bg-2)', border:'1px dashed var(--border)', borderRadius:8, padding:'10px 12px', marginBottom:12}}>
+            <div style={{fontWeight:500, fontSize:13, marginBottom:8}}>+ เพิ่มวัตถุประสงค์ใหม่</div>
+            <div style={{display:'flex', gap:8}}>
+              <input className="input" value={newPurpose} onChange={e => setNewPurpose(e.target.value)} placeholder="วัตถุประสงค์การใช้รถ" style={{flex:1, fontSize:13}}/>
+              <button className="btn sm primary" onClick={addPurpose} disabled={!newPurpose.trim()}>เพิ่ม</button>
+            </div>
+          </div>
+          <button className="btn primary" onClick={() => save('purposes', purposes)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกวัตถุประสงค์'}</button>
+        </div>
+      )}
+
+      {/* ── Vehicle Types ── */}
+      {subTab === 'vehicleTypes' && (
+        <div>
+          <p className="muted" style={{margin:'0 0 4px', fontSize:13}}>ประเภทรถยนต์ — แก้ไขชื่อได้ (ไอคอนเป็นค่าตายตัว)</p>
+          <p className="muted" style={{margin:'0 0 12px', fontSize:12}}>ไอคอนที่ใช้ได้: {VEHICLE_ICONS.join(', ')}</p>
+          <div style={{display:'flex', flexDirection:'column', gap:5, marginBottom:14}}>
+            {Object.entries(vehicleTypes).map(([key, v]) => (
+              <div key={key} style={{background:'var(--bg-2)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'center', gap:10}}>
+                <code style={{fontSize:12, background:'var(--bg)', padding:'2px 6px', borderRadius:4, color:'var(--text-3)', flexShrink:0}}>{key}</code>
+                <span style={{flex:1, fontSize:13.5}}>
+                  {editingCl?.vtKey === key ? (
+                    <input className="input" value={editingCl.vtLabel} onChange={e => setEditingCl({...editingCl, vtLabel: e.target.value})} style={{fontSize:13}}/>
+                  ) : v.label}
+                </span>
+                <code style={{fontSize:11, color:'var(--text-3)', flexShrink:0}}>{v.icon}</code>
+                <div style={{display:'flex', gap:4}}>
+                  {editingCl?.vtKey === key ? (
+                    <>
+                      <button className="btn sm primary" onClick={() => {
+                        setVehicleTypes({...vehicleTypes, [key]: {...v, label: editingCl.vtLabel}}); setEditingCl(null);
+                      }}>บันทึก</button>
+                      <button className="btn sm ghost" onClick={() => setEditingCl(null)}>ยกเลิก</button>
+                    </>
+                  ) : (
+                    <button className="btn icon ghost sm" onClick={() => setEditingCl({vtKey: key, vtLabel: v.label})}>✏️</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className="btn primary" onClick={() => save('vehicle_types', vehicleTypes)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกประเภทรถ'}</button>
+        </div>
+      )}
+
+      {/* ── Fuel Types ── */}
+      {subTab === 'fuelTypes' && (
+        <div>
+          <p className="muted" style={{margin:'0 0 12px', fontSize:13}}>ประเภทเชื้อเพลิง — {Object.keys(fuelTypes).length} รายการ</p>
+          <div style={{display:'flex', flexDirection:'column', gap:5, marginBottom:14}}>
+            {Object.entries(fuelTypes).map(([key, label]) => (
+              <div key={key} style={{background:'var(--bg-2)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'center', gap:10}}>
+                <code style={{fontSize:12, background:'var(--bg)', padding:'2px 6px', borderRadius:4, color:'var(--text-3)', flexShrink:0}}>{key}</code>
+                <span style={{flex:1, fontSize:13.5}}>
+                  {editingFuel?.key === key ? (
+                    <input className="input" value={editingFuel.label} onChange={e => setEditingFuel({...editingFuel, label: e.target.value})} style={{fontSize:13}}/>
+                  ) : label}
+                </span>
+                <div style={{display:'flex', gap:4}}>
+                  {editingFuel?.key === key ? (
+                    <>
+                      <button className="btn sm primary" onClick={() => {
+                        setFuelTypes({...fuelTypes, [key]: editingFuel.label}); setEditingFuel(null);
+                      }}>บันทึก</button>
+                      <button className="btn sm ghost" onClick={() => setEditingFuel(null)}>ยกเลิก</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn icon ghost sm" onClick={() => setEditingFuel({key, label})}>✏️</button>
+                      <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => deleteFuelType(key)}>🗑</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'var(--bg-2)', border:'1px dashed var(--border)', borderRadius:8, padding:'10px 12px', marginBottom:12}}>
+            <div style={{fontWeight:500, fontSize:13, marginBottom:8}}>+ เพิ่มเชื้อเพลิงใหม่</div>
+            <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+              <input className="input" value={newFuel.key} onChange={e => setNewFuel({...newFuel, key:e.target.value})} placeholder="รหัส (เช่น: hybrid)" style={{flex:'1 1 100px', fontSize:13}}/>
+              <input className="input" value={newFuel.label} onChange={e => setNewFuel({...newFuel, label:e.target.value})} placeholder="ชื่อ (เช่น: ไฮบริด)" style={{flex:'2 1 140px', fontSize:13}}/>
+              <button className="btn sm primary" onClick={addFuelType} disabled={!newFuel.key.trim() || !newFuel.label.trim()}>เพิ่ม</button>
+            </div>
+          </div>
+          <button className="btn primary" onClick={() => save('fuel_types', fuelTypes)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกเชื้อเพลิง'}</button>
         </div>
       )}
     </div>

@@ -13,7 +13,7 @@ import { ManualScreen } from './screens/ManualScreen'
 import { BookingVoucher, BookingDetailModal } from './screens/VoucherScreen'
 import { NotificationCenter, generateNotifications } from './screens/NotificationsScreen'
 import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, CommandMenu, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
-import { VEHICLE_TYPES, FUEL_TYPES } from './data'
+import { VEHICLE_TYPES, FUEL_TYPES, CHECKLIST, PURPOSES } from './data'
 import { useTweaks } from './TweaksPanel'
 import { DevCardButton } from './DevCard'
 import { supabase, isConfigured } from './supabase'
@@ -40,6 +40,7 @@ function App() {
   const [vehicleHistory, setVehicleHistory] = React.useState([]);
   const [mileageCorrections, setMileageCorrections] = React.useState([]);
   const [departments, setDepartments] = React.useState([]);
+  const [appConfig, setAppConfig] = React.useState({ checklist: null, vehicleTypes: null, fuelTypes: null, purposes: null });
 
   const [route, setRoute] = React.useState("dashboard");
   const [selectedVehicle, setSelectedVehicle] = React.useState(null);
@@ -104,13 +105,14 @@ function App() {
   }
 
   async function loadAllData() {
-    const [v, b, u, vh, mc, depts] = await Promise.all([
+    const [v, b, u, vh, mc, depts, cfg] = await Promise.all([
       supabase.from('vehicles').select('*').order('id'),
       supabase.from('bookings').select('*').order('"createdAt"', { ascending: false }),
       supabase.from('profiles').select('*').neq('status', 'rejected'),
       supabase.from('vehicle_history').select('*').order('at', { ascending: false }),
       supabase.from('mileage_corrections').select('*').order('"requestedAt"', { ascending: false }),
       supabase.from('departments').select('*').order('sort_order'),
+      supabase.from('app_config').select('key, value'),
     ]);
     if (v.error)    console.error('[vehicles]', v.error.message, v.error.hint || '');
     if (b.error)    console.error('[bookings]', b.error.message);
@@ -119,10 +121,29 @@ function App() {
     // Only overwrite state when we received valid data — never blank out on network/RLS errors
     if (v.data)     setVehicles(v.data.map(veh => ({ ...veh, plate: veh.plate || '', brand: veh.brand || '', id: veh.id || '' })));
     if (b.data)     setBookings(b.data);
+
+    // Cache lightweight snapshot for login-page public calendar (RLS blocks anon reads)
+    if (v.data && b.data) {
+      try {
+        localStorage.setItem('pea-pub-vehicles', JSON.stringify(
+          v.data.map(veh => ({ id: veh.id, plate: veh.plate || '', type: veh.type, brand: veh.brand || '' }))
+        ));
+        localStorage.setItem('pea-pub-bookings', JSON.stringify(
+          b.data.filter(bk => ['approved','urgent','booked'].includes(bk.status))
+                .map(bk => ({ id: bk.id, vehicleId: bk.vehicleId, from: bk.from, to: bk.to, status: bk.status }))
+        ));
+        localStorage.setItem('pea-pub-cache-at', new Date().toISOString());
+      } catch (_) {}
+    }
     if (u.data)     setUsers(u.data.map(usr => ({ ...usr, name: usr.name || '-' })));
     if (vh.data)    setVehicleHistory(vh.data);
     if (mc.data)    setMileageCorrections(mc.data);
     if (depts.data) setDepartments(depts.data);
+    if (cfg.data) {
+      const map = {};
+      cfg.data.forEach(r => { map[r.key] = r.value; });
+      setAppConfig({ checklist: map.checklist || null, vehicleTypes: map.vehicle_types || null, fuelTypes: map.fuel_types || null, purposes: map.purposes || null });
+    }
 
     if (v.error?.code === '42501' || b.error?.code === '42501') {
       pushToast({ kind: 'warn', title: 'สิทธิ์การเข้าถึงฐานข้อมูล', body: 'ตรวจสอบ RLS Policy ใน Supabase Dashboard' });
@@ -579,13 +600,20 @@ function App() {
     });
   }
 
+  async function handleSaveConfig(key, value) {
+    const { error } = await supabase.from('app_config').upsert({ key, value, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    const keyMap = { checklist: 'checklist', vehicle_types: 'vehicleTypes', fuel_types: 'fuelTypes', purposes: 'purposes' };
+    setAppConfig(prev => ({ ...prev, [keyMap[key] || key]: value }));
+  }
+
   // ── Route guard ──
   React.useEffect(() => {
     if (!currentUser) return;
     const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "checkin-history", "help",
       "settings", "settings-account", "settings-noti", "settings-calendar",
       ...(currentUser.role === "manager" ? ["approvals", "reports"] : []),
-      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts", "settings-demo", "settings-manual", "settings-dev", "settings-about"] : [])
+      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts", "settings-demo", "settings-data", "settings-manual", "settings-dev", "settings-about"] : [])
     ];
     if (!allowed.includes(route)) setRoute("dashboard");
   }, [currentUser, route]);
@@ -676,16 +704,16 @@ function App() {
       />
       <main className="main">
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)} demoEnabled={demoEnabled} onDemoBooking={handleDemoBooking}/>}
-        {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")} onGoToMyBookings={() => setRoute("my")}/>}
+        {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")} onGoToMyBookings={() => setRoute("my")} purposes={appConfig.purposes || PURPOSES} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES} fuelTypes={appConfig.fuelTypes || FUEL_TYPES}/>}
         {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)} onOpenPublicCal={() => setShowPublicCal(true)}/>}
         {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
-        {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)}/>}
-        {route === "checkin-history" && <CheckinHistoryScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onUpdateRecord={handleUpdateCheckinRecord}/>}
+        {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)} checklist={appConfig.checklist || CHECKLIST} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES} fuelTypes={appConfig.fuelTypes || FUEL_TYPES}/>}
+        {route === "checkin-history" && <CheckinHistoryScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onUpdateRecord={handleUpdateCheckinRecord} checklist={appConfig.checklist || CHECKLIST} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES}/>}
         {route === "approvals" && <ApprovalsScreen bookings={bookings} vehicles={vehicles} users={users} mileageCorrections={mileageCorrections} user={currentUser} onApprove={handleApprove} onReject={handleReject} onApproveMileage={handleApproveMileageCorrection} onRejectMileage={handleRejectMileageCorrection} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)}/>}
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
-        {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
+        {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES} fuelTypes={appConfig.fuelTypes || FUEL_TYPES}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
-        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings}/>}
+        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings} appConfig={appConfig} onSaveConfig={handleSaveConfig} defaultConfig={{ checklist: CHECKLIST, vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES, purposes: PURPOSES }}/>}
         {route === "help" && <ManualScreen role={currentUser?.role}/>}
       </main>
 

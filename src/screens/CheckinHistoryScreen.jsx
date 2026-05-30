@@ -1,14 +1,15 @@
 // Check-in / Check-out History — full log of all completed trips
 import React from 'react'
 import { I, Modal, VehicleIcon, fmtDate, fmtDateTime, fmtNum, SearchInput, Select } from '../components'
-import { VEHICLE_TYPES, CHECKLIST } from '../data'
-
-const CHECKLIST_MAP = Object.fromEntries(CHECKLIST.map((c) => [c.id, c.label]));
+import { VEHICLE_TYPES as VT_DEFAULT, CHECKLIST as CL_DEFAULT } from '../data'
 
 const STATUS_ICON = { pass: '✅', fail: '❌', skip: '➖' };
 const STATUS_COLOR = { pass: 'var(--ok)', fail: 'var(--danger)', skip: 'var(--text-3)' };
 
-function CheckinHistoryScreen({ bookings, vehicles, users, currentUser, onUpdateRecord }) {
+function CheckinHistoryScreen({ bookings, vehicles, users, currentUser, onUpdateRecord, checklist: checklistProp, vehicleTypes: vtProp }) {
+  const CHECKLIST = checklistProp || CL_DEFAULT;
+  const VEHICLE_TYPES = vtProp || VT_DEFAULT;
+  const CHECKLIST_MAP = Object.fromEntries(CHECKLIST.map((c) => [c.id, c.label]));
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
   const completed = bookings.filter((b) => {

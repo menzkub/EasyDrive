@@ -519,8 +519,18 @@ function PublicCalendarModal({ onClose, initialVehicles, initialBookings }) {
       supabase.from('vehicles').select('id, plate, type, brand'),
       supabase.from('bookings').select('id, vehicleId, from, to, status').in('status', ['approved', 'urgent', 'booked']),
     ]).then(([vRes, bRes]) => {
-      setVehicles(vRes.data || []);
-      setBookings(bRes.data || []);
+      const vData = vRes.data || [];
+      const bData = bRes.data || [];
+      if (vData.length === 0) {
+        // RLS likely blocks anon reads — use localStorage cache written at last login
+        try {
+          const cv = localStorage.getItem('pea-pub-vehicles');
+          const cb = localStorage.getItem('pea-pub-bookings');
+          if (cv) { setVehicles(JSON.parse(cv)); setBookings(cb ? JSON.parse(cb) : []); setLoading(false); return; }
+        } catch (_) {}
+      }
+      setVehicles(vData);
+      setBookings(bData);
       setLoading(false);
     });
   }, []);

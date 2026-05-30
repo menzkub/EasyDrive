@@ -2,9 +2,12 @@
 
 import React from 'react'
 import { I, StatusPill, VehicleIcon, fmtDateTime, fmtTime, fmtNum } from '../components'
-import { VEHICLE_TYPES, FUEL_TYPES, CHECKLIST } from '../data'
+import { VEHICLE_TYPES as VT_DEFAULT, FUEL_TYPES as FT_DEFAULT, CHECKLIST as CL_DEFAULT } from '../data'
 
-function CheckinScreen({ bookings, vehicles, users, currentUser, onCheckIn, onCheckOut, onPrintChecklist }) {
+function CheckinScreen({ bookings, vehicles, users, currentUser, onCheckIn, onCheckOut, onPrintChecklist, checklist: checklistProp, vehicleTypes: vtProp, fuelTypes: ftProp }) {
+  const CHECKLIST = checklistProp || CL_DEFAULT;
+  const VEHICLE_TYPES = vtProp || VT_DEFAULT;
+  const FUEL_TYPES = ftProp || FT_DEFAULT;
   const myBookings = bookings.filter((b) =>
     (b.userId === currentUser.id || currentUser.role === "admin" || currentUser.role === "manager") &&
     (b.status === "approved" || b.status === "urgent")

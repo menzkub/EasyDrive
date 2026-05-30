@@ -1,8 +1,10 @@
 import React from 'react'
 import { I, StatusPill, VehicleIcon, Modal, ConfirmDialog, fmtDate, fmtNum, daysUntil, fmtDateTime, SearchInput, Select } from '../components'
-import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
+import { VEHICLE_TYPES as VT_DEFAULT, FUEL_TYPES as FT_DEFAULT } from '../data'
 
-function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], user, onUpdateVehicle, onAddVehicle }) {
+function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], user, onUpdateVehicle, onAddVehicle, vehicleTypes: vtProp, fuelTypes: ftProp }) {
+  const VEHICLE_TYPES = vtProp || VT_DEFAULT;
+  const FUEL_TYPES = ftProp || FT_DEFAULT;
   const [showAdd, setShowAdd] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
   const [viewingHistory, setViewingHistory] = React.useState(null);

@@ -1,9 +1,12 @@
 import React from 'react'
 import L from 'leaflet'
 import { I, StatusPill, VehicleIcon, fmtDateTime, fmtTime } from '../components'
-import { PURPOSES, VEHICLE_TYPES, FUEL_TYPES } from '../data'
+import { PURPOSES as P_DEFAULT, VEHICLE_TYPES as VT_DEFAULT, FUEL_TYPES as FT_DEFAULT } from '../data'
 
-function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefillVehicle, onCancel, onGoToMyBookings }) {
+function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefillVehicle, onCancel, onGoToMyBookings, purposes: purposesProp, vehicleTypes: vtProp, fuelTypes: ftProp }) {
+  const PURPOSES = purposesProp || P_DEFAULT;
+  const VEHICLE_TYPES = vtProp || VT_DEFAULT;
+  const FUEL_TYPES = ftProp || FT_DEFAULT;
   const [step, setStep] = React.useState(1);
   const [submitting, setSubmitting] = React.useState(false);
   const [bookingId, setBookingId] = React.useState(null);
