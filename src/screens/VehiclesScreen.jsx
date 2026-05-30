@@ -6,6 +6,7 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
   const [showAdd, setShowAdd] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
   const [viewingHistory, setViewingHistory] = React.useState(null);
+  const [viewingVehicle, setViewingVehicle] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -69,7 +70,10 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
               const taxDays = daysUntil(v.taxDue);
               const serviceDays = daysUntil(v.nextService);
               return (
-                <tr key={v.id}>
+                <tr key={v.id} onClick={() => setViewingVehicle(v)} style={{cursor:'pointer'}}
+                  onMouseEnter={e => e.currentTarget.style.background='var(--surface-2)'}
+                  onMouseLeave={e => e.currentTarget.style.background=''}
+                >
                   <td>
                     <div style={{display:'flex', alignItems:'center', gap:10}}>
                       <div className="veh-ico"><VehicleIcon type={v.type} size={24}/></div>
@@ -101,7 +105,7 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
                   <td className="text-sm">{v.owner}</td>
                   <td><StatusPill status={v.status}/></td>
                   {isAdmin && (
-                    <td>
+                    <td onClick={e => e.stopPropagation()}>
                       <div style={{display:'flex', gap:6}}>
                         <button className="btn sm ghost icon" onClick={() => setViewingHistory(v)} title="ประวัติการแก้ไข">{I.history}</button>
                         <button className="btn sm ghost icon" onClick={() => setEditing(v)} title="แก้ไข">{I.edit}</button>
@@ -128,6 +132,16 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
           onClose={() => { setShowAdd(false); setEditing(null); }}
         />
       )}
+      {viewingVehicle && (
+        <VehicleDetailModal
+          vehicle={viewingVehicle}
+          bookings={bookings}
+          users={users}
+          onClose={() => setViewingVehicle(null)}
+          onEdit={isAdmin ? () => { setEditing(viewingVehicle); setViewingVehicle(null); } : null}
+          onHistory={isAdmin ? () => { setViewingHistory(viewingVehicle); setViewingVehicle(null); } : null}
+        />
+      )}
       {viewingHistory && (
         <VehicleHistoryModal
           vehicle={viewingHistory}
@@ -136,6 +150,117 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
         />
       )}
     </div>
+  );
+}
+
+function VehicleDetailModal({ vehicle: v, bookings, users, onClose, onEdit, onHistory }) {
+  const vBookings = bookings.filter((b) => b.vehicleId === v.id)
+    .sort((a, b) => new Date(b.from) - new Date(a.from)).slice(0, 5);
+  const totalKm = bookings.filter((b) => b.vehicleId === v.id && b.mileageIn && b.mileageOut)
+    .reduce((s, b) => s + (b.mileageIn - b.mileageOut), 0);
+  const taxDays = daysUntil(v.taxDue);
+  const serviceDays = daysUntil(v.nextService);
+  const insureDays = daysUntil(v.insuranceDue);
+
+  function DueRow({ label, date, days }) {
+    const urgent = days != null && days < 30;
+    const warn = days != null && days < 60;
+    return (
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px dotted var(--border)', fontSize:13}}>
+        <span style={{color:'var(--text-3)'}}>{label}</span>
+        <span style={{fontWeight:600, color: urgent ? 'var(--danger)' : warn ? 'var(--warn)' : 'var(--text)'}}>
+          {fmtDate(date) || '—'}
+          {days != null && days >= 0 && days < 60 && <span style={{marginLeft:6, fontSize:11, padding:'1px 6px', borderRadius:4, background: urgent ? 'var(--danger-bg)' : 'var(--warn-bg)', color: urgent ? 'var(--danger)' : 'var(--warn)'}}>อีก {days} วัน</span>}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <Modal title={`รายละเอียดรถยนต์ · ${v.id}`} onClose={onClose} width={680}
+      footer={<>
+        {onHistory && <button className="btn ghost" onClick={onHistory}>{I.history} ประวัติแก้ไข</button>}
+        <div style={{flex:1}}/>
+        {onEdit && <button className="btn primary" onClick={onEdit}>{I.edit} แก้ไขข้อมูล</button>}
+      </>}
+    >
+      {/* Header */}
+      <div style={{display:'flex', gap:16, paddingBottom:16, borderBottom:'1px solid var(--border)', marginBottom:16}}>
+        <div className="veh-ico lg" style={{width:72, height:72, flexShrink:0}}>
+          <VehicleIcon type={v.type} size={46}/>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
+            <span className="plate">{(v.plate || '').split(' ').slice(0,2).join(' ')}</span>
+            <StatusPill status={v.status}/>
+            {v.nickname && <span style={{fontSize:12, color:'var(--text-2)', fontStyle:'italic'}}>"{v.nickname}"</span>}
+          </div>
+          <div style={{fontSize:20, fontWeight:700, marginTop:4}}>{v.brand}</div>
+          <div className="text-xs muted">{v.id} · {VEHICLE_TYPES[v.type]?.label} · ปี {v.year}</div>
+        </div>
+        <div style={{textAlign:'right', flexShrink:0}}>
+          <div style={{fontSize:11, color:'var(--text-3)'}}>เลขไมล์ปัจจุบัน</div>
+          <div style={{fontSize:24, fontWeight:700, color:'var(--pea-purple)', fontFamily:'var(--font-mono)'}}>{fmtNum(v.mileage)}</div>
+          <div style={{fontSize:11, color:'var(--text-3)'}}>กม.</div>
+        </div>
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:20}}>
+        {/* Left: specs + owner */}
+        <div>
+          <div style={{fontSize:11, fontWeight:700, color:'var(--text-3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8}}>ข้อมูลรถยนต์</div>
+          {[
+            ['ประเภท', VEHICLE_TYPES[v.type]?.label],
+            ['เชื้อเพลิง', FUEL_TYPES[v.fuel]],
+            ['ที่นั่ง', `${v.seats} ที่นั่ง`],
+            ['ผู้รับผิดชอบ', v.owner],
+            ['วันจดทะเบียน', fmtDate(v.regDate)],
+            ['ระยะทางสะสม (ระบบ)', `${fmtNum(totalKm)} กม.`],
+          ].map(([k, val]) => (
+            <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px dotted var(--border)', fontSize:13}}>
+              <span style={{color:'var(--text-3)'}}>{k}</span>
+              <span style={{fontWeight:600}}>{val || '—'}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Right: due dates */}
+        <div>
+          <div style={{fontSize:11, fontWeight:700, color:'var(--text-3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8}}>วันครบกำหนด</div>
+          <DueRow label="พ.ร.บ. / ภาษี" date={v.taxDue} days={taxDays}/>
+          <DueRow label="ประกันภัย" date={v.insuranceDue} days={insureDays}/>
+          <DueRow label="เช็คระยะ" date={v.nextService} days={serviceDays}/>
+          <DueRow label="บำรุงรักษาล่าสุด" date={v.lastService} days={null}/>
+
+          {v.unavailReason && (
+            <div style={{marginTop:10, padding:'8px 10px', background:'var(--warn-bg)', borderRadius:8, fontSize:12.5, color:'var(--warn)'}}>
+              <b>เหตุผลไม่พร้อม:</b> {v.unavailReason}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recent bookings */}
+      {vBookings.length > 0 && (
+        <div style={{marginTop:16}}>
+          <div style={{fontSize:11, fontWeight:700, color:'var(--text-3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8}}>การจองล่าสุด</div>
+          <div className="col gap-1">
+            {vBookings.map((b) => {
+              const u = users.find((x) => x.id === b.userId);
+              const dist = b.mileageIn && b.mileageOut ? b.mileageIn - b.mileageOut : null;
+              return (
+                <div key={b.id} style={{display:'flex', alignItems:'center', gap:10, padding:'7px 10px', background:'var(--surface-2)', borderRadius:8, fontSize:12.5}}>
+                  <StatusPill status={b.status}/>
+                  <span style={{flex:1, fontWeight:500}}>{u?.name || '—'}</span>
+                  <span style={{color:'var(--text-3)'}}>{fmtDate(b.from)}</span>
+                  {dist && <span style={{fontFamily:'var(--font-mono)', color:'var(--pea-purple)', fontWeight:600}}>{fmtNum(dist)} กม.</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 
