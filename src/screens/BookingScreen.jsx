@@ -175,9 +175,9 @@ function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefill
     <div style={{maxWidth:1200, margin:'0 auto'}}>
       <Stepper step={step}/>
 
-      {step === 1 && <Step1 form={form} setForm={setForm} availableVehicles={availableVehicles} conflictVehicles={conflictVehicles}/>}
-      {step === 2 && <Step2 form={form} setForm={setForm} vehicles={vehicles} availableVehicles={availableVehicles} conflictVehicles={conflictVehicles} bookings={bookings} users={users}/>}
-      {step === 3 && <Step3 form={form} setForm={setForm} user={user} vehicles={vehicles} bookings={bookings} users={users}/>}
+      {step === 1 && <Step1 form={form} setForm={setForm} availableVehicles={availableVehicles} conflictVehicles={conflictVehicles} purposes={PURPOSES}/>}
+      {step === 2 && <Step2 form={form} setForm={setForm} vehicles={vehicles} availableVehicles={availableVehicles} conflictVehicles={conflictVehicles} bookings={bookings} users={users} vehicleTypes={VEHICLE_TYPES} fuelTypes={FUEL_TYPES}/>}
+      {step === 3 && <Step3 form={form} setForm={setForm} user={user} vehicles={vehicles} bookings={bookings} users={users} vehicleTypes={VEHICLE_TYPES} fuelTypes={FUEL_TYPES}/>}
 
       <div style={{display:'flex', gap:10, marginTop:18, justifyContent:'flex-end'}}>
         {step > 1 && <button className="btn ghost" onClick={() => setStep(step - 1)} disabled={submitting}>{I.arrowLeft} ย้อนกลับ</button>}
@@ -228,7 +228,7 @@ function Stepper({ step }) {
   );
 }
 
-function Step1({ form, setForm }) {
+function Step1({ form, setForm, purposes: PURPOSES }) {
   const mapRef = React.useRef(null);
   const markerRef = React.useRef(null);
   const leafletMapRef = React.useRef(null);
@@ -406,7 +406,7 @@ function Step1({ form, setForm }) {
   );
 }
 
-function Step2({ form, setForm, vehicles, availableVehicles, conflictVehicles, bookings, users }) {
+function Step2({ form, setForm, vehicles, availableVehicles, conflictVehicles, bookings, users, vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES }) {
   const [typeFilter, setTypeFilter] = React.useState("all");
 
   const conflictMap = {};
@@ -575,7 +575,7 @@ function calcDuration(from, to) {
   return { days, hours, minutes, totalHours: (ms / 3600000), valid: true };
 }
 
-function Step3({ form, setForm, user, vehicles, bookings = [], users = [] }) {
+function Step3({ form, setForm, user, vehicles, bookings = [], users = [], vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES }) {
   const v = vehicles.find((x) => x.id === form.vehicleId);
   const dur = calcDuration(form.from, form.to);
   const durLabel = dur.valid

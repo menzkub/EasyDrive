@@ -263,6 +263,7 @@ export function DevCardButton() {
 // ─── Settings form (admin) ────────────────────────────────────────────
 export function DevCardSettings({ pushToast }) {
   const [cfg, setCfg] = React.useState(loadDevCard);
+  const [showDetails, setShowDetails] = React.useState(false);
 
   function save() {
     saveDevCard(cfg);
@@ -352,30 +353,46 @@ export function DevCardSettings({ pushToast }) {
       </div>
 
       <div className="divider" style={{ margin: '16px 0 12px' }}/>
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
-        รายละเอียดเพิ่มเติม (ส่วนขยาย)
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowDetails(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+          background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8,
+          padding: '9px 12px', cursor: 'pointer', marginBottom: showDetails ? 10 : 0,
+        }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          รายละเอียดเพิ่มเติม (ส่วนขยาย)
+        </span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+          style={{ color: 'var(--text-3)', transition: 'transform 0.2s', transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}>
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
 
-      {[
-        ['detail1', 'รายละเอียดที่ 1 🗄️'],
-        ['detail2', 'รายละเอียดที่ 2 ⚙️'],
-        ['detail3', 'รายละเอียดที่ 3 🔗'],
-      ].map(([p, lbl]) => (
-        <div key={p} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 8 }}>
-          <div className="field" style={{ margin: 0 }}>
-            <label className="field-lbl">{lbl} — หัวข้อ</label>
-            <input className="input" value={cfg[p + 'Label'] || ''}
-              onChange={e => setCfg({ ...cfg, [p + 'Label']: e.target.value })}/>
+      {showDetails && <>
+        {[
+          ['detail1', 'รายละเอียดที่ 1 🗄️'],
+          ['detail2', 'รายละเอียดที่ 2 ⚙️'],
+          ['detail3', 'รายละเอียดที่ 3 🔗'],
+        ].map(([p, lbl]) => (
+          <div key={p} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 8 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label className="field-lbl">{lbl} — หัวข้อ</label>
+              <input className="input" value={cfg[p + 'Label'] || ''}
+                onChange={e => setCfg({ ...cfg, [p + 'Label']: e.target.value })}/>
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label className="field-lbl">เนื้อหา</label>
+              <input className="input" value={cfg[p + 'Value'] || ''} placeholder="(ว่างเปล่า = ไม่แสดง)"
+                onChange={e => setCfg({ ...cfg, [p + 'Value']: e.target.value })}/>
+            </div>
           </div>
-          <div className="field" style={{ margin: 0 }}>
-            <label className="field-lbl">เนื้อหา</label>
-            <input className="input" value={cfg[p + 'Value'] || ''} placeholder="(ว่างเปล่า = ไม่แสดง)"
-              onChange={e => setCfg({ ...cfg, [p + 'Value']: e.target.value })}/>
-          </div>
-        </div>
-      ))}
+        ))}
+        <div className="divider" style={{ margin: '12px 0' }}/>
+      </>}
 
-      <div className="divider" style={{ margin: '16px 0 12px' }}/>
       <F label="ข้อความท้ายการ์ด" k="footer" placeholder="พัฒนาเพื่อใช้งานภายใน ..." area/>
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>

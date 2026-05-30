@@ -148,6 +148,7 @@ function CheckinHistoryScreen({ bookings, vehicles, users, currentUser, onUpdate
               onToggle={() => setExpandedId(expandedId === b.id ? null : b.id)}
               isAdmin={isAdmin}
               onEdit={isAdmin ? () => setEditingBooking(b) : null}
+              checklistDefs={CHECKLIST}
             />
           ))}
         </div>
@@ -171,6 +172,8 @@ function CheckinHistoryScreen({ bookings, vehicles, users, currentUser, onUpdate
             vehicle={editVehicle}
             user={users.find((u) => u.id === editingBooking.userId)}
             prevMileage={prevMileage}
+            checklist={CHECKLIST}
+            vehicleTypes={VEHICLE_TYPES}
             onSave={async (data) => {
               await onUpdateRecord(editingBooking.id, data);
               setEditingBooking(null);
@@ -184,7 +187,7 @@ function CheckinHistoryScreen({ bookings, vehicles, users, currentUser, onUpdate
 }
 
 // ─── Individual Trip Card ─────────────────────────────────────────
-function TripCard({ booking: b, vehicle: v, user: u, expanded, onToggle, isAdmin, onEdit }) {
+function TripCard({ booking: b, vehicle: v, user: u, expanded, onToggle, isAdmin, onEdit, checklistDefs }) {
   const dist = b.mileageIn != null && b.mileageOut != null ? b.mileageIn - b.mileageOut : null;
   const checklist = b.checklist_data || null;
   const photosBefore = b.photos_before || [];
@@ -195,7 +198,7 @@ function TripCard({ booking: b, vehicle: v, user: u, expanded, onToggle, isAdmin
 
   const clPass = checklist ? Object.values(checklist).filter(v => v === 'pass').length : 0;
   const clFail = checklist ? Object.values(checklist).filter(v => v === 'fail').length : 0;
-  const clTotal = CHECKLIST.length;
+  const clTotal = (checklistDefs || []).length;
 
   return (
     <div className="card" style={{overflow:'hidden', border: clFail > 0 ? '1px solid var(--warn)' : '1px solid var(--border)'}}>
@@ -300,7 +303,7 @@ function TripCard({ booking: b, vehicle: v, user: u, expanded, onToggle, isAdmin
               <SectionLabel>ผลตรวจสภาพรถ (Checklist)</SectionLabel>
               {hasChecklist ? (
                 <div className="col gap-1" style={{marginTop:6}}>
-                  {CHECKLIST.map((item) => {
+                  {(checklistDefs || []).map((item) => {
                     const result = checklist[item.id];
                     return (
                       <div key={item.id} style={{display:'flex', alignItems:'center', gap:8, padding:'5px 8px', borderRadius:6, background:'var(--surface)', fontSize:12.5}}>
@@ -402,7 +405,7 @@ function PhotoGroup({ label, photos, color }) {
 }
 
 // ─── Admin Edit Modal ─────────────────────────────────────────────
-function EditTripModal({ booking: b, vehicle: v, user: u, prevMileage, onSave, onClose }) {
+function EditTripModal({ booking: b, vehicle: v, user: u, prevMileage, onSave, onClose, checklist: CHECKLIST, vehicleTypes: VEHICLE_TYPES }) {
   const [mileageOut, setMileageOut] = React.useState(prevMileage != null ? prevMileage : (b.mileageOut ?? ''));
   const [mileageIn, setMileageIn] = React.useState(b.mileageIn ?? '');
   const [rating, setRating] = React.useState(b.rating ?? 0);
