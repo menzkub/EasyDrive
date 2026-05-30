@@ -8,13 +8,13 @@ export const DEVCARD_DEFAULTS = {
   position: 'พนักงานช่าง ระดับ 5',
   dept: 'แผนกมิเตอร์และหม้อแปลง',
   org: 'การไฟฟ้าส่วนภูมิภาค สาขาฝาง',
-  version: '1.0.0',
+  version: '1.1.0',
   detail1Label: 'ฐานข้อมูล',
   detail1Value: 'PostgreSQL (Supabase) · RLS Multi-tenant',
   detail2Label: 'Tech Stack',
   detail2Value: 'React 18 · Vite 5 · Supabase · Vercel',
-  detail3Label: 'ระบบ / การเชื่อมต่อ',
-  detail3Value: 'EasyDrive Vehicle Booking System',
+  detail3Label: 'การเชื่อมต่อ API',
+  detail3Value: 'PTT Fuel Price API · Thai Oil Price · Real-time Sync',
   footer: 'พัฒนาเพื่อใช้งานภายใน การไฟฟ้าส่วนภูมิภาค (PEA)',
 };
 
