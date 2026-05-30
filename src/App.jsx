@@ -8,6 +8,7 @@ import { CheckinScreen } from './screens/CheckinScreen'
 import { ApprovalsScreen, MembersScreen } from './screens/AdminScreen'
 import { VehiclesScreen } from './screens/VehiclesScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { ManualScreen } from './screens/ManualScreen'
 import { BookingVoucher, BookingDetailModal } from './screens/VoucherScreen'
 import { NotificationCenter, generateNotifications } from './screens/NotificationsScreen'
 import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, CommandMenu, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
@@ -461,10 +462,10 @@ function App() {
   // ── Route guard ──
   React.useEffect(() => {
     if (!currentUser) return;
-    const allowed = ["dashboard", "booking", "calendar", "my", "checkin",
+    const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "help",
       "settings", "settings-account", "settings-noti", "settings-calendar",
       ...(currentUser.role === "manager" ? ["approvals", "reports"] : []),
-      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts"] : [])
+      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts", "settings-manual"] : [])
     ];
     if (!allowed.includes(route)) setRoute("dashboard");
   }, [currentUser, route]);
@@ -534,6 +535,7 @@ function App() {
     checkin: { t: "Check-in / Check-out" }, approvals: { t: "อนุมัติการจองรถ" },
     members: { t: "จัดการสมาชิก" }, vehicles: { t: "จัดการรถยนต์" },
     reports: { t: "รายงานและสถิติ" }, settings: { t: "ตั้งค่าและเชื่อมต่อ" },
+    help: { t: "คู่มือการใช้งาน" },
   };
 
   const baseNotifications = generateNotifications(currentUser, bookings, users, vehicles, mileageCorrections);
@@ -563,6 +565,7 @@ function App() {
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
         {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)}/>}
+        {route === "help" && <ManualScreen role={currentUser?.role}/>}
       </main>
 
       {selectedVehicle && <VehicleQuickModal vehicle={selectedVehicle} bookings={bookings} users={users} onClose={() => setSelectedVehicle(null)} onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}/>}

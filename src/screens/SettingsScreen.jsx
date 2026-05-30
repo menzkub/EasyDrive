@@ -2,6 +2,7 @@ import React from 'react'
 import { I, fmtDate, ConfirmDialog } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
+import { ManualScreen } from './ManualScreen'
 
 function calcPwStrength(pw) {
   const checks = [
@@ -29,7 +30,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
   const isAdmin = currentUser.role === 'admin';
 
   React.useEffect(() => {
-    if (activeTab) setTab(activeTab === "depts" && !isAdmin ? "account" : activeTab);
+    if (activeTab) setTab((activeTab === "depts" || activeTab === "manual") && !isAdmin ? "account" : activeTab);
   }, [activeTab]);
 
   function changeTab(t) {
@@ -49,11 +50,13 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
           <button className={"tab" + (tab === "noti" ? " active" : "")} onClick={() => changeTab("noti")}>🔔 การแจ้งเตือน</button>
           <button className={"tab" + (tab === "calendar" ? " active" : "")} onClick={() => changeTab("calendar")}>📅 Calendar Sync</button>
           {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => changeTab("depts")}>🏢 จัดการแผนก</button>}
+          {isAdmin && <button className={"tab" + (tab === "manual" ? " active" : "")} onClick={() => changeTab("manual")}>📖 คู่มือ</button>}
         </div>
         {tab === "account"  && <AccountSettings currentUser={currentUser} deptNames={deptNames} onUpdateProfile={onUpdateProfile} pushToast={pushToast}/>}
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
         {tab === "calendar" && <CalendarSync currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
         {tab === "depts"    && isAdmin && <DeptManager departments={departments || []} pushToast={pushToast}/>}
+        {tab === "manual"   && isAdmin && <div style={{marginTop:14, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', height:600}}><ManualScreen role="admin"/></div>}
       </div>
     </div>
   );
