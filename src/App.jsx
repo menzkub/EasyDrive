@@ -613,7 +613,7 @@ function App() {
     const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "checkin-history", "help",
       "settings", "settings-account", "settings-noti", "settings-calendar",
       ...(currentUser.role === "manager" ? ["approvals", "reports"] : []),
-      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts", "settings-demo", "settings-data", "settings-manual", "settings-dev", "settings-about"] : [])
+      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-demo", "settings-data", "settings-manual", "settings-dev", "settings-about"] : [])
     ];
     if (!allowed.includes(route)) setRoute("dashboard");
   }, [currentUser, route]);

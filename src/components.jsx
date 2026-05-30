@@ -94,7 +94,8 @@ const SETTINGS_CHILDREN = [
 ];
 const SETTINGS_CHILDREN_ADMIN = [
   ...SETTINGS_CHILDREN,
-  { key: "settings-depts",   label: "จัดการแผนก" },
+  { key: "settings-data",    label: "🗂️ ข้อมูลระบบ" },
+  { key: "settings-demo",    label: "🎮 ทดสอบระบบ" },
   { key: "settings-manual",  label: "📖 คู่มือการใช้งาน" },
   { key: "settings-dev",     label: "🛠️ สำหรับนักพัฒนา" },
   { key: "settings-about",   label: "🪪 เกี่ยวกับระบบ" },
@@ -708,7 +709,8 @@ const CMD_ITEMS = {
     { key: "checkin",          label: "Check-in / out",   icon: "qr",        group: "นำทาง" },
     { key: "settings-account", label: "บัญชีผู้ใช้",      icon: "settings",  group: "ตั้งค่า" },
     { key: "settings-noti",    label: "การแจ้งเตือน",     icon: "bell",      group: "ตั้งค่า" },
-    { key: "settings-depts",   label: "จัดการแผนก",       icon: "users",     group: "ตั้งค่า" },
+    { key: "settings-data",    label: "ข้อมูลระบบ",        icon: "list",      group: "ตั้งค่า" },
+    { key: "settings-demo",    label: "ทดสอบระบบ",         icon: "qr",        group: "ตั้งค่า" },
   ],
 };
 

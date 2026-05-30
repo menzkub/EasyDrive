@@ -30,7 +30,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
   const [tab, setTab] = React.useState(activeTab || "account");
   const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const isAdmin = currentUser.role === 'admin';
-  const adminOnlyTabs = ["depts", "demo", "data", "manual", "dev", "about"];
+  const adminOnlyTabs = ["demo", "data", "manual", "dev", "about"];
 
   React.useEffect(() => {
     if (activeTab) setTab(adminOnlyTabs.includes(activeTab) && !isAdmin ? "account" : activeTab);
@@ -52,7 +52,6 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
           <button className={"tab" + (tab === "account" ? " active" : "")} onClick={() => changeTab("account")}>👤 บัญชี</button>
           <button className={"tab" + (tab === "noti" ? " active" : "")} onClick={() => changeTab("noti")}>🔔 การแจ้งเตือน</button>
           <button className={"tab" + (tab === "calendar" ? " active" : "")} onClick={() => changeTab("calendar")}>📅 Calendar Sync</button>
-          {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => changeTab("depts")}>🏢 จัดการแผนก</button>}
           {isAdmin && <button className={"tab" + (tab === "data" ? " active" : "")} onClick={() => changeTab("data")}>🗂️ ข้อมูลระบบ</button>}
           {isAdmin && <button className={"tab" + (tab === "demo" ? " active" : "")} onClick={() => changeTab("demo")}>🎮 ทดสอบระบบ</button>}
           {isAdmin && <button className={"tab" + (tab === "manual" ? " active" : "")} onClick={() => changeTab("manual")}>📖 คู่มือ</button>}
@@ -62,8 +61,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
         {tab === "account"  && <AccountSettings currentUser={currentUser} deptNames={deptNames} onUpdateProfile={onUpdateProfile} pushToast={pushToast}/>}
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
         {tab === "calendar" && <CalendarSync currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
-        {tab === "depts"    && isAdmin && <DeptManager departments={departments || []} pushToast={pushToast}/>}
-        {tab === "data"     && isAdmin && <DataSettings appConfig={appConfig} onSaveConfig={onSaveConfig} defaultConfig={defaultConfig} pushToast={pushToast}/>}
+        {tab === "data"     && isAdmin && <DataSettings appConfig={appConfig} onSaveConfig={onSaveConfig} defaultConfig={defaultConfig} departments={departments || []} pushToast={pushToast}/>}
         {tab === "demo"     && isAdmin && <DemoSettings demoEnabled={demoEnabled} onSetDemoEnabled={onSetDemoEnabled} bookings={bookings} onDeleteAll={onDeleteDemoBookings}/>}
         {tab === "manual"   && isAdmin && <div style={{marginTop:14, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', height:600}}><ManualScreen role="admin"/></div>}
         {tab === "dev"      && isAdmin && <div style={{marginTop:14}}><DevGuideScreen/></div>}
@@ -748,7 +746,7 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
 }
 
 // ─── Data Settings (admin only) ────────────────────────────────────
-function DataSettings({ appConfig, onSaveConfig, defaultConfig, pushToast }) {
+function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pushToast }) {
   const [subTab, setSubTab] = React.useState('checklist');
   const [saving, setSaving] = React.useState(false);
   const [setupNeeded, setSetupNeeded] = React.useState(false);
@@ -838,7 +836,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
   return (
     <div style={{marginTop:16}}>
       <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:16}}>
-        {[['checklist','✅ รายการตรวจสอบ'],['purposes','📋 วัตถุประสงค์'],['vehicleTypes','🚗 ประเภทรถ'],['fuelTypes','⛽ เชื้อเพลิง']].map(([k,l]) => (
+        {[['checklist','✅ รายการตรวจสอบ'],['purposes','📋 วัตถุประสงค์'],['vehicleTypes','🚗 ประเภทรถ'],['fuelTypes','⛽ เชื้อเพลิง'],['depts','🏢 แผนก']].map(([k,l]) => (
           <button key={k} className={"btn sm" + (subTab === k ? " primary" : " ghost")} onClick={() => setSubTab(k)}>{l}</button>
         ))}
       </div>
@@ -1019,6 +1017,11 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
           </div>
           <button className="btn primary" onClick={() => save('fuel_types', fuelTypes)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกเชื้อเพลิง'}</button>
         </div>
+      )}
+
+      {/* ── Departments (embedded) ── */}
+      {subTab === 'depts' && (
+        <DeptManager departments={departments} pushToast={pushToast}/>
       )}
     </div>
   );
