@@ -150,6 +150,19 @@ function App() {
     setTimeout(() => setToasts((s) => s.filter((x) => x.id !== id)), 3500);
   }
 
+  // ── Handle QR scan deep link ──
+  React.useEffect(() => {
+    if (!currentUser || bookings.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const bookingId = params.get('booking');
+    if (!bookingId) return;
+    const b = bookings.find((x) => x.id === bookingId);
+    if (b) {
+      setVoucherBooking(b);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [currentUser, bookings.length]);
+
   // ── Auth handlers ──
   async function handleLogin(profile) {
     setCurrentUser(profile);
@@ -230,12 +243,18 @@ function App() {
       createdAt: new Date().toISOString().slice(0, 16),
       mileageOut: null, mileageIn: null, passengers: form.passengers,
     };
-    const { error } = await supabase.from('bookings').insert(newBooking);
-    if (!error) {
-      setBookings([newBooking, ...bookings]);
-      pushToast({ kind: "ok", title: "ส่งคำขอจองเรียบร้อย", body: "รออนุมัติจากผู้จัดการ — เลขที่ " + id });
-      setRoute("my");
-    } else pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: "ไม่สามารถส่งคำขอจองได้" });
+    try {
+      const { error } = await supabase.from('bookings').insert(newBooking);
+      if (!error) {
+        setBookings((prev) => [newBooking, ...prev.filter((b) => b.id !== newBooking.id)]);
+        setRoute("my");
+        setTimeout(() => pushToast({ kind: "ok", title: "ส่งคำขอจองเรียบร้อย ✓", body: "รออนุมัติจากผู้จัดการ — เลขที่ " + id }), 100);
+      } else {
+        pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: error.message || "ไม่สามารถส่งคำขอจองได้" });
+      }
+    } catch (err) {
+      pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: err?.message || "ไม่สามารถเชื่อมต่อฐานข้อมูล" });
+    }
   }
 
   async function handleApprove(bookingId) {

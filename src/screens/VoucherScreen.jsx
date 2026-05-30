@@ -12,16 +12,9 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose, pushToast }
   const [qrUrl, setQrUrl] = React.useState(null);
 
   React.useEffect(() => {
-    const text = [
-      'EASYDRIVE',
-      `ID:${booking.id}`,
-      `REG:${vehicle?.plate || ''}`,
-      `USER:${user?.name || ''} (${user?.emp || ''})`,
-      `FROM:${fmtDateTime(booking.from)}`,
-      `TO:${fmtDateTime(booking.to)}`,
-      `DEST:${booking.destination || ''}`,
-    ].join('|');
-    QRCode.toDataURL(text, {
+    // Encode as URL so phone camera opens the app directly (not Google Search)
+    const url = `${window.location.origin}/?booking=${booking.id}`;
+    QRCode.toDataURL(url, {
       width: 300,
       margin: 2,
       errorCorrectionLevel: 'M',

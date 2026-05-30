@@ -558,7 +558,7 @@ function MyBookingsScreen({ bookings, vehicles, users, currentUser, onSelectBook
                   </div>
                   <div style={{flex:1, minWidth:0}}>
                     <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
-                      <span className="plate" style={{fontSize:11, padding:'1px 6px'}}>{v?.plate.split(' ').slice(0,2).join(' ')}</span>
+                      <span className="plate" style={{fontSize:11, padding:'1px 6px'}}>{(v?.plate || '').split(' ').slice(0,2).join(' ')}</span>
                       <span style={{fontWeight:600, fontSize:14}}>{v?.brand}</span>
                       <StatusPill status={b.status}/>
                       {b.rating && (
