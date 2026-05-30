@@ -13,17 +13,22 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose, pushToast }
 
   React.useEffect(() => {
     const text = [
-      'EASYDRIVE BOOKING',
-      `ID: ${booking.id}`,
-      `VEH: ${booking.vehicleId} ${vehicle?.plate || ''}`,
-      `USER: ${user?.name || ''} (${user?.emp || ''})`,
-      `DATE: ${fmtDateTime(booking.from)} - ${fmtTime(booking.to)}`,
-      `DEST: ${booking.destination}`,
-      `STATUS: ${booking.status}`,
-    ].join('\n');
-    QRCode.toDataURL(text, { width: 110, margin: 1, color: { dark: '#1F1530', light: '#FFFFFF' } })
+      'EASYDRIVE',
+      `ID:${booking.id}`,
+      `REG:${vehicle?.plate || ''}`,
+      `USER:${user?.name || ''} (${user?.emp || ''})`,
+      `FROM:${fmtDateTime(booking.from)}`,
+      `TO:${fmtDateTime(booking.to)}`,
+      `DEST:${booking.destination || ''}`,
+    ].join('|');
+    QRCode.toDataURL(text, {
+      width: 300,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#000000', light: '#ffffff' },
+    })
       .then(setQrUrl)
-      .catch(() => {});
+      .catch(console.error);
   }, [booking.id]);
 
   function handleExportCSV() {
@@ -77,7 +82,7 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose, pushToast }
             {/* Header */}
             <div style={{display:'flex', alignItems:'flex-start', gap:14, paddingBottom:14, borderBottom:'2px solid var(--pea-purple)', position:'relative', zIndex:1}}>
               <img
-                src="/pea-logo.svg"
+                src="/pea-logo.png"
                 alt="PEA"
                 width={60} height={60}
                 style={{borderRadius:'50%', objectFit:'contain', flexShrink:0}}
