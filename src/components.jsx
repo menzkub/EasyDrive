@@ -332,7 +332,7 @@ function ConfirmDialog({ confirm, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{zIndex:2000}}>
+    <div className="modal-overlay center" onClick={onClose} style={{zIndex:2000}}>
       <div className="modal" style={{ width: 460, animation: 'confirmPop 0.18s ease-out' }} onClick={(e) => e.stopPropagation()}>
         <div style={{padding:'24px 24px 18px', textAlign:'center'}}>
           <div style={{
