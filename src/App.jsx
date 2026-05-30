@@ -350,7 +350,8 @@ function App() {
   // ── Vehicle management ──
   async function handleAddVehicle(data) {
     const id = "V" + (vehicles.length + 1).toString().padStart(3, "0");
-    const newVehicle = { ...data, id, image: "🚗" };
+    const { _editNote, _photo, documents, ...vehicleData } = data;
+    const newVehicle = { ...vehicleData, id, image: "🚗" };
     const { error } = await supabase.from('vehicles').insert(newVehicle);
     if (!error) {
       setVehicles([...vehicles, newVehicle]);
@@ -375,9 +376,10 @@ function App() {
         changes.push({ field: fieldMap[k], oldValue: oldV, newValue: newV });
       }
     });
-    const { error } = await supabase.from('vehicles').update(data).eq('id', id);
+    const { _editNote, _photo, documents, ...vehicleData } = data;
+    const { error } = await supabase.from('vehicles').update(vehicleData).eq('id', id);
     if (!error) {
-      setVehicles(vehicles.map((v) => v.id === id ? { ...v, ...data } : v));
+      setVehicles(vehicles.map((v) => v.id === id ? { ...v, ...vehicleData } : v));
       for (const c of changes) {
         await addHistory({ vehicleId: id, action: c.field.includes("สถานะ") ? "status" : "update", field: c.field, oldValue: c.oldValue, newValue: c.newValue, note: data._editNote || "", photo: data._photo || false });
       }
