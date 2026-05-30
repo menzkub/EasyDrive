@@ -3,9 +3,10 @@ import L from 'leaflet'
 import { I, StatusPill, VehicleIcon, fmtDateTime, fmtTime } from '../components'
 import { PURPOSES, VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
-function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefillVehicle, onCancel }) {
+function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefillVehicle, onCancel, onGoToMyBookings }) {
   const [step, setStep] = React.useState(1);
   const [submitting, setSubmitting] = React.useState(false);
+  const [bookingId, setBookingId] = React.useState(null);
   const [form, setForm] = React.useState({
     purpose: PURPOSES[0],
     purposeNote: "",
@@ -47,11 +48,44 @@ function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefill
     } else {
       setSubmitting(true);
       try {
-        await onSubmit(form);
+        const id = await onSubmit(form);
+        if (id) setBookingId(id);
       } finally {
         setSubmitting(false);
       }
     }
+  }
+
+  if (bookingId) {
+    return (
+      <div style={{maxWidth:520, margin:'60px auto 0', textAlign:'center'}}>
+        <div style={{
+          width:80, height:80, borderRadius:'50%',
+          background:'var(--ok-bg)', color:'var(--ok)',
+          display:'grid', placeItems:'center',
+          margin:'0 auto 20px',
+          boxShadow:'0 0 0 12px var(--ok-bg)',
+        }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h2 style={{margin:'0 0 8px', fontSize:22, fontWeight:700}}>ส่งคำขอจองสำเร็จ!</h2>
+        <p style={{margin:'0 0 6px', color:'var(--text-2)', fontSize:14}}>คำขอของท่านถูกส่งให้ผู้จัดการพิจารณาแล้ว</p>
+        <div style={{
+          display:'inline-block', padding:'6px 16px',
+          background:'var(--surface-2)', border:'1px solid var(--border)',
+          borderRadius:8, fontFamily:'var(--font-mono)', fontSize:13,
+          fontWeight:600, color:'var(--pea-purple)', margin:'8px 0 28px',
+        }}>
+          เลขที่การจอง: {bookingId}
+        </div>
+        <div style={{display:'flex', gap:10, justifyContent:'center'}}>
+          <button className="btn ghost" onClick={onCancel}>กลับหน้าแรก</button>
+          <button className="btn primary" onClick={onGoToMyBookings}>ดูการจองของฉัน</button>
+        </div>
+      </div>
+    );
   }
 
   return (

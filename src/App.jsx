@@ -248,13 +248,14 @@ function App() {
       const { error } = await supabase.from('bookings').insert(newBooking);
       if (!error) {
         setBookings((prev) => [newBooking, ...prev.filter((b) => b.id !== newBooking.id)]);
-        setRoute("my");
-        setTimeout(() => pushToast({ kind: "ok", title: "ส่งคำขอจองเรียบร้อย ✓", body: "รออนุมัติจากผู้จัดการ — เลขที่ " + id }), 100);
+        return id;
       } else {
         pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: error.message || "ไม่สามารถส่งคำขอจองได้" });
+        return null;
       }
     } catch (err) {
       pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: err?.message || "ไม่สามารถเชื่อมต่อฐานข้อมูล" });
+      return null;
     }
   }
 
@@ -622,7 +623,7 @@ function App() {
       />
       <main className="main">
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}
-        {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")}/>}
+        {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")} onGoToMyBookings={() => setRoute("my")}/>}
         {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)}/>}
         {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
         {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)}/>}
