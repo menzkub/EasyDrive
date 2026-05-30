@@ -69,6 +69,7 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
             {filtered.map((v) => {
               const taxDays = daysUntil(v.taxDue);
               const serviceDays = daysUntil(v.nextService);
+              const curMileage = calcEffectiveMileage(v.id, v.mileage, bookings);
               return (
                 <tr key={v.id} onClick={() => setViewingVehicle(v)} style={{cursor:'pointer'}}
                   onMouseEnter={e => e.currentTarget.style.background='var(--surface-2)'}
@@ -91,7 +92,7 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
                   <td className="text-sm">
                     <div>{v.seats} ที่นั่ง · {FUEL_TYPES[v.fuel]}</div>
                   </td>
-                  <td className="num">{fmtNum(v.mileage)} กม.</td>
+                  <td className="num">{fmtNum(curMileage)} กม.</td>
                   <td className="text-xs">
                     <div style={{color: taxDays < 30 ? 'var(--danger)' : 'var(--text-2)'}}>
                       <b>พ.ร.บ./ภาษี:</b> {fmtDate(v.taxDue)}
@@ -153,7 +154,15 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
   );
 }
 
+function calcEffectiveMileage(vehicleId, initialMileage, bookings) {
+  const mileageIns = bookings
+    .filter((b) => b.vehicleId === vehicleId && b.status === 'completed' && b.mileageIn != null)
+    .map((b) => b.mileageIn);
+  return mileageIns.length > 0 ? Math.max(...mileageIns) : initialMileage;
+}
+
 function VehicleDetailModal({ vehicle: v, bookings, users, onClose, onEdit, onHistory }) {
+  const currentMileage = calcEffectiveMileage(v.id, v.mileage, bookings);
   const vBookings = bookings.filter((b) => b.vehicleId === v.id)
     .sort((a, b) => new Date(b.from) - new Date(a.from)).slice(0, 5);
   const totalKm = bookings.filter((b) => b.vehicleId === v.id && b.mileageIn && b.mileageOut)
@@ -200,7 +209,7 @@ function VehicleDetailModal({ vehicle: v, bookings, users, onClose, onEdit, onHi
         </div>
         <div style={{textAlign:'right', flexShrink:0}}>
           <div style={{fontSize:11, color:'var(--text-3)'}}>เลขไมล์ปัจจุบัน</div>
-          <div style={{fontSize:24, fontWeight:700, color:'var(--pea-purple)', fontFamily:'var(--font-mono)'}}>{fmtNum(v.mileage)}</div>
+          <div style={{fontSize:24, fontWeight:700, color:'var(--pea-purple)', fontFamily:'var(--font-mono)'}}>{fmtNum(currentMileage)}</div>
           <div style={{fontSize:11, color:'var(--text-3)'}}>กม.</div>
         </div>
       </div>
@@ -215,7 +224,7 @@ function VehicleDetailModal({ vehicle: v, bookings, users, onClose, onEdit, onHi
             ['ที่นั่ง', `${v.seats} ที่นั่ง`],
             ['ผู้รับผิดชอบ', v.owner],
             ['วันจดทะเบียน', fmtDate(v.regDate)],
-            ['ระยะทางสะสม (ระบบ)', `${fmtNum(totalKm)} กม.`],
+            ['ระยะทางสะสม (จากการเดินทาง)', `${fmtNum(totalKm)} กม.`],
           ].map(([k, val]) => (
             <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px dotted var(--border)', fontSize:13}}>
               <span style={{color:'var(--text-3)'}}>{k}</span>

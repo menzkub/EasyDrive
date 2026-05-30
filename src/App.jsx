@@ -451,6 +451,7 @@ function App() {
   }
 
   async function handleCheckOut(bookingId, data) {
+    const booking = bookings.find((b) => b.id === bookingId);
     const { error } = await supabase.from('bookings').update({
       mileageIn: data.mileageIn,
       rating: data.rating,
@@ -460,6 +461,10 @@ function App() {
     }).eq('id', bookingId);
     if (!error) {
       setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageIn: data.mileageIn, rating: data.rating, status: "completed" } : b));
+      if (booking?.vehicleId && data.mileageIn) {
+        await supabase.from('vehicles').update({ mileage: data.mileageIn }).eq('id', booking.vehicleId);
+        setVehicles((prev) => prev.map((v) => v.id === booking.vehicleId ? { ...v, mileage: data.mileageIn } : v));
+      }
       pushToast({ kind: "ok", title: "Check-in สำเร็จ ✓", body: `คืนรถแล้ว · ระยะทาง ${fmtNum(data.distance)} กม.` });
     } else {
       pushToast({ kind: "warn", title: "Check-in ไม่สำเร็จ", body: error.message });
