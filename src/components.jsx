@@ -658,8 +658,105 @@ function NavPoint({ icon, label, name, coords, color, bg }) {
   );
 }
 
+// ─── DeptPicker (searchable command menu) ────────────────────────────
+function DeptPicker({ value, options, onChange, placeholder = 'เลือกแผนก...' }) {
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState('');
+  const rootRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setQ('');
+    const t = setTimeout(() => inputRef.current?.focus(), 30);
+    const handler = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
+  }, [open]);
+
+  const filtered = options.filter((o) => !q || o.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div ref={rootRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="input"
+        style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: open ? 'var(--surface)' : undefined, borderColor: open ? 'var(--pea-purple)' : undefined, boxShadow: open ? '0 0 0 3px var(--pea-purple-100)' : undefined }}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span style={{ color: value ? 'var(--text)' : 'var(--text-3)' }}>{value || placeholder}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 5px)', left: 0, right: 0, zIndex: 600,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)',
+          overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+          maxHeight: 260,
+          animation: 'slideUp 0.12s ease-out',
+        }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            <div style={{ position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input
+                ref={inputRef}
+                className="input"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="ค้นหาแผนก..."
+                style={{ paddingLeft: 30, fontSize: 13, height: 34 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setOpen(false);
+                  if (e.key === 'Enter' && filtered.length === 1) { onChange(filtered[0]); setOpen(false); }
+                }}
+              />
+            </div>
+          </div>
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>ไม่พบแผนก</div>
+            ) : filtered.map((o) => {
+              const active = o === value;
+              return (
+                <button key={o} type="button"
+                  onClick={() => { onChange(o); setOpen(false); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    width: '100%', textAlign: 'left',
+                    padding: '10px 14px',
+                    fontSize: 14, lineHeight: 1.4,
+                    background: active ? 'var(--pea-purple-50)' : 'transparent',
+                    color: active ? 'var(--pea-purple)' : 'var(--text)',
+                    fontWeight: active ? 600 : 400,
+                    border: 'none', borderBottom: '1px solid var(--border)',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--surface-2)'; }}
+                  onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: active ? 1 : 0 }}>
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  {o}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export {
   I, VehicleIcon, StatusPill, STATUS_LABEL,
-  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, SearchInput, NavModal,
+  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, SearchInput, NavModal, DeptPicker,
   fmtDate, fmtDateTime, fmtTime, fmtNum, daysUntil,
 };

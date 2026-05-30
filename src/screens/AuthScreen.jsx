@@ -1,5 +1,5 @@
 import React from 'react'
-import { I } from '../components'
+import { I, DeptPicker } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
@@ -351,9 +351,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
                 </div>
                 <div className="field">
                   <label className="field-lbl">สังกัดแผนก <span className="req">*</span></label>
-                  <select className="select" value={reg.dept} onChange={(e) => setReg({...reg, dept:e.target.value})}>
-                    {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-                  </select>
+                  <DeptPicker value={reg.dept} options={DEPARTMENTS} onChange={(d) => setReg({...reg, dept: d})}/>
                 </div>
                 <div className="grid-2">
                   <div className="field">

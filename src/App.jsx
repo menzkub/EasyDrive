@@ -138,6 +138,15 @@ function App() {
     setCurrentUser(null);
     setRoute("dashboard");
   }
+  function confirmLogout() {
+    setConfirm({
+      kind: "warn",
+      title: "ออกจากระบบ?",
+      message: `${currentUser?.name} — ต้องการออกจากระบบใช่ไหม?`,
+      confirmLabel: "ออกจากระบบ",
+      onConfirm: handleLogout,
+    });
+  }
   function handleRegister() { setRegistered(true); }
 
   // ── Auto-logout on idle ──
@@ -521,14 +530,14 @@ function App() {
 
   return (
     <div className={"app" + (sidebarCollapsed ? " sidebar-min" : "")}>
-      <Sidebar route={route} setRoute={setRoute} user={currentUser} counts={counts} onLogout={handleLogout} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} collapsed={sidebarCollapsed} onToggleCollapse={() => { const v = !sidebarCollapsed; setSidebarCollapsed(v); localStorage.setItem('pea-sidebar-collapsed', v ? '1' : '0'); }}/>
+      <Sidebar route={route} setRoute={setRoute} user={currentUser} counts={counts} onLogout={confirmLogout} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} collapsed={sidebarCollapsed} onToggleCollapse={() => { const v = !sidebarCollapsed; setSidebarCollapsed(v); localStorage.setItem('pea-sidebar-collapsed', v ? '1' : '0'); }}/>
       <Topbar title={(titles[route.startsWith("settings") ? "settings" : route] || titles.dashboard).t} subtitle={null}
         onMenuClick={() => setDrawerOpen(true)}
         onBellClick={() => setNotiOpen(!notiOpen)}
         unreadCount={unreadCount}
         isDark={isDark}
         onDarkToggle={() => setIsDark(d => !d)}
-        onLogout={handleLogout}
+        onLogout={confirmLogout}
       />
       <main className="main">
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}
@@ -590,7 +599,7 @@ function App() {
         <TweakSection label="แดชบอร์ด"/>
         <TweakRadio label="Layout" value={t.dashboardLayout} options={["timeline","grid"]} onChange={(v) => setTweak("dashboardLayout", v)}/>
         <TweakSection label="ทางลัด"/>
-        <TweakButton label="ออกจากระบบ" onClick={handleLogout}/>
+        <TweakButton label="ออกจากระบบ" onClick={confirmLogout}/>
       </TweaksPanel>
     </div>
   );
