@@ -48,6 +48,7 @@ function App() {
   const [voucherBooking, setVoucherBooking] = React.useState(null);
   const [showPublicCal, setShowPublicCal] = React.useState(false);
   const [demoEnabled, setDemoEnabled] = React.useState(() => localStorage.getItem('pea-demo-enabled') === '1');
+  const [maintenanceMode, setMaintenanceMode] = React.useState(() => localStorage.getItem('pea-maintenance') === '1');
   const [toasts, setToasts] = React.useState([]);
   const [confirm, setConfirm] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -600,6 +601,11 @@ function App() {
     });
   }
 
+  function handleSetMaintenanceMode(v) {
+    setMaintenanceMode(v);
+    localStorage.setItem('pea-maintenance', v ? '1' : '0');
+  }
+
   async function handleSaveConfig(key, value) {
     const { error } = await supabase.from('app_config').upsert({ key, value, updated_at: new Date().toISOString() });
     if (error) throw error;
@@ -703,6 +709,23 @@ function App() {
         onCmdOpen={() => setCmdOpen(true)}
       />
       <main className="main">
+        {/* Maintenance mode: block non-admins, warn admin */}
+        {maintenanceMode && currentUser.role !== 'admin' && (
+          <div style={{position:'fixed',inset:0,zIndex:4000,background:'var(--bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:24}}>
+            <div style={{fontSize:56}}>🔧</div>
+            <h2 style={{margin:0,fontSize:22,fontWeight:700,textAlign:'center'}}>ระบบปิดบำรุงรักษาชั่วคราว</h2>
+            <p style={{margin:0,fontSize:14,color:'var(--text-2)',textAlign:'center',maxWidth:360,lineHeight:1.6}}>ผู้ดูแลระบบกำลังปรับปรุงระบบ<br/>กรุณาลองเข้าใช้งานใหม่ในภายหลัง</p>
+            <p style={{margin:0,fontSize:12,color:'var(--text-3)'}}>หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ</p>
+          </div>
+        )}
+        {maintenanceMode && currentUser.role === 'admin' && (
+          <div style={{background:'#7c2d00',color:'#fed7aa',padding:'8px 16px',display:'flex',alignItems:'center',gap:10,fontSize:13,borderRadius:8,marginBottom:12,flexWrap:'wrap'}}>
+            <span style={{fontSize:16}}>🔧</span>
+            <span style={{fontWeight:600}}>ระบบอยู่ในโหมดบำรุงรักษา</span>
+            <span style={{opacity:0.8}}>— ผู้ใช้ทั่วไปไม่สามารถเข้าใช้งานได้ขณะนี้</span>
+            <button className="btn sm" style={{marginLeft:'auto',background:'#fed7aa',color:'#7c2d00',fontWeight:600,fontSize:12}} onClick={() => setConfirm({ kind:'primary', title:'เปิดระบบใช้งาน?', message:'ผู้ใช้ทุกคนจะสามารถเข้าใช้งานระบบได้ตามปกติ', onConfirm: () => handleSetMaintenanceMode(false) })}>เปิดระบบ</button>
+          </div>
+        )}
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)} demoEnabled={demoEnabled} onDemoBooking={handleDemoBooking}/>}
         {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")} onGoToMyBookings={() => setRoute("my")} purposes={appConfig.purposes || PURPOSES} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES} fuelTypes={appConfig.fuelTypes || FUEL_TYPES}/>}
         {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)} onOpenPublicCal={() => setShowPublicCal(true)}/>}
@@ -713,7 +736,7 @@ function App() {
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES} fuelTypes={appConfig.fuelTypes || FUEL_TYPES}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
-        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings} appConfig={appConfig} onSaveConfig={handleSaveConfig} defaultConfig={{ checklist: CHECKLIST, vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES, purposes: PURPOSES }}/>}
+        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings} maintenanceMode={maintenanceMode} onSetMaintenanceMode={handleSetMaintenanceMode} appConfig={appConfig} onSaveConfig={handleSaveConfig} defaultConfig={{ checklist: CHECKLIST, vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES, purposes: PURPOSES }}/>}
         {route === "help" && <ManualScreen role={currentUser?.role}/>}
       </main>
 

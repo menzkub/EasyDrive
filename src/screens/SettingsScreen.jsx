@@ -26,7 +26,7 @@ function calcPwStrength(pw) {
   return { score, checks, missing, label, color };
 }
 
-function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange, demoEnabled, onSetDemoEnabled, onDeleteDemoBookings, appConfig, onSaveConfig, defaultConfig }) {
+function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange, demoEnabled, onSetDemoEnabled, onDeleteDemoBookings, maintenanceMode, onSetMaintenanceMode, appConfig, onSaveConfig, defaultConfig }) {
   const [tab, setTab] = React.useState(activeTab || "account");
   const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const isAdmin = currentUser.role === 'admin';
@@ -62,7 +62,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
         {tab === "calendar" && <CalendarSync currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
         {tab === "data"     && isAdmin && <DataSettings appConfig={appConfig} onSaveConfig={onSaveConfig} defaultConfig={defaultConfig} departments={departments || []} pushToast={pushToast}/>}
-        {tab === "demo"     && isAdmin && <DemoSettings demoEnabled={demoEnabled} onSetDemoEnabled={onSetDemoEnabled} bookings={bookings} onDeleteAll={onDeleteDemoBookings}/>}
+        {tab === "demo"     && isAdmin && <DemoSettings demoEnabled={demoEnabled} onSetDemoEnabled={onSetDemoEnabled} bookings={bookings} onDeleteAll={onDeleteDemoBookings} maintenanceMode={maintenanceMode} onSetMaintenanceMode={onSetMaintenanceMode}/>}
         {tab === "manual"   && isAdmin && <div style={{marginTop:14, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', height:600}}><ManualScreen role="admin"/></div>}
         {tab === "dev"      && isAdmin && <div style={{marginTop:14}}><DevGuideScreen/></div>}
         {tab === "about"    && isAdmin && <DevCardSettings pushToast={pushToast}/>}
@@ -750,20 +750,22 @@ function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pus
   const [subTab, setSubTab] = React.useState('checklist');
   const [saving, setSaving] = React.useState(false);
   const [setupNeeded, setSetupNeeded] = React.useState(false);
+  const [confirmDlg, setConfirmDlg] = React.useState(null);
 
-  // Live editable copies — initialised from appConfig (or defaultConfig fallback)
   const [checklist, setChecklist] = React.useState(() => appConfig?.checklist || defaultConfig?.checklist || []);
   const [purposes, setPurposes] = React.useState(() => appConfig?.purposes || defaultConfig?.purposes || []);
   const [vehicleTypes, setVehicleTypes] = React.useState(() => appConfig?.vehicleTypes || defaultConfig?.vehicleTypes || {});
   const [fuelTypes, setFuelTypes] = React.useState(() => appConfig?.fuelTypes || defaultConfig?.fuelTypes || {});
 
-  // Inline editing states
-  const [editingCl, setEditingCl] = React.useState(null); // {idx, label, hint}
+  const [editingCl, setEditingCl] = React.useState(null);
   const [newCl, setNewCl] = React.useState({ label: '', hint: '' });
-  const [editingPurpose, setEditingPurpose] = React.useState(null); // {idx, value}
+  const [editingPurpose, setEditingPurpose] = React.useState(null);
   const [newPurpose, setNewPurpose] = React.useState('');
-  const [editingFuel, setEditingFuel] = React.useState(null); // {key, label}
+  const [editingFuel, setEditingFuel] = React.useState(null);
   const [newFuel, setNewFuel] = React.useState({ key: '', label: '' });
+  const [editingVt, setEditingVt] = React.useState(null);
+
+  function confirm(opts) { setConfirmDlg(opts); }
 
   async function save(key, value) {
     setSaving(true);
@@ -782,7 +784,7 @@ function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pus
     setSaving(false);
   }
 
-  // ── Checklist helpers ──
+  // ── Checklist ──
   function moveClItem(idx, dir) {
     const arr = [...checklist];
     const to = idx + dir;
@@ -790,15 +792,26 @@ function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pus
     [arr[idx], arr[to]] = [arr[to], arr[idx]];
     setChecklist(arr);
   }
-  function deleteClItem(idx) { setChecklist(checklist.filter((_, i) => i !== idx)); }
+  function requestDeleteCl(idx) {
+    confirm({ kind:'negative', title:'ลบรายการตรวจสอบ?', message:`ลบ "${checklist[idx].label}" ออกจากรายการตรวจสอบ — กดบันทึกเพื่อให้มีผล`,
+      onConfirm: () => setChecklist(checklist.filter((_, i) => i !== idx)) });
+  }
   function addClItem() {
     if (!newCl.label.trim()) return;
     const id = newCl.label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now();
     setChecklist([...checklist, { id, label: newCl.label.trim(), hint: newCl.hint.trim() }]);
     setNewCl({ label: '', hint: '' });
   }
+  function requestResetCl() {
+    confirm({ kind:'warn', title:'รีเซ็ตเป็นค่าเริ่มต้น?', message:'รายการตรวจสอบจะกลับเป็น 10 รายการเดิม — การเปลี่ยนแปลงที่ยังไม่ได้บันทึกจะหาย',
+      onConfirm: () => { setChecklist(defaultConfig?.checklist || []); setEditingCl(null); } });
+  }
+  function requestSaveCl() {
+    confirm({ kind:'primary', title:'บันทึกรายการตรวจสอบ?', message:`บันทึก ${checklist.length} รายการลงฐานข้อมูล`,
+      onConfirm: () => save('checklist', checklist) });
+  }
 
-  // ── Purposes helpers ──
+  // ── Purposes ──
   function movePurpose(idx, dir) {
     const arr = [...purposes];
     const to = idx + dir;
@@ -806,19 +819,39 @@ function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pus
     [arr[idx], arr[to]] = [arr[to], arr[idx]];
     setPurposes(arr);
   }
-  function deletePurpose(idx) { setPurposes(purposes.filter((_, i) => i !== idx)); }
+  function requestDeletePurpose(idx) {
+    confirm({ kind:'negative', title:'ลบวัตถุประสงค์?', message:`ลบ "${purposes[idx]}" — กดบันทึกเพื่อให้มีผล`,
+      onConfirm: () => setPurposes(purposes.filter((_, i) => i !== idx)) });
+  }
   function addPurpose() {
     if (!newPurpose.trim()) return;
     setPurposes([...purposes, newPurpose.trim()]);
     setNewPurpose('');
   }
+  function requestSavePurposes() {
+    confirm({ kind:'primary', title:'บันทึกวัตถุประสงค์?', message:`บันทึก ${purposes.length} รายการลงฐานข้อมูล`,
+      onConfirm: () => save('purposes', purposes) });
+  }
 
-  // ── Fuel type helpers ──
-  function deleteFuelType(key) { const ft = {...fuelTypes}; delete ft[key]; setFuelTypes(ft); }
+  // ── Fuel types ──
+  function requestDeleteFuel(key) {
+    confirm({ kind:'negative', title:'ลบประเภทเชื้อเพลิง?', message:`ลบ "${fuelTypes[key]}" (${key}) — กดบันทึกเพื่อให้มีผล`,
+      onConfirm: () => { const ft = {...fuelTypes}; delete ft[key]; setFuelTypes(ft); } });
+  }
   function addFuelType() {
     if (!newFuel.key.trim() || !newFuel.label.trim()) return;
     setFuelTypes({ ...fuelTypes, [newFuel.key.trim()]: newFuel.label.trim() });
     setNewFuel({ key: '', label: '' });
+  }
+  function requestSaveFuel() {
+    confirm({ kind:'primary', title:'บันทึกประเภทเชื้อเพลิง?', message:`บันทึก ${Object.keys(fuelTypes).length} รายการลงฐานข้อมูล`,
+      onConfirm: () => save('fuel_types', fuelTypes) });
+  }
+
+  // ── Vehicle types ──
+  function requestSaveVt() {
+    confirm({ kind:'primary', title:'บันทึกประเภทรถ?', message:'บันทึกชื่อประเภทรถลงฐานข้อมูล',
+      onConfirm: () => save('vehicle_types', vehicleTypes) });
   }
 
   const SQL_SETUP = `-- รัน SQL นี้ใน Supabase SQL Editor
@@ -851,7 +884,10 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
       {/* ── Checklist ── */}
       {subTab === 'checklist' && (
         <div>
-          <p className="muted" style={{margin:'0 0 12px', fontSize:13}}>รายการตรวจสอบสภาพรถก่อนออก — {checklist.length} รายการ</p>
+          <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:12}}>
+            <p className="muted" style={{margin:0, fontSize:13, flex:1}}>รายการตรวจสอบสภาพรถก่อนออก — {checklist.length} รายการ</p>
+            <button className="btn sm ghost" style={{fontSize:12, color:'var(--warn)'}} onClick={requestResetCl}>↺ คืนค่าเริ่มต้น</button>
+          </div>
           <div style={{display:'flex', flexDirection:'column', gap:6, marginBottom:14}}>
             {checklist.map((item, i) => (
               <div key={item.id} style={{background:'var(--bg-2)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'flex-start', gap:8}}>
@@ -881,7 +917,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
                     <button className="btn icon ghost sm" onClick={() => moveClItem(i, -1)} disabled={i === 0} title="ขึ้น">↑</button>
                     <button className="btn icon ghost sm" onClick={() => moveClItem(i, 1)} disabled={i === checklist.length-1} title="ลง">↓</button>
                     <button className="btn icon ghost sm" onClick={() => setEditingCl({idx:i, label:item.label, hint:item.hint||''})}>✏️</button>
-                    <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => deleteClItem(i)}>🗑</button>
+                    <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => requestDeleteCl(i)}>🗑</button>
                   </div>
                 )}
               </div>
@@ -895,7 +931,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
               <button className="btn sm primary" onClick={addClItem} disabled={!newCl.label.trim()}>เพิ่ม</button>
             </div>
           </div>
-          <button className="btn primary" onClick={() => save('checklist', checklist)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกรายการตรวจสอบ'}</button>
+          <button className="btn primary" onClick={requestSaveCl} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกรายการตรวจสอบ'}</button>
         </div>
       )}
 
@@ -924,7 +960,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
                       <button className="btn icon ghost sm" onClick={() => movePurpose(i, -1)} disabled={i === 0}>↑</button>
                       <button className="btn icon ghost sm" onClick={() => movePurpose(i, 1)} disabled={i === purposes.length-1}>↓</button>
                       <button className="btn icon ghost sm" onClick={() => setEditingPurpose({idx:i, value:p})}>✏️</button>
-                      <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => deletePurpose(i)}>🗑</button>
+                      <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => requestDeletePurpose(i)}>🗑</button>
                     </>
                   )}
                 </div>
@@ -938,7 +974,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
               <button className="btn sm primary" onClick={addPurpose} disabled={!newPurpose.trim()}>เพิ่ม</button>
             </div>
           </div>
-          <button className="btn primary" onClick={() => save('purposes', purposes)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกวัตถุประสงค์'}</button>
+          <button className="btn primary" onClick={requestSavePurposes} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกวัตถุประสงค์'}</button>
         </div>
       )}
 
@@ -952,27 +988,27 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
               <div key={key} style={{background:'var(--bg-2)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'center', gap:10}}>
                 <code style={{fontSize:12, background:'var(--bg)', padding:'2px 6px', borderRadius:4, color:'var(--text-3)', flexShrink:0}}>{key}</code>
                 <span style={{flex:1, fontSize:13.5}}>
-                  {editingCl?.vtKey === key ? (
-                    <input className="input" value={editingCl.vtLabel} onChange={e => setEditingCl({...editingCl, vtLabel: e.target.value})} style={{fontSize:13}}/>
+                  {editingVt?.key === key ? (
+                    <input className="input" value={editingVt.label} onChange={e => setEditingVt({...editingVt, label: e.target.value})} style={{fontSize:13}}/>
                   ) : v.label}
                 </span>
                 <code style={{fontSize:11, color:'var(--text-3)', flexShrink:0}}>{v.icon}</code>
                 <div style={{display:'flex', gap:4}}>
-                  {editingCl?.vtKey === key ? (
+                  {editingVt?.key === key ? (
                     <>
                       <button className="btn sm primary" onClick={() => {
-                        setVehicleTypes({...vehicleTypes, [key]: {...v, label: editingCl.vtLabel}}); setEditingCl(null);
+                        setVehicleTypes({...vehicleTypes, [key]: {...v, label: editingVt.label}}); setEditingVt(null);
                       }}>บันทึก</button>
-                      <button className="btn sm ghost" onClick={() => setEditingCl(null)}>ยกเลิก</button>
+                      <button className="btn sm ghost" onClick={() => setEditingVt(null)}>ยกเลิก</button>
                     </>
                   ) : (
-                    <button className="btn icon ghost sm" onClick={() => setEditingCl({vtKey: key, vtLabel: v.label})}>✏️</button>
+                    <button className="btn icon ghost sm" onClick={() => setEditingVt({key, label: v.label})}>✏️</button>
                   )}
                 </div>
               </div>
             ))}
           </div>
-          <button className="btn primary" onClick={() => save('vehicle_types', vehicleTypes)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกประเภทรถ'}</button>
+          <button className="btn primary" onClick={requestSaveVt} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกประเภทรถ'}</button>
         </div>
       )}
 
@@ -1000,7 +1036,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
                   ) : (
                     <>
                       <button className="btn icon ghost sm" onClick={() => setEditingFuel({key, label})}>✏️</button>
-                      <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => deleteFuelType(key)}>🗑</button>
+                      <button className="btn icon ghost sm" style={{color:'var(--danger)'}} onClick={() => requestDeleteFuel(key)}>🗑</button>
                     </>
                   )}
                 </div>
@@ -1015,7 +1051,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
               <button className="btn sm primary" onClick={addFuelType} disabled={!newFuel.key.trim() || !newFuel.label.trim()}>เพิ่ม</button>
             </div>
           </div>
-          <button className="btn primary" onClick={() => save('fuel_types', fuelTypes)} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกเชื้อเพลิง'}</button>
+          <button className="btn primary" onClick={requestSaveFuel} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกเชื้อเพลิง'}</button>
         </div>
       )}
 
@@ -1023,6 +1059,8 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
       {subTab === 'depts' && (
         <DeptManager departments={departments} pushToast={pushToast}/>
       )}
+
+      <ConfirmDialog confirm={confirmDlg} onClose={() => setConfirmDlg(null)}/>
     </div>
   );
 }
@@ -1244,40 +1282,50 @@ function DeptManager({ departments, pushToast }) {
 }
 
 // ─── Demo Settings ────────────────────────────────────────────────
-function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll }) {
+function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, maintenanceMode, onSetMaintenanceMode }) {
   const demoBookings = (bookings || []).filter(b => b.id.startsWith('DEMO'));
   const [confirmDlg, setConfirmDlg] = React.useState(null);
 
   function requestToggle() {
     if (demoEnabled) {
-      setConfirmDlg({
-        kind: 'warn',
-        title: 'ปิดระบบทดสอบ?',
-        message: 'เมื่อปิด ปุ่ม "🎮 ทดสอบจอง" จะหายไปจากหน้าแดชบอร์ด การจอง Demo ที่มีอยู่จะยังคงอยู่จนกว่าจะลบ',
-        onConfirm: () => onSetDemoEnabled(false),
-      });
+      setConfirmDlg({ kind:'warn', title:'ปิดระบบทดสอบ?', message:'เมื่อปิด ปุ่ม "🎮 ทดสอบจอง" จะหายไปจากหน้าแดชบอร์ด การจอง Demo ที่มีอยู่จะยังคงอยู่จนกว่าจะลบ', onConfirm: () => onSetDemoEnabled(false) });
     } else {
-      setConfirmDlg({
-        kind: 'primary',
-        title: 'เปิดระบบทดสอบ?',
-        message: 'เมื่อเปิด ผู้ใช้ทุกคนจะเห็นปุ่ม "🎮 ทดสอบจอง" ในหน้าแดชบอร์ด และสามารถสร้างการจอง Demo ได้',
-        onConfirm: () => onSetDemoEnabled(true),
-      });
+      setConfirmDlg({ kind:'primary', title:'เปิดระบบทดสอบ?', message:'เมื่อเปิด ผู้ใช้ทุกคนจะเห็นปุ่ม "🎮 ทดสอบจอง" ในหน้าแดชบอร์ด และสามารถสร้างการจอง Demo ได้', onConfirm: () => onSetDemoEnabled(true) });
+    }
+  }
+
+  function requestToggleMaintenance() {
+    if (maintenanceMode) {
+      setConfirmDlg({ kind:'primary', title:'เปิดระบบใช้งาน?', message:'ผู้ใช้ทุกคนจะสามารถเข้าใช้งานระบบได้ตามปกติ', onConfirm: () => onSetMaintenanceMode(false) });
+    } else {
+      setConfirmDlg({ kind:'negative', title:'ปิดระบบเพื่อบำรุงรักษา?', message:'ผู้ใช้ทั่วไปจะเข้าระบบไม่ได้จนกว่าแอดมินจะเปิดระบบอีกครั้ง · แอดมินยังเข้าได้ตามปกติ', onConfirm: () => onSetMaintenanceMode(true) });
     }
   }
 
   return (
     <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:12}}>
+
+      {/* ── Maintenance mode ── */}
+      <div className="card card-pad" style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:16, border: maintenanceMode ? '1.5px solid var(--danger)' : undefined}}>
+        <div>
+          <div style={{display:'flex', alignItems:'center', gap:8}}>
+            <strong>🔧 โหมดบำรุงรักษา</strong>
+            {maintenanceMode && <span style={{fontSize:11, padding:'2px 8px', borderRadius:99, background:'var(--danger-bg,#fee2e2)', color:'var(--danger)', fontWeight:600}}>ปิดระบบอยู่</span>}
+          </div>
+          <p style={{margin:'3px 0 0', fontSize:12.5, color:'var(--text-2)'}}>เมื่อปิดระบบ ผู้ใช้ทั่วไปจะเห็นหน้า "ระบบปิดบำรุงรักษา" — แอดมินยังเข้าใช้งานได้พร้อมแถบเตือนสีส้ม</p>
+        </div>
+        <button className={"btn sm" + (maintenanceMode ? " danger" : " ghost")} onClick={requestToggleMaintenance} style={{flexShrink:0, minWidth:90}}>
+          {maintenanceMode ? '🔴 ปิดระบบอยู่' : 'เปิดระบบอยู่'}
+        </button>
+      </div>
+
+      {/* ── Demo booking ── */}
       <div className="card card-pad" style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:16}}>
         <div>
           <strong>ปุ่มทดสอบการจองในหน้าแดชบอร์ด</strong>
           <p style={{margin:'3px 0 0', fontSize:12.5, color:'var(--text-2)'}}>เมื่อเปิด จะแสดงปุ่ม "🎮 ทดสอบจอง" ในหน้าแดชบอร์ด · ผู้ใช้ทุกคนสามารถสร้างการจอง Demo ได้</p>
         </div>
-        <button
-          className={"btn sm" + (demoEnabled ? " primary" : " ghost")}
-          onClick={requestToggle}
-          style={{flexShrink:0, minWidth:80}}
-        >
+        <button className={"btn sm" + (demoEnabled ? " primary" : " ghost")} onClick={requestToggle} style={{flexShrink:0, minWidth:80}}>
           {demoEnabled ? '✓ เปิดอยู่' : 'ปิดอยู่'}
         </button>
       </div>
