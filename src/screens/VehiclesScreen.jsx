@@ -1,5 +1,5 @@
 import React from 'react'
-import { I, StatusPill, VehicleIcon, Modal, ConfirmDialog, fmtDate, fmtNum, daysUntil, fmtDateTime, SearchInput } from '../components'
+import { I, StatusPill, VehicleIcon, Modal, ConfirmDialog, fmtDate, fmtNum, daysUntil, fmtDateTime, SearchInput, Select } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
 function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], user, onUpdateVehicle, onAddVehicle }) {
@@ -35,16 +35,16 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
           </div>
           <div style={{display:'flex', gap:8, marginLeft:'auto', alignItems:'center', flexWrap:'wrap'}}>
             <SearchInput value={search} onChange={setSearch} placeholder="ค้นหา..." style={{width:'min(200px,100%)'}} />
-            <select className="select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{width:150, padding:'7px 28px 7px 12px', fontSize:13}}>
+            <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{width:150, fontSize:13}}>
               <option value="all">ทุกประเภท</option>
               {Object.entries(VEHICLE_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-            <select className="select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{width:150, padding:'7px 28px 7px 12px', fontSize:13}}>
+            </Select>
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{width:150, fontSize:13}}>
               <option value="all">ทุกสถานะ</option>
               <option value="available">พร้อมใช้งาน</option>
               <option value="maintenance">บำรุงรักษา</option>
               <option value="unavailable">ไม่พร้อมใช้งาน</option>
-            </select>
+            </Select>
             {isAdmin && <button className="btn accent" onClick={() => setShowAdd(true)}>{I.plus} เพิ่มรถยนต์</button>}
           </div>
         </div>
@@ -306,9 +306,9 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
         <div className="grid-3" style={{gridTemplateColumns:'1fr 1fr 1fr'}}>
           <div className="field">
             <label className="field-lbl">ประเภทรถ <span className="req">*</span></label>
-            <select className="select" value={form.type} onChange={(e) => setForm({...form, type:e.target.value})}>
+            <Select value={form.type} onChange={(e) => setForm({...form, type:e.target.value})}>
               {Object.entries(VEHICLE_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="field">
             <label className="field-lbl">ปี</label>
@@ -316,9 +316,9 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
           </div>
           <div className="field">
             <label className="field-lbl">เชื้อเพลิง</label>
-            <select className="select" value={form.fuel} onChange={(e) => setForm({...form, fuel:e.target.value})}>
+            <Select value={form.fuel} onChange={(e) => setForm({...form, fuel:e.target.value})}>
               {Object.entries(FUEL_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="grid-2">
@@ -328,12 +328,12 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
           </div>
           <div className="field">
             <label className="field-lbl">ผู้รับผิดชอบประจำรถ <span className="req">*</span></label>
-            <select className="select" value={form.owner} onChange={(e) => setForm({...form, owner:e.target.value})}>
+            <Select value={form.owner} onChange={(e) => setForm({...form, owner:e.target.value})} placeholder="— เลือกผู้รับผิดชอบ —">
               <option value="">— เลือกผู้รับผิดชอบจากสมาชิกในระบบ —</option>
               {approvedUsers.map((u) => (
                 <option key={u.id} value={u.name}>{u.name} · {u.dept} ({u.emp})</option>
               ))}
-            </select>
+            </Select>
             <div className="input-hint">เลือกจากสมาชิกที่ผ่านการอนุมัติแล้วเท่านั้น</div>
           </div>
         </div>
@@ -477,9 +477,9 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
               <div className="grid-2" style={{marginBottom:10}}>
                 <div className="field">
                   <label className="field-lbl">ประเภทเอกสาร</label>
-                  <select className="select" value={newDoc.type} onChange={(e) => setNewDoc({...newDoc, type:e.target.value})}>
-                    {DOC_TYPES.map((t) => <option key={t}>{t}</option>)}
-                  </select>
+                  <Select value={newDoc.type} onChange={(e) => setNewDoc({...newDoc, type:e.target.value})}>
+                    {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </Select>
                 </div>
                 <div className="field">
                   <label className="field-lbl">ชื่อไฟล์</label>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { I, DeptPicker } from '../components'
+import { I, DeptPicker, Select } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
@@ -561,10 +561,10 @@ function PublicCalendarModal({ onClose }) {
             <h2 style={{margin:0}}>ปฏิทินการจองรถ — สาธารณะ</h2>
             <p style={{margin:0, fontSize:12, color:'var(--text-3)'}}>แสดงเฉพาะเลขทะเบียนและช่วงเวลา · ไม่แสดงข้อมูลส่วนตัว</p>
           </div>
-          <select className="select" value={vehicleFilter} onChange={e => setVehicleFilter(e.target.value)} style={{width:'auto', minWidth:140, fontSize:12.5}}>
+          <Select value={vehicleFilter} onChange={e => setVehicleFilter(e.target.value)} style={{minWidth:140, fontSize:12.5}}>
             <option value="all">รถทั้งหมด ({vehicles.length})</option>
             {vehicles.map(v => <option key={v.id} value={v.id}>{v.id} · {v.plate.split(' ').slice(0,2).join(' ')}</option>)}
-          </select>
+          </Select>
           <div style={{display:'flex', gap:4, alignItems:'center'}}>
             <button className="btn icon ghost sm" onClick={() => { const d = new Date(refDate); d.setMonth(d.getMonth()-1); setRefDate(d); }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>

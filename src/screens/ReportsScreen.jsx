@@ -49,7 +49,7 @@ function ReportsScreen({ vehicles, bookings, users = [], onRefresh }) {
   const maxVeh = Math.max(...vehicleData.map(([, v]) => v), 1);
 
   const byUser = {};
-  bookings.forEach((b) => { byUser[b.userId] = (byUser[b.userId] || 0) + 1; });
+  completed.forEach((b) => { byUser[b.userId] = (byUser[b.userId] || 0) + 1; });
   const topUsers = Object.entries(byUser).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   // Real daily booking data for last 14 days
@@ -233,16 +233,15 @@ function ReportsScreen({ vehicles, bookings, users = [], onRefresh }) {
 
 // ─── Distance by department ────────────────────────────────────
 function DepartmentReport({ bookings, users }) {
+  const approved = bookings.filter((b) => b.status === "completed" || b.status === "approved" || b.status === "urgent");
   const byDept = {};
-  bookings.forEach((b) => {
+  approved.forEach((b) => {
     const u = users.find((x) => x.id === b.userId);
     if (!u) return;
     if (!byDept[u.dept]) byDept[u.dept] = { count: 0, distance: 0 };
     byDept[u.dept].count += 1;
     if (b.mileageIn && b.mileageOut) byDept[u.dept].distance += b.mileageIn - b.mileageOut;
   });
-  // Add some mock estimated distances for departments without data
-  Object.values(byDept).forEach((d) => { if (d.distance === 0) d.distance = d.count * (80 + Math.floor(Math.random()*120)); });
   const data = Object.entries(byDept).sort((a, b) => b[1].count - a[1].count);
   const maxCount = Math.max(...data.map(([, v]) => v.count), 1);
 
@@ -274,24 +273,20 @@ function DepartmentReport({ bookings, users }) {
 
 // ─── Fuel cost estimate ───────────────────────────────────────────
 function FuelCostReport({ bookings, vehicles }) {
-  const completed = bookings.filter((b) => b.mileageIn != null && b.mileageOut != null);
-  const totalKm = completed.reduce((s, b) => s + (b.mileageIn - b.mileageOut), 0) + 2840; // + mock
   const fuelPrices = { diesel: 32.5, gasohol: 38.5, benzin: 41.5, ngv: 16.5, ev: 4.5 };
-  const fuelConsumption = { diesel: 12, gasohol: 14, benzin: 14, ngv: 10, ev: 6 }; // km/L or km/unit
+  const fuelConsumption = { diesel: 12, gasohol: 14, benzin: 14, ngv: 10, ev: 6 }; // km/L
+  const vehFuelMap = Object.fromEntries(vehicles.map((v) => [v.id, v.fuel]));
+  const completed = bookings.filter((b) => b.mileageIn != null && b.mileageOut != null);
   const breakdown = {};
-  vehicles.forEach((v) => {
-    if (!breakdown[v.fuel]) breakdown[v.fuel] = { km: 0, cost: 0, vehicles: 0 };
-    breakdown[v.fuel].vehicles += 1;
+  completed.forEach((b) => {
+    const fuel = vehFuelMap[b.vehicleId];
+    if (!fuel) return;
+    if (!breakdown[fuel]) breakdown[fuel] = { km: 0, cost: 0 };
+    const km = b.mileageIn - b.mileageOut;
+    breakdown[fuel].km += km;
+    breakdown[fuel].cost += (km / (fuelConsumption[fuel] || 12)) * (fuelPrices[fuel] || 35);
   });
-  // Simulate
-  let totalCost = 0;
-  Object.keys(breakdown).forEach((fuel) => {
-    const km = breakdown[fuel].vehicles * 220;
-    const cost = (km / fuelConsumption[fuel]) * fuelPrices[fuel];
-    breakdown[fuel].km = km;
-    breakdown[fuel].cost = cost;
-    totalCost += cost;
-  });
+  let totalCost = Object.values(breakdown).reduce((s, v) => s + v.cost, 0);
   const data = Object.entries(breakdown).sort((a, b) => b[1].cost - a[1].cost);
   const maxCost = Math.max(...data.map(([, v]) => v.cost), 1);
 
@@ -301,11 +296,11 @@ function FuelCostReport({ bookings, vehicles }) {
       <p className="sub">คำนวณจากระยะทางและอัตราสิ้นเปลืองตามประเภทเชื้อเพลิง</p>
 
       <div style={{textAlign:'center', padding:'16px 0', borderBottom:'1px dashed var(--border)', marginBottom:14}}>
-        <div className="text-xs muted">ค่าเชื้อเพลิงรวม</div>
+        <div className="text-xs muted">ค่าเชื้อเพลิงรวม (คำนวณจากระยะทางจริง)</div>
         <div style={{fontSize:32, fontWeight:700, color:'var(--pea-orange)', fontFamily:'var(--font-mono)'}}>
-          ฿ {fmtNum(Math.round(totalCost))}
+          {completed.length > 0 ? `฿ ${fmtNum(Math.round(totalCost))}` : '— ยังไม่มีข้อมูล —'}
         </div>
-        <div className="text-xs muted">ระยะทางรวม {fmtNum(totalKm)} กม.</div>
+        <div className="text-xs muted">ระยะทางรวม {fmtNum(Object.values(breakdown).reduce((s,v)=>s+v.km,0))} กม. จาก {completed.length} การเดินทาง</div>
       </div>
 
       <div className="col gap-2">

@@ -1,6 +1,6 @@
 // Calendar screen - weekly and monthly view
 import React from 'react'
-import { I, StatusPill, VehicleIcon, Modal, fmtTime } from '../components'
+import { I, StatusPill, VehicleIcon, Modal, fmtTime, Select } from '../components'
 
 function CalendarScreen({ vehicles, bookings, users, onSelectBooking }) {
   const [view, setView] = React.useState("month"); // month | week
@@ -18,10 +18,10 @@ function CalendarScreen({ vehicles, bookings, users, onSelectBooking }) {
           <p className="sub" style={{margin:0}}>ภาพรวมการใช้รถยนต์ทั้งหน่วยงาน</p>
         </div>
         <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
-          <select className="select" value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)} style={{flex:'1 1 160px', minWidth:0}}>
+          <Select value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)} style={{flex:'1 1 160px', minWidth:0}}>
             <option value="all">รถยนต์ทั้งหมด ({vehicles.length})</option>
             {vehicles.map((v) => <option key={v.id} value={v.id}>{v.id} · {v.plate.split(' ').slice(0,2).join(' ')} · {v.brand}</option>)}
-          </select>
+          </Select>
           <div style={{display:'flex', gap:6, alignItems:'center', flexShrink:0}}>
             <div style={{display:'flex', background:'var(--surface-2)', borderRadius:8, padding:3}}>
               <button className={"btn sm" + (view === "month" ? " primary" : "")} style={{background: view !== "month" ? 'transparent' : undefined, border:'none'}} onClick={() => setView("month")}>เดือน</button>

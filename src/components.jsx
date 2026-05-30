@@ -1008,8 +1008,111 @@ function DeptPicker({ value, options, onChange, placeholder = 'เลือก�
   );
 }
 
+// ─── Select (Command Menu style, drop-in replacement for <select>) ───
+function Select({ value, onChange, children, style, className = '', disabled = false, placeholder = 'เลือก...' }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef();
+
+  function extractOptions(kids) {
+    return React.Children.toArray(kids).flatMap((child) => {
+      if (!React.isValidElement(child)) return [];
+      if (child.type === 'option') {
+        return [{ value: String(child.props.value ?? ''), label: child.props.children, disabled: !!child.props.disabled }];
+      }
+      if (child.props?.children) return extractOptions(child.props.children);
+      return [];
+    });
+  }
+  const options = extractOptions(children);
+  const selected = options.find((o) => o.value === String(value ?? ''));
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const chevron = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round"
+      style={{ flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : undefined }}>
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  );
+
+  return (
+    <div ref={ref} style={{ position: 'relative', ...style }} className={className}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+          padding: '9px 12px',
+          border: `1px solid ${open ? 'var(--pea-purple)' : 'var(--border-strong)'}`,
+          borderRadius: 8, background: 'var(--surface)',
+          boxShadow: open ? '0 0 0 3px var(--pea-purple-50)' : undefined,
+          fontSize: 'inherit', fontFamily: 'inherit', color: selected ? 'var(--text)' : 'var(--text-3)',
+          cursor: disabled ? 'not-allowed' : 'pointer', textAlign: 'left',
+          transition: 'border-color 0.12s, box-shadow 0.12s',
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected?.label ?? placeholder}
+        </span>
+        {chevron}
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 5px)', left: 0, right: 0, zIndex: 600,
+          background: 'var(--surface)', border: '1px solid var(--border-strong)',
+          borderRadius: 10, overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.07)',
+          animation: 'slideUp 0.1s ease-out',
+          maxHeight: 280, overflowY: 'auto',
+        }}>
+          {options.map((opt, i) => {
+            const active = opt.value === String(value ?? '');
+            return (
+              <button key={opt.value + i} type="button"
+                disabled={opt.disabled}
+                onClick={() => { if (!opt.disabled) { onChange({ target: { value: opt.value } }); setOpen(false); } }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  width: '100%', padding: '9px 14px', textAlign: 'left',
+                  fontSize: 13.5, fontFamily: 'inherit',
+                  background: active ? 'var(--pea-purple-50)' : 'transparent',
+                  color: active ? 'var(--pea-purple)' : opt.disabled ? 'var(--text-3)' : 'var(--text)',
+                  fontWeight: active ? 600 : 400,
+                  border: 'none', borderBottom: '1px solid var(--border)',
+                  cursor: opt.disabled ? 'default' : 'pointer',
+                  opacity: opt.disabled ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => { if (!active && !opt.disabled) e.currentTarget.style.background = 'var(--surface-2)'; }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = active ? 'var(--pea-purple-50)' : 'transparent'; }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ flexShrink: 0, opacity: active ? 1 : 0 }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export {
   I, VehicleIcon, StatusPill, STATUS_LABEL,
-  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, SearchInput, NavModal, DeptPicker, CommandMenu,
+  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, SearchInput, NavModal, DeptPicker, CommandMenu, Select,
   fmtDate, fmtDateTime, fmtTime, fmtNum, daysUntil,
 };

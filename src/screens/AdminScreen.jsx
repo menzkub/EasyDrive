@@ -1,6 +1,6 @@
 // Admin screens: Approvals (bookings) + Members (users)
 import React from 'react'
-import { I, StatusPill, VehicleIcon, Modal, fmtDate, fmtDateTime, fmtTime, fmtNum, SearchInput } from '../components'
+import { I, StatusPill, VehicleIcon, Modal, fmtDate, fmtDateTime, fmtTime, fmtNum, SearchInput, Select } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 
 function ApprovalsScreen({ bookings, vehicles, users, mileageCorrections = [], user, onApprove, onReject, onApproveMileage, onRejectMileage, onSelectBooking, onPrintVoucher }) {
@@ -215,11 +215,11 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
                     {tab === "pending" ? (
                       <span className="pill pending"><span className="dot"></span>รออนุมัติ</span>
                     ) : (
-                      <select className="select" value={u.role} onChange={(e) => onChangeRole(u.id, e.target.value)} style={{padding:'4px 28px 4px 10px', fontSize:12.5, width:120}}>
+                      <Select value={u.role} onChange={(e) => onChangeRole(u.id, e.target.value)} style={{fontSize:12.5, width:120}}>
                         <option value="user">ผู้ใช้งาน</option>
                         <option value="manager">ผู้จัดการ</option>
                         <option value="admin">ผู้ดูแลระบบ</option>
-                      </select>
+                      </Select>
                     )}
                   </td>
                   <td className="text-sm">{fmtDate(u.joined)}</td>
@@ -277,11 +277,11 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
                 </div>
               ) : (
                 <div style={{display:'flex', gap:8}}>
-                  <select className="select" value={u.role} onChange={(e) => onChangeRole(u.id, e.target.value)} style={{flex:1, fontSize:13}}>
+                  <Select value={u.role} onChange={(e) => onChangeRole(u.id, e.target.value)} style={{flex:1, fontSize:13}}>
                     <option value="user">ผู้ใช้งาน</option>
                     <option value="manager">ผู้จัดการ</option>
                     <option value="admin">ผู้ดูแลระบบ</option>
-                  </select>
+                  </Select>
                   <button className="btn ghost" onClick={() => setViewing(u)}>{I.search}</button>
                   <button className="btn ghost" onClick={() => setEditing(u)} title="แก้ไข">{I.edit}</button>
                 </div>
@@ -380,9 +380,9 @@ function MemberEditModal({ user, onClose, onSave, departments }) {
         </div>
         <div className="field">
           <label className="field-lbl">สังกัด</label>
-          <select className="select" value={form.dept} onChange={(e) => setForm({...form, dept:e.target.value})}>
-            {depts.map((d) => <option key={d}>{d}</option>)}
-          </select>
+          <Select value={form.dept} onChange={(e) => setForm({...form, dept:e.target.value})}>
+            {depts.map((d) => <option key={d} value={d}>{d}</option>)}
+          </Select>
         </div>
         <div className="grid-2">
           <div className="field">
