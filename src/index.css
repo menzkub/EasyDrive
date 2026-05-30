@@ -925,6 +925,7 @@ a { color: inherit; text-decoration: none; }
   .topbar-actions .btn { display: none; }
   .topbar-actions .btn.icon { display: grid; }
   .topbar-logout { display: grid !important; }
+  .cmd-trigger { display: none !important; }
 
   /* Calendar — mobile */
   .cal-grid { font-size: 11px; }

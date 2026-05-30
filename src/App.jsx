@@ -10,7 +10,7 @@ import { VehiclesScreen } from './screens/VehiclesScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { BookingVoucher, BookingDetailModal } from './screens/VoucherScreen'
 import { NotificationCenter, generateNotifications } from './screens/NotificationsScreen'
-import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
+import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, CommandMenu, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
 import { VEHICLE_TYPES, FUEL_TYPES } from './data'
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakButton } from './TweaksPanel'
 import { supabase, isConfigured } from './supabase'
@@ -48,6 +48,18 @@ function App() {
   const [notiOpen, setNotiOpen] = React.useState(false);
   const [readNotifications, setReadNotifications] = React.useState(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => localStorage.getItem('pea-sidebar-collapsed') === '1');
+  const [cmdOpen, setCmdOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (currentUser) setCmdOpen((v) => !v);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [currentUser]);
 
   // ── Init: restore session on page refresh ──
   React.useEffect(() => {
@@ -538,6 +550,7 @@ function App() {
         isDark={isDark}
         onDarkToggle={() => setIsDark(d => !d)}
         onLogout={confirmLogout}
+        onCmdOpen={() => setCmdOpen(true)}
       />
       <main className="main">
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}
@@ -589,6 +602,7 @@ function App() {
         </div>
       )}
       <NotificationCenter open={notiOpen} notifications={notifications} onClose={() => setNotiOpen(false)} onMarkRead={(id) => setReadNotifications(new Set([...readNotifications, id]))} onMarkAllRead={() => setReadNotifications(new Set(notifications.map((n) => n.id)))} onNavigate={(r) => setRoute(r)}/>
+      <CommandMenu open={cmdOpen} onClose={() => setCmdOpen(false)} role={currentUser?.role} setRoute={(r) => { setRoute(r); setCmdOpen(false); }} onLogout={confirmLogout}/>
 
       <TweaksPanel>
         <TweakSection label="ธีมสี"/>
