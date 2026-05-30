@@ -963,6 +963,25 @@ function DeptManager({ departments, pushToast }) {
 // ─── Demo Settings ────────────────────────────────────────────────
 function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll }) {
   const demoBookings = (bookings || []).filter(b => b.id.startsWith('DEMO'));
+  const [confirmDlg, setConfirmDlg] = React.useState(null);
+
+  function requestToggle() {
+    if (demoEnabled) {
+      setConfirmDlg({
+        kind: 'warn',
+        title: 'ปิดระบบทดสอบ?',
+        message: 'เมื่อปิด ปุ่ม "🎮 ทดสอบจอง" จะหายไปจากหน้าแดชบอร์ด การจอง Demo ที่มีอยู่จะยังคงอยู่จนกว่าจะลบ',
+        onConfirm: () => onSetDemoEnabled(false),
+      });
+    } else {
+      setConfirmDlg({
+        kind: 'primary',
+        title: 'เปิดระบบทดสอบ?',
+        message: 'เมื่อเปิด ผู้ใช้ทุกคนจะเห็นปุ่ม "🎮 ทดสอบจอง" ในหน้าแดชบอร์ด และสามารถสร้างการจอง Demo ได้',
+        onConfirm: () => onSetDemoEnabled(true),
+      });
+    }
+  }
 
   return (
     <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:12}}>
@@ -973,7 +992,7 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll }) 
         </div>
         <button
           className={"btn sm" + (demoEnabled ? " primary" : " ghost")}
-          onClick={() => onSetDemoEnabled(!demoEnabled)}
+          onClick={requestToggle}
           style={{flexShrink:0, minWidth:80}}
         >
           {demoEnabled ? '✓ เปิดอยู่' : 'ปิดอยู่'}
@@ -984,7 +1003,12 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll }) 
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: demoBookings.length ? 12 : 4}}>
           <strong>การจอง Demo ในระบบ ({demoBookings.length} รายการ)</strong>
           {demoBookings.length > 0 && (
-            <button className="btn sm danger" onClick={onDeleteAll}>ลบทั้งหมด</button>
+            <button className="btn sm danger" onClick={() => setConfirmDlg({
+              kind: 'negative',
+              title: 'ลบการจอง Demo ทั้งหมด?',
+              message: `จะลบการจอง Demo จำนวน ${demoBookings.length} รายการออกจากระบบถาวร`,
+              onConfirm: onDeleteAll,
+            })}>ลบทั้งหมด</button>
           )}
         </div>
         {demoBookings.length === 0 ? (
@@ -1004,6 +1028,7 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll }) 
           </div>
         )}
       </div>
+      <ConfirmDialog confirm={confirmDlg} onClose={() => setConfirmDlg(null)}/>
     </div>
   );
 }

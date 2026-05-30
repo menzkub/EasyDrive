@@ -218,16 +218,16 @@ export function DevGuideScreen() {
           <DevTable
             heads={['ไฟล์', 'Route', 'บทบาท', 'คำอธิบาย']}
             rows={[
-              ['AuthScreen.jsx', '(ไม่ต้อง login)', 'ทุกคน', 'หน้า Login + Register + ปฏิทินสาธารณะ (PublicCalendarModal)'],
-              ['Dashboard.jsx', 'dashboard', 'ทุกคน', 'แดชบอร์ดหลัก — สถิติ, ปฏิทิน, timeline'],
+              ['AuthScreen.jsx', '(ไม่ต้อง login)', 'ทุกคน', 'หน้า Login + Register + ปฏิทินการจอง กฟส. ฝาง (PublicCalendarModal) — export เพื่อใช้ใน App.jsx ด้วย'],
+              ['Dashboard.jsx', 'dashboard', 'ทุกคน', 'แดชบอร์ดหลัก — สถิติ, ปฏิทิน, timeline · แสดงปุ่ม 🎮 ทดสอบจอง เมื่อ admin เปิด demoEnabled'],
               ['BookingScreen.jsx', 'booking', 'ทุกคน', 'ฟอร์มจองรถ — เลือกรถ วันเวลา ปลายทาง GPS'],
-              ['CalendarScreen.jsx', 'calendar', 'ทุกคน', 'ปฏิทินการจองทุกรถ รายเดือน/สัปดาห์'],
+              ['CalendarScreen.jsx', 'calendar', 'ทุกคน', 'ปฏิทินการจองทุกรถ รายเดือน/สัปดาห์ · ปุ่ม "ปฏิทินสาธารณะ" เปิด PublicCalendarModal พร้อมข้อมูลจริง'],
               ['ReportsScreen.jsx', 'my / reports', 'user=my, manager/admin=reports', 'Export: MyBookingsScreen + ReportsScreen ในไฟล์เดียว'],
               ['CheckinScreen.jsx', 'checkin', 'ทุกคน', 'Check-in (ถ่ายรูป + Checklist + บันทึกไมล์ก่อนขับ) + Check-out (ถ่ายรูปหลังคืน + บันทึกไมล์)'],
               ['CheckinHistoryScreen.jsx', 'checkin-history', 'ทุกคน (user=ของตัวเอง, admin=ทั้งหมด)', 'ประวัติการ Check-in/out พร้อมรูปถ่ายและ Checklist — Admin แก้ไขได้'],
               ['AdminScreen.jsx', 'approvals / members', 'manager/admin', 'Export: ApprovalsScreen + MembersScreen'],
               ['VehiclesScreen.jsx', 'vehicles', 'admin', 'จัดการยานพาหนะ — เพิ่ม แก้ไข ดู history'],
-              ['SettingsScreen.jsx', 'settings-*', 'ทุกคน', 'Tabs: บัญชี, แจ้งเตือน, Calendar Sync, แผนก*, คู่มือ*, นักพัฒนา*'],
+              ['SettingsScreen.jsx', 'settings-*', 'ทุกคน', 'Tabs: บัญชี, แจ้งเตือน, Calendar Sync, แผนก*, ทดสอบระบบ*, คู่มือ*, นักพัฒนา*'],
               ['ManualScreen.jsx', 'help / settings-manual', 'ทุกคน', 'คู่มือในระบบ แยกตามบทบาท user/manager/admin'],
               ['DevGuideScreen.jsx', 'settings-dev', 'admin', 'คู่มือนักพัฒนา (ไฟล์นี้)'],
               ['VoucherScreen.jsx', '(modal)', 'ทุกคน', 'Export: BookingVoucher (พิมพ์ใบจอง) + BookingDetailModal'],
@@ -593,6 +593,8 @@ npm run preview    # ทดสอบ production build`}</Code>
               { title: 'Photo Compression', desc: 'รูปถ่ายบีบอัดด้วย Canvas API ก่อนเก็บ: max 900px, JPEG 72%, ~100KB/รูป. เก็บเป็น base64 ใน JSONB column', file: 'CheckinScreen.jsx → PhotoCapture' },
               { title: 'QR Deep Link', desc: 'QR บนใบจองเข้ารหัสเป็น URL (origin/?booking=ID). App.jsx อ่าน ?booking= param หลัง login และแสดง VoucherModal โดยอัตโนมัติ จากนั้น clean URL', file: 'VoucherScreen.jsx + App.jsx' },
               { title: 'Custom Select', desc: 'Select component แทน native <select> ทั้งระบบ — parse <option> children ผ่าน React.Children.toArray, dropdown แบบ Command Menu, same onChange API', file: 'components.jsx → Select' },
+              { title: 'Demo Booking Mode', desc: 'Admin เปิด/ปิดปุ่ม 🎮 ทดสอบจอง จาก Settings > ทดสอบระบบ (พร้อม ConfirmDialog). Demo bookings ใช้ prefix "DEMO-" — ลบทีเดียวได้ทั้งหมดด้วย supabase.delete().like(id, "DEMO%")', file: 'SettingsScreen.jsx → DemoSettings · App.jsx → handleDemoBooking' },
+              { title: 'PublicCalendar (กฟส. ฝาง)', desc: 'PublicCalendarModal รับ initialVehicles/initialBookings props — ถ้ามีข้อมูล ข้ามการ fetch Supabase (แก้ปัญหา RLS). CalendarScreen มีปุ่ม "ปฏิทินสาธารณะ" ส่งข้อมูลจริงจาก App.jsx', file: 'AuthScreen.jsx → PublicCalendarModal (exported) · CalendarScreen.jsx' },
             ].map(({ title, desc, file }) => (
               <div key={title} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{title}</div>
