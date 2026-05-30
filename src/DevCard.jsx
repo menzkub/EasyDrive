@@ -29,11 +29,21 @@ export function saveDevCard(cfg) {
   localStorage.setItem(DEVCARD_KEY, JSON.stringify(cfg));
 }
 
-// ─── Floating button + popup card ────────────────────────────────────
+const POS_KEY = 'easydrive-devcard-pos';
+function loadPos() {
+  try { return JSON.parse(localStorage.getItem(POS_KEY) || 'null'); }
+  catch { return null; }
+}
+
+// ─── Floating button + popup card (draggable) ─────────────────────────
 export function DevCardButton() {
   const [cfg, setCfg] = React.useState(loadDevCard);
   const [open, setOpen] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
+  const [pos, setPos] = React.useState(loadPos);   // { left, top } or null
+  const [dragging, setDragging] = React.useState(false);
+  const btnRef = React.useRef(null);
+  const drag = React.useRef({ active: false, moved: false, ox: 0, oy: 0 });
 
   React.useEffect(() => {
     const onUpdate = () => setCfg(loadDevCard());
@@ -41,93 +51,170 @@ export function DevCardButton() {
     return () => window.removeEventListener('devcard-updated', onUpdate);
   }, []);
 
+  // Convert default bottom/right position to absolute left/top on first drag
+  function resolvePos() {
+    if (pos) return pos;
+    const btn = btnRef.current;
+    if (!btn) return { left: window.innerWidth - 200, top: window.innerHeight - 112 };
+    const r = btn.getBoundingClientRect();
+    return { left: Math.round(r.left), top: Math.round(r.top) };
+  }
+
+  // Clamp within viewport
+  function clamp(p) {
+    const btn = btnRef.current;
+    const w = btn ? btn.offsetWidth  : 160;
+    const h = btn ? btn.offsetHeight : 40;
+    return {
+      left: Math.max(8, Math.min(window.innerWidth  - w - 8, p.left)),
+      top:  Math.max(8, Math.min(window.innerHeight - h - 8, p.top)),
+    };
+  }
+
+  function savePos(p) { localStorage.setItem(POS_KEY, JSON.stringify(p)); }
+
+  // ── Mouse drag ────────────────────────────────────────────────────
+  function onMouseDown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const p = resolvePos();
+    drag.current = { active: true, moved: false, ox: e.clientX - p.left, oy: e.clientY - p.top };
+    setPos(p);
+    setDragging(true);
+
+    function onMove(e) {
+      if (!drag.current.active) return;
+      const np = clamp({ left: e.clientX - drag.current.ox, top: e.clientY - drag.current.oy });
+      if (Math.abs(np.left - p.left) > 4 || Math.abs(np.top - p.top) > 4) drag.current.moved = true;
+      setPos(np);
+    }
+    function onUp() {
+      drag.current.active = false;
+      setDragging(false);
+      setPos(cur => { if (cur) savePos(cur); return cur; });
+      if (!drag.current.moved) setOpen(o => !o);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  // ── Touch drag ───────────────────────────────────────────────────
+  function onTouchStart(e) {
+    const t = e.touches[0];
+    const p = resolvePos();
+    drag.current = { active: true, moved: false, ox: t.clientX - p.left, oy: t.clientY - p.top };
+    setPos(p);
+  }
+  function onTouchMove(e) {
+    if (!drag.current.active) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const np = clamp({ left: t.clientX - drag.current.ox, top: t.clientY - drag.current.oy });
+    if (Math.abs(np.left - (pos?.left || 0)) > 4 || Math.abs(np.top - (pos?.top || 0)) > 4) drag.current.moved = true;
+    setPos(np);
+  }
+  function onTouchEnd() {
+    drag.current.active = false;
+    setPos(cur => { if (cur) savePos(cur); return cur; });
+    if (!drag.current.moved) setOpen(o => !o);
+  }
+
+  // ── Popup position: smart-place near the button ───────────────────
+  function popupStyle() {
+    const POPUP_W = 340, POPUP_H = 420;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const btn = btnRef.current;
+    const bw = btn ? btn.offsetWidth  : 160;
+    const bh = btn ? btn.offsetHeight : 40;
+
+    let bl, bt; // button left/top
+    if (pos) { bl = pos.left; bt = pos.top; }
+    else { bl = vw - bw - 16; bt = vh - bh - 72; }
+
+    // Prefer above the button; fall back to below
+    let top = bt - POPUP_H - 8;
+    if (top < 8) top = bt + bh + 8;
+    // Prefer align-right of button; clamp
+    let left = bl + bw - POPUP_W;
+    if (left < 8) left = 8;
+    if (left + POPUP_W > vw - 8) left = vw - POPUP_W - 8;
+
+    return { position: 'fixed', left, top, zIndex: 1000, width: POPUP_W, maxWidth: `calc(100vw - 16px)` };
+  }
+
   if (!cfg.show) return null;
-
   const firstName = (cfg.name || '').split(' ')[0] || cfg.name;
-
   const details = [
     { icon: '🗄️', label: cfg.detail1Label, value: cfg.detail1Value },
     { icon: '⚙️', label: cfg.detail2Label, value: cfg.detail2Value },
     { icon: '🔗', label: cfg.detail3Label, value: cfg.detail3Value },
   ].filter(d => d.value);
 
+  // Button position style
+  const btnStyle = pos
+    ? { position: 'fixed', left: pos.left, top: pos.top, bottom: 'auto', right: 'auto' }
+    : { position: 'fixed', bottom: 72, right: 16 };
+
   return (
     <>
       {/* Floating pill button */}
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
         style={{
-          position: 'fixed', bottom: 72, right: 16, zIndex: 200,
+          ...btnStyle,
+          zIndex: 200,
           display: 'flex', alignItems: 'center', gap: 8,
           background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
           color: 'white', border: 'none', borderRadius: 999,
-          padding: '7px 14px 7px 7px', cursor: 'pointer',
+          padding: '7px 14px 7px 7px',
+          cursor: dragging ? 'grabbing' : 'grab',
           fontSize: 12.5, fontWeight: 600,
-          boxShadow: '0 4px 20px rgba(109,40,217,0.38)',
+          boxShadow: dragging
+            ? '0 12px 32px rgba(109,40,217,0.55)'
+            : '0 4px 20px rgba(109,40,217,0.38)',
           fontFamily: 'var(--font-sans)',
-          transition: 'transform 0.15s, box-shadow 0.15s',
+          userSelect: 'none',
+          transition: dragging ? 'box-shadow 0.1s' : 'box-shadow 0.2s',
+          transform: dragging ? 'scale(1.04)' : '',
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(109,40,217,0.5)'; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 20px rgba(109,40,217,0.38)'; }}
       >
         <div style={{
           width: 26, height: 26, borderRadius: '50%',
           background: 'rgba(0,0,0,0.25)', display: 'grid',
           placeItems: 'center', fontSize: 11, fontFamily: 'monospace', flexShrink: 0,
+          pointerEvents: 'none',
         }}>{'</>'}</div>
-        <span>พัฒนาโดย {firstName}</span>
-        <span style={{ fontSize: 13 }}>✨</span>
+        <span style={{ pointerEvents: 'none' }}>พัฒนาโดย {firstName}</span>
+        <span style={{ fontSize: 13, pointerEvents: 'none' }}>✨</span>
       </button>
 
       {/* Popup card */}
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => { setOpen(false); setExpanded(false); }}/>
-          <div
-            style={{
-              position: 'fixed', bottom: 124, right: 16, zIndex: 1000,
-              width: 340, maxWidth: 'calc(100vw - 32px)',
-              borderRadius: 18, overflow: 'hidden',
-              boxShadow: '0 24px 60px rgba(0,0,0,0.22), 0 0 0 1px rgba(109,40,217,0.12)',
-              animation: 'devcard-in 0.18s ease',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <style>{`@keyframes devcard-in { from { opacity:0; transform:translateY(12px) scale(0.97); } to { opacity:1; transform:none; } }`}</style>
+          <div style={{ ...popupStyle(), borderRadius: 18, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.22), 0 0 0 1px rgba(109,40,217,0.12)', animation: 'devcard-in 0.18s ease' }} onClick={e => e.stopPropagation()}>
+            <style>{`@keyframes devcard-in { from { opacity:0; transform:translateY(10px) scale(0.97); } to { opacity:1; transform:none; } }`}</style>
 
             {/* Purple header */}
-            <div style={{
-              background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 55%, #5b21b6 100%)',
-              padding: '20px 20px 22px', color: 'white', position: 'relative',
-            }}>
-              <button
-                onClick={() => { setOpen(false); setExpanded(false); }}
-                style={{
-                  position: 'absolute', top: 12, right: 12,
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.18)', border: 'none',
-                  cursor: 'pointer', display: 'grid', placeItems: 'center',
-                  color: 'white', fontSize: 14, lineHeight: 1,
-                }}>✕</button>
+            <div style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 55%, #5b21b6 100%)', padding: '20px 20px 22px', color: 'white', position: 'relative' }}>
+              <button onClick={() => { setOpen(false); setExpanded(false); }}
+                style={{ position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'white', fontSize: 14 }}>✕</button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                 <span style={{ fontSize: 15 }}>✨</span>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.82 }}>
-                  Developed By
-                </span>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.82 }}>Developed By</span>
               </div>
-
               <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.15, marginBottom: 4 }}>{cfg.name}</div>
               <div style={{ fontSize: 13, opacity: 0.88, marginBottom: 2 }}>{cfg.position}</div>
               <div style={{ fontSize: 12.5, opacity: 0.72 }}>{cfg.dept}</div>
-
               {cfg.org && (
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  marginTop: 13, background: 'rgba(255,255,255,0.14)',
-                  borderRadius: 999, padding: '5px 12px',
-                  fontSize: 11.5, fontWeight: 600,
-                }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 13, background: 'rgba(255,255,255,0.14)', borderRadius: 999, padding: '5px 12px', fontSize: 11.5, fontWeight: 600 }}>
                   <span>📍</span>{cfg.org}
                 </div>
               )}
@@ -135,60 +222,26 @@ export function DevCardButton() {
 
             {/* White body */}
             <div style={{ background: 'var(--surface)' }}>
-              {/* Accordion toggle */}
-              <button
-                onClick={() => setExpanded(e => !e)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center',
-                  justifyContent: 'space-between', padding: '11px 16px',
-                  background: 'none', border: 'none',
-                  borderBottom: '1px solid var(--border)',
-                  cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                  color: 'var(--text)', fontFamily: 'var(--font-sans)',
-                }}
-              >
+              <button onClick={() => setExpanded(e => !e)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-sans)' }}>
                 <span>รายละเอียดเพิ่มเติม</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{
-                    background: '#7c3aed', color: 'white',
-                    borderRadius: 999, padding: '2px 8px',
-                    fontSize: 10, fontWeight: 700,
-                  }}>รุ่น {cfg.version}</span>
+                  <span style={{ background: '#7c3aed', color: 'white', borderRadius: 999, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>รุ่น {cfg.version}</span>
                   <span style={{ color: 'var(--text-3)', fontSize: 11 }}>{expanded ? '▲' : '▼'}</span>
                 </div>
               </button>
 
-              {expanded && details.length > 0 && (
-                <div>
-                  {details.map((d, i) => (
-                    <div key={i} style={{
-                      display: 'flex', gap: 12, padding: '10px 16px',
-                      borderBottom: '1px solid var(--border)',
-                    }}>
-                      <div style={{
-                        width: 34, height: 34, borderRadius: 9,
-                        background: 'var(--pea-purple-50)',
-                        display: 'grid', placeItems: 'center',
-                        fontSize: 16, flexShrink: 0,
-                      }}>{d.icon}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em',
-                          textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 3,
-                        }}>{d.label}</div>
-                        <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5 }}>{d.value}</div>
-                      </div>
-                    </div>
-                  ))}
+              {expanded && details.length > 0 && details.map((d, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--pea-purple-50)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{d.icon}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 3 }}>{d.label}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5 }}>{d.value}</div>
+                  </div>
                 </div>
-              )}
+              ))}
 
-              {/* Footer */}
-              <div style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '9px 14px 11px',
-                fontSize: 10.5, color: 'var(--text-3)',
-              }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 14px 11px', fontSize: 10.5, color: 'var(--text-3)' }}>
                 <span style={{ fontWeight: 600 }}>เวอร์ชัน {cfg.version}</span>
                 <span style={{ textAlign: 'right', maxWidth: '65%', lineHeight: 1.45 }}>{cfg.footer}</span>
               </div>
