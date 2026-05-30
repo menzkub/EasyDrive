@@ -220,6 +220,39 @@ const SECTIONS = {
       ]
     },
     {
+      id: 'fuel-calc', icon: '⛽', title: 'วิธีคำนวณค่าเชื้อเพลิง (รายงาน)',
+      content: [
+        { type: 'p', text: 'รายงาน "ค่าเชื้อเพลิงโดยประมาณ" ในหน้า รายงาน คำนวณจากระยะทางจริงที่บันทึกระหว่าง Check-in/out คูณกับอัตราสิ้นเปลืองและราคาเชื้อเพลิงมาตรฐาน' },
+        { type: 'formula', items: [
+          { label: 'สูตรหลัก', value: 'ค่าเชื้อเพลิง (฿) = (ระยะทาง ÷ อัตราสิ้นเปลือง) × ราคาต่อลิตร' },
+          { label: 'ระยะทาง', value: 'mileageIn − mileageOut (กม.) จากการเดินทาง status = completed' },
+          { label: 'ตัวอย่าง', value: 'แก๊สโซฮอล์ 100 กม. → (100 ÷ 14) × 38.50 = ฿275' },
+        ]},
+        { type: 'table', heads: ['ประเภทเชื้อเพลิง', 'อัตราสิ้นเปลือง', 'ราคาต่อลิตร/หน่วย', 'ตัวอย่าง 100 กม.'], rows: [
+          ['แก๊สโซฮอล์', '14 กม./ล.', '฿38.50/ล.', '฿275'],
+          ['ดีเซล', '12 กม./ล.', '฿32.50/ล.', '฿271'],
+          ['เบนซิน', '14 กม./ล.', '฿41.50/ล.', '฿296'],
+          ['NGV', '10 กม./ก.ก.', '฿16.50/ก.ก.', '฿165'],
+          ['EV', '6 กม./หน่วย', '฿4.50/หน่วย', '฿75'],
+        ]},
+        { type: 'tip', text: 'ตัวเลขนี้เป็นการ "ประมาณ" เพื่อใช้วางแผนงบประมาณ ไม่ใช่ค่าใช้จ่ายจริง — ขึ้นอยู่กับพฤติกรรมการขับ สภาพรถ และราคาเชื้อเพลิงที่อาจเปลี่ยนแปลง' },
+        { type: 'warn', text: 'การคำนวณใช้ได้เฉพาะการเดินทางที่บันทึกเลขไมล์ครบ (ทั้ง Check-in และ Check-out) เท่านั้น — การเดินทางที่ไม่มีเลขไมล์จะไม่ถูกนับ' },
+      ]
+    },
+    {
+      id: 'util-calc', icon: '📊', title: 'วิธีคำนวณอัตราการใช้งาน (รายงาน)',
+      content: [
+        { type: 'p', text: 'แดชบอร์ดและรายงานแสดง "อัตราการใช้งาน" ซึ่งบอกว่ารถถูกนำออกใช้งานมากน้อยแค่ไหนเทียบกับความสามารถสูงสุด' },
+        { type: 'formula', items: [
+          { label: 'สูตรหลัก', value: 'อัตราการใช้งาน (%) = (จำนวนรถที่ถูกจองหรือใช้งาน ÷ จำนวนรถทั้งหมด) × 100' },
+          { label: 'นับเป็น "ใช้งาน"', value: 'รถที่มีการจองสถานะ approved, urgent, หรือ booked ในช่วงเวลาปัจจุบัน' },
+          { label: 'ตัวอย่าง', value: 'มีรถ 10 คัน ถูกจอง 7 คัน → อัตราการใช้งาน 70%' },
+        ]},
+        { type: 'tip', text: 'อัตราที่แนะนำอยู่ที่ 60–80% — ต่ำกว่า 60% อาจหมายความว่ามีรถเกินความต้องการ สูงกว่า 85% อาจทำให้การจองล่วงหน้าทำได้ยาก' },
+        { type: 'warn', text: 'รถที่มีสถานะ "บำรุงรักษา" หรือ "ไม่พร้อมใช้งาน" ยังคงนับรวมในตัวส่วน (จำนวนรถทั้งหมด) — ซึ่งจะทำให้ตัวเลขอัตราการใช้งานต่ำกว่าความเป็นจริง' },
+      ]
+    },
+    {
       id: 'mileage', icon: '🔧', title: 'การแก้ไขเลขไมล์',
       content: [
         { type: 'p', text: 'เมื่อผู้ใช้แจ้งเลขไมล์ผิดพลาด สามารถขอแก้ไขได้จากหน้า "การจองของฉัน" และ Admin อนุมัติจากหน้า "อนุมัติการจอง" แท็บ "แก้ไขไมล์"' },
@@ -390,6 +423,40 @@ function ContentBlock({ block }) {
         <li key={i} style={{ fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.55 }}>{item}</li>
       ))}
     </ul>
+  );
+
+  if (block.type === 'formula') return (
+    <div style={{ marginBottom: 12, background: 'var(--pea-purple-50,rgba(109,40,217,.07))', border: '1px solid var(--pea-purple-20,rgba(109,40,217,.2))', borderRadius: 10, overflow: 'hidden' }}>
+      {block.items.map((row, i) => (
+        <div key={i} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderBottom: i < block.items.length - 1 ? '1px solid var(--pea-purple-20,rgba(109,40,217,.15))' : 'none', alignItems: 'flex-start' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--pea-purple)', minWidth: 80, paddingTop: 1, flexShrink: 0 }}>{row.label}</span>
+          <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: i === 0 ? 'var(--font-mono)' : 'inherit', lineHeight: 1.55 }}>{row.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (block.type === 'table') return (
+    <div style={{ marginBottom: 12, overflowX: 'auto', borderRadius: 10, border: '1px solid var(--border)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+        <thead>
+          <tr style={{ background: 'var(--surface-2)' }}>
+            {block.heads.map((h, i) => (
+              <th key={i} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {block.rows.map((row, ri) => (
+            <tr key={ri} style={{ borderBottom: ri < block.rows.length - 1 ? '1px solid var(--border)' : 'none' }}>
+              {row.map((cell, ci) => (
+                <td key={ci} style={{ padding: '8px 12px', color: ci === 0 ? 'var(--text)' : 'var(--text-2)', fontWeight: ci === 0 ? 600 : 400, fontFamily: ci >= 1 ? 'var(--font-mono)' : 'inherit' }}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 
   if (block.type === 'roles') return (
