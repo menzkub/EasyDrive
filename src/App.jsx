@@ -46,6 +46,7 @@ function App() {
   const [selectedBooking, setSelectedBooking] = React.useState(null);
   const [voucherBooking, setVoucherBooking] = React.useState(null);
   const [showPublicCal, setShowPublicCal] = React.useState(false);
+  const [demoEnabled, setDemoEnabled] = React.useState(() => localStorage.getItem('pea-demo-enabled') === '1');
   const [toasts, setToasts] = React.useState([]);
   const [confirm, setConfirm] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -257,6 +258,57 @@ function App() {
     } catch (err) {
       pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: err?.message || "ไม่สามารถเชื่อมต่อฐานข้อมูล" });
       return null;
+    }
+  }
+
+  async function handleDemoBooking() {
+    const demoVehicle = vehicles.find(v => v.status !== 'maintenance' && v.status !== 'unavailable');
+    if (!demoVehicle) {
+      pushToast({ kind: "warn", title: "ไม่มีรถว่าง", body: "ไม่พบรถที่สามารถใช้ทดสอบได้" });
+      return;
+    }
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().slice(0, 10);
+    const seq = bookings.filter(b => b.id.startsWith('DEMO')).length + 1;
+    const id = `DEMO${new Date().toISOString().slice(0,10).replace(/-/g,'').slice(2)}-${seq.toString().padStart(3,'0')}`;
+    const newBooking = {
+      id, vehicleId: demoVehicle.id, userId: currentUser.id,
+      purpose: 'other', purposeNote: 'ทดสอบระบบการจอง (Demo)',
+      from: `${dateStr}T09:00`, to: `${dateStr}T17:00`,
+      destination: 'ทดสอบ กฟส. ฝาง', coords: null,
+      status: 'booked', approvedBy: null,
+      createdAt: new Date().toISOString().slice(0, 16),
+      mileageOut: null, mileageIn: null, passengers: 1,
+    };
+    try {
+      const { error } = await supabase.from('bookings').insert(newBooking);
+      if (!error) {
+        setBookings(prev => [newBooking, ...prev]);
+        pushToast({ kind: "ok", title: "สร้างการจอง Demo แล้ว", body: `${id} · ${demoVehicle.plate}` });
+      } else {
+        pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: error.message });
+      }
+    } catch (err) {
+      pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: err?.message || "ไม่สามารถเชื่อมต่อฐานข้อมูล" });
+    }
+  }
+
+  async function handleDeleteDemoBookings() {
+    const demoIds = bookings.filter(b => b.id.startsWith('DEMO')).map(b => b.id);
+    if (!demoIds.length) {
+      pushToast({ kind: "info", title: "ไม่มี Demo", body: "ไม่พบการจอง Demo ในระบบ" });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('bookings').delete().like('id', 'DEMO%');
+      if (!error) {
+        setBookings(prev => prev.filter(b => !b.id.startsWith('DEMO')));
+        pushToast({ kind: "ok", title: "ลบ Demo แล้ว", body: `ลบ ${demoIds.length} รายการ` });
+      } else {
+        pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: error.message });
+      }
+    } catch (err) {
+      pushToast({ kind: "warn", title: "เกิดข้อผิดพลาด", body: err?.message || "ไม่สามารถเชื่อมต่อฐานข้อมูล" });
     }
   }
 
@@ -623,7 +675,7 @@ function App() {
         onCmdOpen={() => setCmdOpen(true)}
       />
       <main className="main">
-        {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}
+        {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)} demoEnabled={demoEnabled} onDemoBooking={handleDemoBooking}/>}
         {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")} onGoToMyBookings={() => setRoute("my")}/>}
         {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)} onOpenPublicCal={() => setShowPublicCal(true)}/>}
         {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
@@ -633,7 +685,7 @@ function App() {
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
-        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)}/>}
+        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings}/>}
         {route === "help" && <ManualScreen role={currentUser?.role}/>}
       </main>
 

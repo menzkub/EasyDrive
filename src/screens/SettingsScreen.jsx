@@ -26,13 +26,13 @@ function calcPwStrength(pw) {
   return { score, checks, missing, label, color };
 }
 
-function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange }) {
+function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange, demoEnabled, onSetDemoEnabled, onDeleteDemoBookings }) {
   const [tab, setTab] = React.useState(activeTab || "account");
   const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const isAdmin = currentUser.role === 'admin';
 
   React.useEffect(() => {
-    if (activeTab) setTab((activeTab === "depts" || activeTab === "manual" || activeTab === "dev" || activeTab === "about") && !isAdmin ? "account" : activeTab);
+    if (activeTab) setTab((activeTab === "depts" || activeTab === "manual" || activeTab === "dev" || activeTab === "about" || activeTab === "demo") && !isAdmin ? "account" : activeTab);
   }, [activeTab]);
 
   function changeTab(t) {
@@ -52,6 +52,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
           <button className={"tab" + (tab === "noti" ? " active" : "")} onClick={() => changeTab("noti")}>🔔 การแจ้งเตือน</button>
           <button className={"tab" + (tab === "calendar" ? " active" : "")} onClick={() => changeTab("calendar")}>📅 Calendar Sync</button>
           {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => changeTab("depts")}>🏢 จัดการแผนก</button>}
+          {isAdmin && <button className={"tab" + (tab === "demo" ? " active" : "")} onClick={() => changeTab("demo")}>🎮 ทดสอบระบบ</button>}
           {isAdmin && <button className={"tab" + (tab === "manual" ? " active" : "")} onClick={() => changeTab("manual")}>📖 คู่มือ</button>}
           {isAdmin && <button className={"tab" + (tab === "dev" ? " active" : "")} onClick={() => changeTab("dev")}>🛠️ นักพัฒนา</button>}
           {isAdmin && <button className={"tab" + (tab === "about" ? " active" : "")} onClick={() => changeTab("about")}>🪪 เกี่ยวกับ</button>}
@@ -60,6 +61,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
         {tab === "calendar" && <CalendarSync currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
         {tab === "depts"    && isAdmin && <DeptManager departments={departments || []} pushToast={pushToast}/>}
+        {tab === "demo"     && isAdmin && <DemoSettings demoEnabled={demoEnabled} onSetDemoEnabled={onSetDemoEnabled} bookings={bookings} onDeleteAll={onDeleteDemoBookings}/>}
         {tab === "manual"   && isAdmin && <div style={{marginTop:14, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', height:600}}><ManualScreen role="admin"/></div>}
         {tab === "dev"      && isAdmin && <div style={{marginTop:14}}><DevGuideScreen/></div>}
         {tab === "about"    && isAdmin && <DevCardSettings pushToast={pushToast}/>}
@@ -954,6 +956,54 @@ function DeptManager({ departments, pushToast }) {
           onClose={() => setDeletingDept(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Demo Settings ────────────────────────────────────────────────
+function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll }) {
+  const demoBookings = (bookings || []).filter(b => b.id.startsWith('DEMO'));
+
+  return (
+    <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:12}}>
+      <div className="card card-pad" style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:16}}>
+        <div>
+          <strong>ปุ่มทดสอบการจองในหน้าแดชบอร์ด</strong>
+          <p style={{margin:'3px 0 0', fontSize:12.5, color:'var(--text-2)'}}>เมื่อเปิด จะแสดงปุ่ม "🎮 ทดสอบจอง" ในหน้าแดชบอร์ด · ผู้ใช้ทุกคนสามารถสร้างการจอง Demo ได้</p>
+        </div>
+        <button
+          className={"btn sm" + (demoEnabled ? " primary" : " ghost")}
+          onClick={() => onSetDemoEnabled(!demoEnabled)}
+          style={{flexShrink:0, minWidth:80}}
+        >
+          {demoEnabled ? '✓ เปิดอยู่' : 'ปิดอยู่'}
+        </button>
+      </div>
+
+      <div className="card card-pad">
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: demoBookings.length ? 12 : 4}}>
+          <strong>การจอง Demo ในระบบ ({demoBookings.length} รายการ)</strong>
+          {demoBookings.length > 0 && (
+            <button className="btn sm danger" onClick={onDeleteAll}>ลบทั้งหมด</button>
+          )}
+        </div>
+        {demoBookings.length === 0 ? (
+          <p style={{color:'var(--text-3)', fontSize:13, margin:0}}>ไม่มีการจอง Demo · กดปุ่ม "🎮 ทดสอบจอง" ในหน้าแดชบอร์ดเพื่อสร้าง</p>
+        ) : (
+          <div style={{display:'flex', flexDirection:'column', gap:6}}>
+            {demoBookings.map(b => (
+              <div key={b.id} style={{display:'flex', gap:10, alignItems:'center', padding:'7px 10px', background:'var(--surface-2)', borderRadius:8, fontSize:12.5, flexWrap:'wrap'}}>
+                <span style={{fontWeight:700, color:'var(--pea-purple)', minWidth:130, fontFamily:'monospace'}}>{b.id}</span>
+                <span style={{color:'var(--text-2)'}}>{b.vehicleId}</span>
+                <span style={{color:'var(--text-3)'}}>{b.from?.slice(0,10)}</span>
+                <span style={{marginLeft:'auto', fontSize:11.5, padding:'2px 8px', borderRadius:99, background:'var(--status-booked-bg)', color:'var(--status-booked)', border:'1px solid var(--status-booked)'}}>
+                  {b.status === 'approved' ? 'อนุมัติแล้ว' : b.status === 'booked' ? 'รออนุมัติ' : b.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

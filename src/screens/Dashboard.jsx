@@ -18,7 +18,7 @@ const STATUS_IMG_BG = {
   unavailable: 'linear-gradient(135deg,#f3f4f6 0%,#e5e7eb 100%)',
 };
 
-function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle }) {
+function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle, demoEnabled, onDemoBooking }) {
   const today = TODAY;
   const [filter, setFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
@@ -69,13 +69,18 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
                `วันนี้มีรถพร้อมใช้งาน ${counts.available} คันจาก ${counts.total} คัน`}
             </div>
           </div>
-          <div style={{display:'flex', gap:10}}>
+          <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
             <button className="btn accent" onClick={() => setRoute("booking")}>
               {I.plus} จองรถใหม่
             </button>
             {(user.role === "manager" || user.role === "admin") && pendingApprovals > 0 && (
               <button className="btn" style={{background:'rgba(255,255,255,0.16)', color:'white', border:'1px solid rgba(255,255,255,0.2)'}} onClick={() => setRoute("approvals")}>
                 ดูคำขออนุมัติ ({pendingApprovals})
+              </button>
+            )}
+            {demoEnabled && (
+              <button className="btn" style={{background:'rgba(255,255,255,0.12)', color:'white', border:'1px dashed rgba(255,255,255,0.35)', fontSize:12.5}} onClick={onDemoBooking}>
+                🎮 ทดสอบจอง
               </button>
             )}
           </div>
