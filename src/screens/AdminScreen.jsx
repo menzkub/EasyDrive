@@ -252,7 +252,7 @@ function MembersScreen({ users, user, departments, onApproveUser, onRejectUser, 
           )}
           {list.map((u) => (
             <div key={u.id} style={{border:'1px solid var(--border)', borderRadius:12, padding:'12px 14px', background:'var(--surface)'}}>
-              <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:10}}>
+              <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:10, cursor:'pointer'}} onClick={() => setViewing(u)}>
                 <div className="avatar" style={{flexShrink:0}}>{u.name.charAt(0)}</div>
                 <div style={{flex:1, minWidth:0}}>
                   <div style={{fontWeight:600, fontSize:14}}>{u.name}</div>
