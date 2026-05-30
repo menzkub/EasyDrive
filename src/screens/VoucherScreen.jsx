@@ -1,7 +1,7 @@
 // Voucher (printable booking confirmation) + Booking detail modal
 
 import React from 'react'
-import { I, StatusPill, VehicleIcon, Modal, fmtDate, fmtDateTime, fmtTime, fmtNum, STATUS_LABEL } from '../components'
+import { I, StatusPill, VehicleIcon, Modal, NavModal, fmtDate, fmtDateTime, fmtTime, fmtNum, STATUS_LABEL } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
 function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
@@ -167,10 +167,20 @@ function Signature({ label, name }) {
 
 // ─── Booking detail modal ─────────────────────────────────────────
 function BookingDetailModal({ booking, vehicle, user, onClose }) {
+  const [showNav, setShowNav] = React.useState(false);
   if (!booking || !vehicle) return null;
 
   return (
-    <Modal title={`รายละเอียดการจอง · ${booking.id}`} onClose={onClose} width={620}>
+    <>
+    {showNav && <NavModal booking={booking} onClose={() => setShowNav(false)}/>}
+    <Modal title={`รายละเอียดการจอง · ${booking.id}`} onClose={onClose} width={620}
+      footer={booking.coords?.length === 2 && (
+        <button className="btn primary" style={{marginLeft:'auto'}} onClick={() => setShowNav(true)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+          นำทาง
+        </button>
+      )}
+    >
       <div style={{display:'flex', gap:14, paddingBottom:14, borderBottom:'1px solid var(--border)', marginBottom:14}}>
         <div className="veh-ico lg" style={{width:64, height:64}}>
           <VehicleIcon type={vehicle.type} size={42}/>
@@ -203,6 +213,7 @@ function BookingDetailModal({ booking, vehicle, user, onClose }) {
         {booking.rating && <Field label="คะแนนรถ" value={<span style={{color:'var(--pea-orange)', display:'inline-flex', gap:1}}>{Array.from({length:booking.rating}).map((_, i) => I.star)}</span>}/>}
       </div>
     </Modal>
+    </>
   );
 }
 

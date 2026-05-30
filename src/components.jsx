@@ -510,8 +510,151 @@ function SearchInput({ value, onChange, placeholder, style, inputStyle }) {
   );
 }
 
+// ─── NavModal ────────────────────────────────────────────────────────
+const PEA_FANG = { lat: 19.9152, lng: 99.2102, name: 'การไฟฟ้าส่วนภูมิภาค สาขาฝาง' };
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function NavModal({ booking, onClose }) {
+  const [gps, setGps] = React.useState({ state: 'loading' });
+
+  React.useEffect(() => {
+    if (!navigator.geolocation) {
+      setGps({ state: 'unavailable' });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setGps({ state: 'ok', lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => setGps({ state: 'denied' }),
+      { timeout: 8000, maximumAge: 60000 }
+    );
+  }, []);
+
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const usingFallback = gps.state !== 'ok';
+  const originLat = gps.state === 'ok' ? gps.lat : PEA_FANG.lat;
+  const originLng = gps.state === 'ok' ? gps.lng : PEA_FANG.lng;
+  const originName = gps.state === 'ok' ? 'ตำแหน่งปัจจุบัน' : PEA_FANG.name;
+  const destLat = booking.coords[0];
+  const destLng = booking.coords[1];
+  const distKm = haversineKm(originLat, originLng, destLat, destLng);
+  const estMin = Math.round(distKm / 50 * 60);
+
+  const googleUrl = `https://www.google.com/maps/dir/${originLat},${originLng}/${destLat},${destLng}`;
+  const appleUrl = `https://maps.apple.com/?saddr=${originLat},${originLng}&daddr=${destLat},${destLng}`;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ width: 440 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header" style={{ background: 'linear-gradient(135deg, var(--pea-purple) 0%, #7c3aed 100%)', color: 'white', borderRadius: '12px 12px 0 0' }}>
+          <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+            </svg>
+            นำทางไปยังจุดหมาย
+          </h2>
+          <button className="btn icon ghost" onClick={onClose} style={{ color: 'rgba(255,255,255,0.8)' }}>
+            {I.x}
+          </button>
+        </div>
+
+        <div className="modal-body" style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {usingFallback && (
+            <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn)', borderRadius: 8, padding: '10px 13px', display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13 }}>
+              <span style={{ color: 'var(--warn)', flexShrink: 0, marginTop: 1 }}>{I.warn}</span>
+              <span style={{ color: 'var(--warn)', lineHeight: 1.5 }}>
+                {gps.state === 'loading' ? 'กำลังหาตำแหน่ง GPS...' : 'ไม่สามารถระบุตำแหน่งปัจจุบันได้'}&nbsp;
+                {gps.state !== 'loading' && 'ใช้ที่ตั้งสำนักงานเป็นจุดเริ่มต้นแทน'}
+              </span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <NavPoint
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>}
+              label="จุดเริ่มต้น"
+              name={gps.state === 'loading' ? 'กำลังโหลด...' : originName}
+              coords={gps.state === 'loading' ? null : [originLat, originLng]}
+              color="var(--ok)"
+              bg="var(--ok-bg)"
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 20 }}>
+              <div style={{ width: 2, height: 20, background: 'var(--border-strong)', marginLeft: 6 }}/>
+              {gps.state !== 'loading' && (
+                <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                  {distKm < 1 ? `${Math.round(distKm * 1000)} ม.` : `${distKm.toFixed(1)} กม.`}
+                  &nbsp;·&nbsp;~{estMin < 60 ? `${estMin} นาที` : `${Math.floor(estMin/60)} ชม. ${estMin%60} นาที`}
+                </span>
+              )}
+            </div>
+            <NavPoint
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>}
+              label="จุดหมาย"
+              name={booking.destination}
+              coords={[destLat, destLng]}
+              color="var(--danger)"
+              bg="var(--danger-bg)"
+            />
+          </div>
+        </div>
+
+        <div className="modal-foot" style={{ gap: 10 }}>
+          <button
+            className="btn"
+            style={{ flex: 1, background: '#34a853', color: 'white', border: 'none', justifyContent: 'center', gap: 7 }}
+            onClick={() => window.open(googleUrl, '_blank')}
+            disabled={gps.state === 'loading'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Google Maps
+          </button>
+          <button
+            className="btn"
+            style={{ flex: 1, background: '#1c1c1e', color: 'white', border: 'none', justifyContent: 'center', gap: 7 }}
+            onClick={() => window.open(appleUrl, '_blank')}
+            disabled={gps.state === 'loading'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            Apple Maps
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NavPoint({ icon, label, name, coords, color, bg }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>{name}</div>
+        {coords && (
+          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+            {coords[0].toFixed(5)}, {coords[1].toFixed(5)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export {
   I, VehicleIcon, StatusPill, STATUS_LABEL,
-  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, SearchInput,
+  Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, SearchInput, NavModal,
   fmtDate, fmtDateTime, fmtTime, fmtNum, daysUntil,
 };
