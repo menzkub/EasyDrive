@@ -204,7 +204,7 @@ export function DevGuideScreen() {
           <DevTable
             heads={['ไฟล์', 'หน้าที่', 'หมายเหตุ']}
             rows={[
-              ['src/App.jsx', 'Root component — จัดการ auth, routing, global state, handlers ทั้งหมด', 'ไฟล์ที่ใหญ่ที่สุด ~680 บรรทัด'],
+              ['src/App.jsx', 'Root component — จัดการ auth, routing, global state, handlers ทั้งหมด', 'ไฟล์ที่ใหญ่ที่สุด ~730 บรรทัด'],
               ['src/components.jsx', 'Shared UI components: I icons, Sidebar, Topbar, Modal, ConfirmDialog, CommandMenu, NavModal, DeptPicker, formatters', '~1,500+ บรรทัด'],
               ['src/supabase.js', 'สร้าง Supabase client จาก env vars, export isConfigured', '13 บรรทัด'],
               ['src/data.js', 'Static constants: VEHICLE_TYPES, FUEL_TYPES, DEPARTMENTS (fallback), PURPOSES, CHECKLIST', 'ข้อมูล fallback เมื่อยังไม่มี DB'],
@@ -223,7 +223,8 @@ export function DevGuideScreen() {
               ['BookingScreen.jsx', 'booking', 'ทุกคน', 'ฟอร์มจองรถ — เลือกรถ วันเวลา ปลายทาง GPS'],
               ['CalendarScreen.jsx', 'calendar', 'ทุกคน', 'ปฏิทินการจองทุกรถ รายเดือน/สัปดาห์'],
               ['ReportsScreen.jsx', 'my / reports', 'user=my, manager/admin=reports', 'Export: MyBookingsScreen + ReportsScreen ในไฟล์เดียว'],
-              ['CheckinScreen.jsx', 'checkin', 'ทุกคน', 'Check-in (บันทึกไมล์ก่อนขับ) + Check-out (บันทึกไมล์หลังคืน)'],
+              ['CheckinScreen.jsx', 'checkin', 'ทุกคน', 'Check-in (ถ่ายรูป + Checklist + บันทึกไมล์ก่อนขับ) + Check-out (ถ่ายรูปหลังคืน + บันทึกไมล์)'],
+              ['CheckinHistoryScreen.jsx', 'checkin-history', 'ทุกคน (user=ของตัวเอง, admin=ทั้งหมด)', 'ประวัติการ Check-in/out พร้อมรูปถ่ายและ Checklist — Admin แก้ไขได้'],
               ['AdminScreen.jsx', 'approvals / members', 'manager/admin', 'Export: ApprovalsScreen + MembersScreen'],
               ['VehiclesScreen.jsx', 'vehicles', 'admin', 'จัดการยานพาหนะ — เพิ่ม แก้ไข ดู history'],
               ['SettingsScreen.jsx', 'settings-*', 'ทุกคน', 'Tabs: บัญชี, แจ้งเตือน, Calendar Sync, แผนก*, คู่มือ*, นักพัฒนา*'],
@@ -255,7 +256,7 @@ export function DevGuideScreen() {
             rows={[
               ['profiles', 'id (uuid, FK auth.users), name, emp, dept, role, status, email, phone, joined', 'role: user | manager | admin\nstatus: pending | approved | rejected'],
               ['vehicles', 'id, plate, brand, type, year, fuel, seats, mileage, status, owner, taxDue, insuranceDue, nextService, lastService', 'type: sedan | van | pickup | truck6 | truck3 | crane | bucket | ev\nstatus: available | booked | maintenance | unavailable | urgent'],
-              ['bookings', 'id, vehicleId, userId, from, to, purpose, purposeNote, destination, coords, status, approvedBy, rejectReason, mileageOut, mileageIn, rating, passengers, createdAt', 'coords: [lat, lng] (array)\nstatus: booked | approved | rejected | cancelled | checkin | checkout | completed | urgent'],
+              ['bookings', 'id, vehicleId, userId, from, to, purpose, destination, status, approvedBy, rejectReason, mileageOut, mileageIn, rating, passengers, notes, checklist_data (JSONB), photos_before (JSONB), photos_after (JSONB), photos_mileage (JSONB), createdAt', 'checklist_data: {itemId: "pass"|"fail"|"skip"}\nphotos_*: base64 string array (compressed ≤100KB each)'],
               ['departments', 'id, name, sort_order, active', 'active: boolean — ซ่อน/แสดงในฟอร์ม'],
               ['vehicle_history', 'id, vehicleId, at, actor, action, field, oldValue, newValue, note, photo', 'บันทึกการเปลี่ยนแปลงทุก field ของรถ'],
               ['mileage_corrections', 'id, bookingId, vehicleId, userId, systemMileage, claimedMileage, diff, reason, status, approvedBy, approvedAt, rejectReason, requestedAt', 'status: pending | approved | rejected'],
@@ -300,7 +301,8 @@ const channel = supabase.channel('pea-realtime')
 
           <Code lang="js">{`import { I, VehicleIcon, StatusPill, Sidebar, Topbar, Modal,
          ConfirmDialog, ToastStack, CommandMenu, NavModal,
-         DeptPicker, fmtDate, fmtDateTime, fmtTime, fmtNum
+         DeptPicker, SearchInput, Select,
+         fmtDate, fmtDateTime, fmtTime, fmtNum
 } from '../components'`}</Code>
 
           <div style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, marginTop: 18 }}>Icons — I object</div>
@@ -327,6 +329,8 @@ const channel = supabase.channel('pea-realtime')
               ['<CommandMenu>', 'open, onClose, role, setRoute, onLogout, bookings[], vehicles[], users[], onSelectBooking, onSelectVehicle', 'Ctrl+K command palette'],
               ['<NavModal>', 'booking { coords, destination }, onClose', 'GPS navigation modal — Google/Apple Maps'],
               ['<DeptPicker>', 'value, options[], onChange, placeholder', 'Searchable department dropdown'],
+              ['<Select>', 'value, onChange, children (<option>), placeholder, style', 'Custom Command Menu style dropdown — drop-in replacement สำหรับ native <select>. onChange API เหมือนกัน: e.target.value'],
+              ['<SearchInput>', 'value, onChange, placeholder, style', 'Search input with icon'],
             ]}
           />
 
@@ -358,7 +362,7 @@ setRoute("calendar")       // → CalendarScreen
 setRoute("settings-noti")  // → SettingsScreen tab="noti"
 
 // Route guard — ป้องกันการเข้าถึงโดยไม่มีสิทธิ์
-const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "help",
+const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "checkin-history", "help",
   "settings", "settings-account", "settings-noti", "settings-calendar",
   ...(role === "manager" ? ["approvals", "reports"] : []),
   ...(role === "admin"   ? ["approvals", "members", "vehicles", "reports",
@@ -375,6 +379,7 @@ if (!allowed.includes(route)) setRoute("dashboard");`}</Code>
               ['calendar', '<CalendarScreen>', 'ทุกคน'],
               ['my', '<MyBookingsScreen>', 'ทุกคน'],
               ['checkin', '<CheckinScreen>', 'ทุกคน'],
+              ['checkin-history', '<CheckinHistoryScreen>', 'ทุกคน'],
               ['help', '<ManualScreen>', 'ทุกคน'],
               ['approvals', '<ApprovalsScreen>', 'manager, admin'],
               ['reports', '<ReportsScreen>', 'manager, admin'],
@@ -441,6 +446,13 @@ const WARN_MS = 2 * 60 * 1000;   // เตือน 2 นาทีก่อน l
 
 // Events ที่ reset timer: mousemove, mousedown, keydown, touchstart, scroll
 // ทุก event ใช้ { passive: true } เพื่อ performance`}</Code>
+
+          <div style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, marginTop: 18 }}>Mileage Calculation Pattern</div>
+          <InfoBox kind="info">
+            <Code lang="js">{`// เลขไมล์ปัจจุบัน = max(mileageIn) จาก completed trips
+// fallback เป็น v.mileage หาก ยังไม่มีการเดินทาง
+// handleCheckOut อัพเดท vehicles.mileage = mileageIn อัตโนมัติ`}</Code>
+          </InfoBox>
         </div>
 
         <div style={{ height: 1, background: 'var(--border)', margin: '28px 0' }} />
@@ -577,6 +589,10 @@ npm run preview    # ทดสอบ production build`}</Code>
               { title: 'NavModal (GPS)', desc: 'ตรวจ GPS ผู้ใช้, คำนวณระยะทาง Haversine, สร้าง deep link Google/Apple Maps', file: 'components.jsx → NavModal' },
               { title: 'TweaksPanel', desc: 'Panel ปรับ theme (สี, layout) — hidden by default, เปิดผ่าน secret area มุมขวาล่าง', file: 'TweaksPanel.jsx' },
               { title: 'PublicCalendar', desc: 'ดูปฏิทินโดยไม่ต้อง login — แสดงเฉพาะข้อมูล public (plate, เวลา, สถานะ)', file: 'AuthScreen.jsx → PublicCalendarModal' },
+              { title: 'ประวัติ Check-in/out', desc: 'หน้า checkin-history แสดงรูปถ่ายก่อน/หลัง, Checklist ผ่าน/ไม่ผ่าน/ข้าม, export CSV. Admin แก้ไขข้อมูลได้พร้อม 2-step confirm แสดง diff', file: 'CheckinHistoryScreen.jsx' },
+              { title: 'Photo Compression', desc: 'รูปถ่ายบีบอัดด้วย Canvas API ก่อนเก็บ: max 900px, JPEG 72%, ~100KB/รูป. เก็บเป็น base64 ใน JSONB column', file: 'CheckinScreen.jsx → PhotoCapture' },
+              { title: 'QR Deep Link', desc: 'QR บนใบจองเข้ารหัสเป็น URL (origin/?booking=ID). App.jsx อ่าน ?booking= param หลัง login และแสดง VoucherModal โดยอัตโนมัติ จากนั้น clean URL', file: 'VoucherScreen.jsx + App.jsx' },
+              { title: 'Custom Select', desc: 'Select component แทน native <select> ทั้งระบบ — parse <option> children ผ่าน React.Children.toArray, dropdown แบบ Command Menu, same onChange API', file: 'components.jsx → Select' },
             ].map(({ title, desc, file }) => (
               <div key={title} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{title}</div>
