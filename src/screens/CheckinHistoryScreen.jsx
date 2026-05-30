@@ -393,20 +393,92 @@ function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
   const [rating, setRating] = React.useState(b.rating ?? 0);
   const [notes, setNotes] = React.useState(b.notes ?? '');
   const [checklist, setChecklist] = React.useState(b.checklist_data ? { ...b.checklist_data } : {});
+  const [step, setStep] = React.useState('edit');
+  const [pendingChanges, setPendingChanges] = React.useState([]);
   const [saving, setSaving] = React.useState(false);
 
-  const dist = mileageIn && mileageOut ? Number(mileageIn) - Number(mileageOut) : null;
+  const dist = mileageIn !== '' && mileageOut !== '' ? Number(mileageIn) - Number(mileageOut) : null;
 
-  async function handleSave() {
+  function computeChanges() {
+    const changes = [];
+    const numOut = mileageOut !== '' ? Number(mileageOut) : null;
+    const numIn  = mileageIn  !== '' ? Number(mileageIn)  : null;
+    if (numOut !== (b.mileageOut ?? null))
+      changes.push({ field: 'ไมล์ก่อนออกเดินทาง', from: b.mileageOut != null ? fmtNum(b.mileageOut) + ' กม.' : '—', to: numOut != null ? fmtNum(numOut) + ' กม.' : '—' });
+    if (numIn !== (b.mileageIn ?? null))
+      changes.push({ field: 'ไมล์หลังกลับมา', from: b.mileageIn != null ? fmtNum(b.mileageIn) + ' กม.' : '—', to: numIn != null ? fmtNum(numIn) + ' กม.' : '—' });
+    if (rating !== (b.rating ?? 0))
+      changes.push({ field: 'คะแนน', from: b.rating ? '⭐'.repeat(b.rating) : '—', to: rating ? '⭐'.repeat(rating) : '—' });
+    const cleanNotes = notes.trim() || null;
+    if (cleanNotes !== (b.notes || null))
+      changes.push({ field: 'หมายเหตุ', from: b.notes || '—', to: cleanNotes || '—' });
+    const origCL = b.checklist_data || {};
+    CHECKLIST.forEach((item) => {
+      const oldVal = origCL[item.id];
+      const newVal = checklist[item.id];
+      if (oldVal !== newVal) {
+        const fmt = (x) => x === 'pass' ? 'ผ่าน' : x === 'fail' ? 'ไม่ผ่าน' : x === 'skip' ? 'ข้าม' : '—';
+        changes.push({ field: item.label, from: fmt(oldVal), to: fmt(newVal) });
+      }
+    });
+    return changes;
+  }
+
+  function handleRequestSave() {
+    const c = computeChanges();
+    if (c.length === 0) { onClose(); return; }
+    setPendingChanges(c);
+    setStep('confirm');
+  }
+
+  async function handleConfirmedSave() {
     setSaving(true);
+    const cleanCL = Object.fromEntries(Object.entries(checklist).filter(([, v]) => v));
     await onSave({
       mileageOut: mileageOut !== '' ? Number(mileageOut) : null,
       mileageIn:  mileageIn  !== '' ? Number(mileageIn)  : null,
       rating: rating || null,
       notes: notes.trim() || null,
-      checklist_data: Object.keys(checklist).length > 0 ? checklist : null,
+      checklist_data: Object.keys(cleanCL).length > 0 ? cleanCL : null,
     });
     setSaving(false);
+  }
+
+  if (step === 'confirm') {
+    return (
+      <Modal title={`ยืนยันการแก้ไข · ${b.id}`} onClose={() => setStep('edit')} width={520} noOutsideClose
+        footer={<>
+          <button className="btn ghost" onClick={() => setStep('edit')}>← กลับแก้ไข</button>
+          <div style={{flex:1}}/>
+          <button className="btn primary" onClick={handleConfirmedSave} disabled={saving}>
+            {saving ? 'กำลังบันทึก...' : 'ยืนยันบันทึก'}
+          </button>
+        </>}
+      >
+        <div style={{fontSize:13, color:'var(--text-2)', marginBottom:14}}>
+          พบการเปลี่ยนแปลง <b style={{color:'var(--text)'}}>{pendingChanges.length} รายการ</b> สำหรับการเดินทาง{b.id}
+        </div>
+        <div className="col gap-2">
+          {pendingChanges.map((c, i) => (
+            <div key={i} style={{background:'var(--surface-2)', borderRadius:10, padding:'10px 14px', fontSize:12.5}}>
+              <div style={{fontWeight:600, fontSize:11, color:'var(--text-3)', marginBottom:6}}>{c.field}</div>
+              <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
+                <span style={{padding:'3px 10px', background:'var(--danger-bg)', color:'var(--danger)', borderRadius:6, textDecoration:'line-through', fontWeight:600}}>
+                  {c.from}
+                </span>
+                <span style={{color:'var(--text-3)'}}>→</span>
+                <span style={{padding:'3px 10px', background:'var(--ok-bg)', color:'var(--ok)', borderRadius:6, fontWeight:600}}>
+                  {c.to}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:14, padding:'10px 14px', background:'var(--warn-bg)', borderRadius:8, fontSize:12, color:'var(--warn)', fontWeight:500}}>
+          การแก้ไขจะถูกบันทึกลงในระบบทันที และไม่สามารถยกเลิกได้
+        </div>
+      </Modal>
+    );
   }
 
   return (
@@ -414,9 +486,7 @@ function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
       footer={<>
         <button className="btn ghost" onClick={onClose}>ยกเลิก</button>
         <div style={{flex:1}}/>
-        <button className="btn primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'กำลังบันทึก...' : `${I.check} บันทึกการแก้ไข`}
-        </button>
+        <button className="btn primary" onClick={handleRequestSave}>บันทึกการแก้ไข</button>
       </>}
     >
       {/* Trip header */}
@@ -436,7 +506,7 @@ function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
       </div>
 
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:18}}>
-        {/* Mileage */}
+        {/* Left: mileage + rating + notes */}
         <div>
           <SectionLabel>เลขไมล์</SectionLabel>
           <div className="field" style={{marginBottom:10}}>
@@ -452,29 +522,31 @@ function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
               style={{fontFamily:'var(--font-mono)'}}/>
           </div>
           {dist != null && (
-            <div style={{padding:'8px 12px', background:'var(--pea-purple-50)', borderRadius:8, textAlign:'center', fontSize:13}}>
+            <div style={{padding:'8px 12px', background:'var(--pea-purple-50)', borderRadius:8, textAlign:'center', fontSize:13, marginBottom:10}}>
               <span style={{color:'var(--text-3)'}}>ระยะทาง </span>
               <span style={{fontWeight:700, color:'var(--pea-purple)', fontFamily:'var(--font-mono)', fontSize:16}}>{fmtNum(dist)}</span>
               <span style={{color:'var(--text-3)'}}> กม.</span>
             </div>
           )}
-
-          <SectionLabel style={{marginTop:14}}>คะแนน</SectionLabel>
-          <div style={{display:'flex', gap:6}}>
-            {[1,2,3,4,5].map((s) => (
-              <button key={s} onClick={() => setRating(rating === s ? 0 : s)}
-                style={{fontSize:22, background:'none', border:'none', cursor:'pointer', opacity: s <= rating ? 1 : 0.25, transition:'opacity 0.1s'}}>
-                ⭐
-              </button>
-            ))}
+          <div style={{marginTop:10}}>
+            <SectionLabel>คะแนน</SectionLabel>
+            <div style={{display:'flex', gap:4}}>
+              {[1,2,3,4,5].map((s) => (
+                <button key={s} onClick={() => setRating(rating === s ? 0 : s)}
+                  style={{fontSize:24, background:'none', border:'none', cursor:'pointer', opacity: s <= rating ? 1 : 0.2, transition:'opacity 0.1s', padding:'2px 4px'}}>
+                  ⭐
+                </button>
+              ))}
+            </div>
           </div>
-
-          <SectionLabel style={{marginTop:14}}>หมายเหตุ</SectionLabel>
-          <textarea className="textarea" value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder="หมายเหตุจากการตรวจสอบ..." style={{minHeight:70, fontSize:12.5}}/>
+          <div style={{marginTop:12}}>
+            <SectionLabel>หมายเหตุ</SectionLabel>
+            <textarea className="textarea" value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="หมายเหตุจากการตรวจสอบ..." style={{minHeight:70, fontSize:12.5, marginTop:4}}/>
+          </div>
         </div>
 
-        {/* Checklist */}
+        {/* Right: checklist */}
         <div>
           <SectionLabel>ผลตรวจสภาพรถ</SectionLabel>
           <div className="col gap-1" style={{marginTop:6}}>
@@ -484,11 +556,19 @@ function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
                 <div key={item.id} style={{display:'flex', alignItems:'center', gap:6, padding:'6px 8px', borderRadius:8, background:'var(--surface-2)', fontSize:12}}>
                   <span style={{flex:1}}>{item.label}</span>
                   {['pass','fail','skip'].map((opt) => (
-                    <button key={opt} onClick={() => setChecklist({...checklist, [item.id]: val === opt ? undefined : opt})}
+                    <button key={opt}
+                      onClick={() => {
+                        const next = { ...checklist };
+                        if (val === opt) delete next[item.id]; else next[item.id] = opt;
+                        setChecklist(next);
+                      }}
                       style={{
                         padding:'2px 8px', borderRadius:99, border:'none', cursor:'pointer', fontSize:10, fontWeight:600,
-                        background: val === opt ? (opt === 'pass' ? 'var(--ok)' : opt === 'fail' ? 'var(--danger)' : 'var(--border)') : 'var(--border)',
-                        color: val === opt ? (opt === 'skip' ? 'var(--text-2)' : 'white') : 'var(--text-3)',
+                        background: val === opt
+                          ? (opt === 'pass' ? 'var(--ok)' : opt === 'fail' ? 'var(--danger)' : '#888')
+                          : 'var(--border)',
+                        color: val === opt ? 'white' : 'var(--text-3)',
+                        transition:'background 0.1s',
                       }}>
                       {opt === 'pass' ? 'ผ่าน' : opt === 'fail' ? 'ไม่ผ่าน' : 'ข้าม'}
                     </button>
