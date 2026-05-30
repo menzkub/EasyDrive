@@ -40,17 +40,17 @@ export function DevCardButton() {
   const [cfg, setCfg] = React.useState(loadDevCard);
   const [open, setOpen] = React.useState(false);
   const [isDark, setIsDark] = React.useState(() => document.documentElement.dataset.dark === '1');
+  const [expanded, setExpanded] = React.useState(false);
+  const [pos, setPos] = React.useState(loadPos);
+  const [dragging, setDragging] = React.useState(false);
+  const btnRef = React.useRef(null);
+  const drag = React.useRef({ active: false, moved: false, ox: 0, oy: 0 });
+
   React.useEffect(() => {
     const obs = new MutationObserver(() => setIsDark(document.documentElement.dataset.dark === '1'));
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-dark'] });
     return () => obs.disconnect();
   }, []);
-  if (isDark) return null;
-  const [expanded, setExpanded] = React.useState(false);
-  const [pos, setPos] = React.useState(loadPos);   // { left, top } or null
-  const [dragging, setDragging] = React.useState(false);
-  const btnRef = React.useRef(null);
-  const drag = React.useRef({ active: false, moved: false, ox: 0, oy: 0 });
 
   React.useEffect(() => {
     const onUpdate = () => setCfg(loadDevCard());
@@ -151,7 +151,7 @@ export function DevCardButton() {
     return { position: 'fixed', left, top, zIndex: 1000, width: POPUP_W, maxWidth: `calc(100vw - 16px)` };
   }
 
-  if (!cfg.show) return null;
+  if (isDark || !cfg.show) return null;
   const firstName = (cfg.name || '').split(' ')[0] || cfg.name;
   const details = [
     { icon: '🗄️', label: cfg.detail1Label, value: cfg.detail1Value },
