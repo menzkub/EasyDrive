@@ -257,7 +257,7 @@ function Topbar({ title, subtitle, children, onMenuClick, onBellClick, unreadCou
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <div>
-        <h1>{title}<small>{subtitle || dateStr + " · จ.เชียงใหม่"}</small></h1>
+        <h1>{title}<small>📅 {subtitle || dateStr + " · จ.เชียงใหม่"}</small></h1>
       </div>
       <div className="topbar-actions">
         {onCmdOpen && (

@@ -4,7 +4,7 @@ import React from 'react'
 import { I, StatusPill, VehicleIcon, fmtDate, fmtDateTime, fmtNum, daysUntil } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
-function ReportsScreen({ vehicles, bookings, users = [], onRefresh, fuelPrices }) {
+function ReportsScreen({ vehicles, bookings, users = [], onRefresh, fuelPrices, currentUser }) {
   const [range, setRange] = React.useState("month");
 
   function exportCSV() {
@@ -216,7 +216,7 @@ function ReportsScreen({ vehicles, bookings, users = [], onRefresh, fuelPrices }
       {/* New: Department + Fuel cost + Peak hours */}
       <div className="grid-2" style={{gap:14, marginTop:14}}>
         <DepartmentReport bookings={bookings} users={users}/>
-        <FuelCostReport bookings={bookings} vehicles={vehicles} configPrices={fuelPrices}/>
+        <FuelCostReport bookings={bookings} vehicles={vehicles} configPrices={fuelPrices} isAdmin={currentUser?.role === 'admin'}/>
       </div>
 
       <div className="grid-2" style={{gap:14, marginTop:14, gridTemplateColumns:'1.2fr 1fr'}}>
@@ -275,7 +275,8 @@ function DepartmentReport({ bookings, users }) {
 const DEFAULT_FUEL_PRICES = { diesel: 32.5, gasohol: 38.5, benzin: 41.5, ngv: 16.5, ev: 4.5 };
 const DEFAULT_FUEL_CONSUMPTION = { diesel: 12, gasohol: 14, benzin: 14, ngv: 10, ev: 6 };
 
-function FuelCostReport({ bookings, vehicles, configPrices }) {
+function FuelCostReport({ bookings, vehicles, configPrices, isAdmin }) {
+  const [showCalc, setShowCalc] = React.useState(false);
   const fuelPrices = configPrices ? { ...DEFAULT_FUEL_PRICES, ...configPrices } : DEFAULT_FUEL_PRICES;
   const fuelConsumption = DEFAULT_FUEL_CONSUMPTION;
   const vehFuelMap = Object.fromEntries(vehicles.map((v) => [v.id, v.fuel]));
@@ -284,40 +285,68 @@ function FuelCostReport({ bookings, vehicles, configPrices }) {
   completed.forEach((b) => {
     const fuel = vehFuelMap[b.vehicleId];
     if (!fuel) return;
-    if (!breakdown[fuel]) breakdown[fuel] = { km: 0, cost: 0 };
+    if (!breakdown[fuel]) breakdown[fuel] = { km: 0, cost: 0, trips: 0 };
     const km = b.mileageIn - b.mileageOut;
     breakdown[fuel].km += km;
     breakdown[fuel].cost += (km / (fuelConsumption[fuel] || 12)) * (fuelPrices[fuel] || 35);
+    breakdown[fuel].trips += 1;
   });
-  let totalCost = Object.values(breakdown).reduce((s, v) => s + v.cost, 0);
+  const totalCost = Object.values(breakdown).reduce((s, v) => s + v.cost, 0);
+  const totalKm = Object.values(breakdown).reduce((s, v) => s + v.km, 0);
   const data = Object.entries(breakdown).sort((a, b) => b[1].cost - a[1].cost);
   const maxCost = Math.max(...data.map(([, v]) => v.cost), 1);
+  const isCustomPrice = !!configPrices?.updatedAt;
+
+  function fmtSyncTime(iso) {
+    if (!iso) return null;
+    try {
+      return new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+    } catch { return iso; }
+  }
 
   return (
     <div className="card card-pad">
-      <h2 className="mt-0">ค่าเชื้อเพลิงโดยประมาณ (เดือนนี้)</h2>
-      <p className="sub">คำนวณจากระยะทางและอัตราสิ้นเปลืองตามประเภทเชื้อเพลิง</p>
+      <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:4}}>
+        <div>
+          <h2 className="mt-0" style={{margin:0}}>ค่าเชื้อเพลิงโดยประมาณ (เดือนนี้)</h2>
+          <p className="sub" style={{margin:'2px 0 0'}}>คำนวณจากระยะทางและอัตราสิ้นเปลืองตามประเภทเชื้อเพลิง</p>
+        </div>
+        {isCustomPrice && (
+          <div style={{
+            display:'flex', alignItems:'center', gap:5, flexShrink:0,
+            padding:'4px 10px', borderRadius:99,
+            background:'linear-gradient(135deg,#dcfce7,#bbf7d0)',
+            border:'1px solid #86efac', boxShadow:'0 1px 4px rgba(34,197,94,.15)',
+          }}>
+            <span style={{fontSize:13}}>🕐</span>
+            <div>
+              <div style={{fontSize:9.5, fontWeight:700, color:'#15803d', letterSpacing:'0.04em', lineHeight:1}}>อัปเดตล่าสุด</div>
+              <div style={{fontSize:11, fontWeight:600, color:'#166534', lineHeight:1.3}}>{fmtSyncTime(configPrices.updatedAt)}</div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div style={{textAlign:'center', padding:'16px 0', borderBottom:'1px dashed var(--border)', marginBottom:14}}>
         <div className="text-xs muted">ค่าเชื้อเพลิงรวม (คำนวณจากระยะทางจริง)</div>
         <div style={{fontSize:32, fontWeight:700, color:'var(--pea-orange)', fontFamily:'var(--font-mono)'}}>
           {completed.length > 0 ? `฿ ${fmtNum(Math.round(totalCost))}` : '— ยังไม่มีข้อมูล —'}
         </div>
-        <div className="text-xs muted">ระยะทางรวม {fmtNum(Object.values(breakdown).reduce((s,v)=>s+v.km,0))} กม. จาก {completed.length} การเดินทาง</div>
+        <div className="text-xs muted">ระยะทางรวม {fmtNum(totalKm)} กม. จาก {completed.length} การเดินทาง</div>
       </div>
 
-      <div className="col gap-2">
+      <div className="col gap-2" style={{marginBottom: isAdmin ? 12 : 0}}>
         {data.map(([fuel, v], i) => (
           <div key={fuel} style={{display:'flex', alignItems:'center', gap:10}}>
-            <div style={{width:60, fontSize:12.5, fontWeight:500}}>{FUEL_TYPES[fuel]}</div>
+            <div style={{width:70, fontSize:12.5, fontWeight:500}}>{FUEL_TYPES[fuel]}</div>
             <div style={{flex:1, height:24, background:'var(--surface-2)', borderRadius:6, position:'relative', overflow:'hidden'}}>
               <div style={{
                 position:'absolute', left:0, top:0, bottom:0,
                 width: `${(v.cost/maxCost)*100}%`,
                 background: ['var(--pea-purple)','var(--pea-orange)','var(--info)','var(--ok)','var(--warn)'][i % 5],
                 display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:6,
-                color:'white', fontSize:11, fontWeight:600,
-                fontFamily:'var(--font-mono)',
+                color:'white', fontSize:11, fontWeight:600, fontFamily:'var(--font-mono)',
+                transition:'width 0.4s ease',
               }}>
                 ฿{fmtNum(Math.round(v.cost))}
               </div>
@@ -326,6 +355,78 @@ function FuelCostReport({ bookings, vehicles, configPrices }) {
           </div>
         ))}
       </div>
+
+      {/* Admin-only calculation details */}
+      {isAdmin && (
+        <div style={{borderTop:'1px solid var(--border)', paddingTop:10}}>
+          <button
+            type="button"
+            onClick={() => setShowCalc(v => !v)}
+            style={{display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', padding:0, fontSize:12.5, color:'var(--text-2)', fontWeight:500}}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+              style={{transition:'transform 0.2s', transform: showCalc ? 'rotate(90deg)' : 'rotate(0deg)'}}>
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            รายละเอียดการคำนวณ
+            {isCustomPrice
+              ? <span style={{fontSize:10, padding:'1px 7px', borderRadius:99, background:'#dcfce7', color:'#15803d', fontWeight:700, marginLeft:2}}>ราคาจากระบบ</span>
+              : <span style={{fontSize:10, padding:'1px 7px', borderRadius:99, background:'var(--warn-bg)', color:'var(--warn)', fontWeight:700, marginLeft:2}}>ราคาเริ่มต้น</span>
+            }
+          </button>
+
+          {showCalc && (
+            <div style={{marginTop:12}}>
+              <div style={{fontSize:12, color:'var(--text-3)', marginBottom:8}}>
+                {isCustomPrice
+                  ? `ใช้ราคาที่แอดมินกำหนด — อัปเดตเมื่อ ${fmtSyncTime(configPrices.updatedAt)}`
+                  : 'ใช้ราคามาตรฐาน (ยังไม่ได้ตั้งค่าราคา — ไปที่ ตั้งค่า → ข้อมูลระบบ → ราคาน้ำมัน)'
+                }
+              </div>
+              <div style={{overflowX:'auto', borderRadius:10, border:'1px solid var(--border)'}}>
+                <table style={{width:'100%', borderCollapse:'collapse', fontSize:12.5}}>
+                  <thead>
+                    <tr style={{background:'var(--surface-2)'}}>
+                      {['เชื้อเพลิง','ราคา (บาท/ล.)','อัตราสิ้นเปลือง','ระยะทาง','การเดินทาง','ค่าเชื้อเพลิง'].map((h,i) => (
+                        <th key={i} style={{padding:'7px 10px', textAlign: i >= 2 ? 'right' : 'left', fontWeight:700, color:'var(--text-3)', fontSize:10.5, textTransform:'uppercase', letterSpacing:'0.04em', borderBottom:'1px solid var(--border)', whiteSpace:'nowrap'}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      {key:'gasohol',label:'แก๊สโซฮอล์'},
+                      {key:'diesel', label:'ดีเซล'},
+                      {key:'benzin', label:'เบนซิน'},
+                      {key:'ngv',    label:'NGV'},
+                      {key:'ev',     label:'EV'},
+                    ].filter(f => breakdown[f.key]).map((f, i, arr) => (
+                      <tr key={f.key} style={{borderBottom: i < arr.length-1 ? '1px solid var(--border)' : 'none'}}>
+                        <td style={{padding:'7px 10px', fontWeight:600}}>{f.label}</td>
+                        <td style={{padding:'7px 10px', fontFamily:'var(--font-mono)', color:'var(--pea-purple)', fontWeight:700}}>฿{fuelPrices[f.key]}</td>
+                        <td style={{padding:'7px 10px', textAlign:'right', fontFamily:'var(--font-mono)', color:'var(--text-2)'}}>{fuelConsumption[f.key]} กม./ล.</td>
+                        <td style={{padding:'7px 10px', textAlign:'right', fontFamily:'var(--font-mono)'}}>{fmtNum(breakdown[f.key].km)} กม.</td>
+                        <td style={{padding:'7px 10px', textAlign:'right'}}>{breakdown[f.key].trips} ครั้ง</td>
+                        <td style={{padding:'7px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, color:'var(--pea-orange)'}}>฿{fmtNum(Math.round(breakdown[f.key].cost))}</td>
+                      </tr>
+                    ))}
+                    {data.length > 0 && (
+                      <tr style={{background:'var(--surface-2)', fontWeight:700}}>
+                        <td colSpan={3} style={{padding:'7px 10px', color:'var(--text-2)'}}>รวมทั้งหมด</td>
+                        <td style={{padding:'7px 10px', textAlign:'right', fontFamily:'var(--font-mono)'}}>{fmtNum(totalKm)} กม.</td>
+                        <td style={{padding:'7px 10px', textAlign:'right'}}>{completed.length} ครั้ง</td>
+                        <td style={{padding:'7px 10px', textAlign:'right', fontFamily:'var(--font-mono)', color:'var(--pea-orange)'}}>฿{fmtNum(Math.round(totalCost))}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{marginTop:8, fontSize:11, color:'var(--text-3)', lineHeight:1.5}}>
+                สูตร: ค่าเชื้อเพลิง = (ระยะทาง ÷ อัตราสิ้นเปลือง) × ราคาต่อลิตร · นับเฉพาะการเดินทางที่บันทึกเลขไมล์ครบทั้ง Check-in และ Check-out
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
