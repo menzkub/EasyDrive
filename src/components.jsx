@@ -96,6 +96,7 @@ const SETTINGS_CHILDREN_ADMIN = [
   ...SETTINGS_CHILDREN,
   { key: "settings-depts",   label: "จัดการแผนก" },
   { key: "settings-manual",  label: "📖 คู่มือการใช้งาน" },
+  { key: "settings-dev",     label: "🛠️ สำหรับนักพัฒนา" },
 ];
 
 const NAV = {
