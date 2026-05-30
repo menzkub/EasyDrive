@@ -578,7 +578,7 @@ function NavModal({ booking, onClose }) {
   const appleUrl = `https://maps.apple.com/?saddr=${originLat},${originLng}&daddr=${destLat},${destLng}`;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" style={{zIndex:1100}} onClick={onClose}>
       <div className="modal" style={{ width: 440 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header" style={{ background: 'linear-gradient(135deg, var(--pea-purple) 0%, #7c3aed 100%)', color: 'white', borderRadius: '12px 12px 0 0' }}>
           <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>

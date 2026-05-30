@@ -7,6 +7,7 @@ function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefill
   const [step, setStep] = React.useState(1);
   const [submitting, setSubmitting] = React.useState(false);
   const [bookingId, setBookingId] = React.useState(null);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [form, setForm] = React.useState({
     purpose: PURPOSES[0],
     purposeNote: "",
@@ -46,14 +47,93 @@ function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefill
       if (!form.vehicleId) return;
       setStep(3);
     } else {
-      setSubmitting(true);
-      try {
-        const id = await onSubmit(form);
-        if (id) setBookingId(id);
-      } finally {
-        setSubmitting(false);
-      }
+      setConfirmOpen(true);
     }
+  }
+
+  async function handleConfirmedSubmit() {
+    setConfirmOpen(false);
+    setSubmitting(true);
+    try {
+      const id = await onSubmit(form);
+      if (id) setBookingId(id);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (confirmOpen) {
+    const v = vehicles.find((x) => x.id === form.vehicleId);
+    const dur = calcDuration(form.from, form.to);
+    const durLabel = dur.valid
+      ? [dur.days > 0 ? `${dur.days} วัน` : null, dur.hours > 0 ? `${dur.hours} ชม.` : null, dur.minutes > 0 ? `${dur.minutes} นาที` : null]
+          .filter(Boolean).join(' ') || '0 นาที'
+      : '—';
+    return (
+      <div style={{maxWidth:520, margin:'40px auto 0'}}>
+        <div className="card card-pad">
+          {/* Header */}
+          <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:20, paddingBottom:16, borderBottom:'1px solid var(--border)'}}>
+            <div style={{width:48, height:48, borderRadius:12, background:'var(--pea-purple-50)', color:'var(--pea-purple)', display:'grid', placeItems:'center', flexShrink:0}}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>
+            </div>
+            <div>
+              <div style={{fontWeight:700, fontSize:16}}>ยืนยันการจองรถ</div>
+              <div style={{fontSize:12.5, color:'var(--text-3)', marginTop:2}}>กรุณาตรวจสอบข้อมูลก่อนยืนยัน</div>
+            </div>
+          </div>
+
+          {/* Vehicle */}
+          {v && (
+            <div style={{display:'flex', gap:12, alignItems:'center', padding:'12px 14px', background:'var(--pea-purple-50)', borderRadius:10, marginBottom:16, border:'1px solid var(--pea-purple-100)'}}>
+              <div className="veh-ico" style={{width:44, height:44, flexShrink:0, color:'var(--pea-purple)'}}>
+                <VehicleIcon type={v.type} size={26}/>
+              </div>
+              <div>
+                <div style={{fontWeight:700, fontSize:14, color:'var(--pea-purple)'}}>{v.brand}</div>
+                <div style={{fontSize:12, color:'var(--text-2)', fontFamily:'var(--font-mono)'}}>{(v.plate||'').split(' ').slice(0,2).join(' ')} · {v.nickname || v.id}</div>
+              </div>
+              <div style={{marginLeft:'auto', textAlign:'right'}}>
+                <div style={{fontSize:11, color:'var(--text-3)'}}>ระยะเวลา</div>
+                <div style={{fontWeight:700, fontSize:15, color:'var(--pea-purple)'}}>{durLabel}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Trip details */}
+          <div style={{display:'grid', rowGap:10, fontSize:13.5}}>
+            {[
+              { label:'ผู้จอง',       value: `${user.name} (${user.emp})` },
+              { label:'สังกัด',       value: user.dept },
+              { label:'วัตถุประสงค์', value: form.purpose + (form.purposeNote ? ` — ${form.purposeNote}` : '') },
+              { label:'วัน-เวลาไป',   value: fmtDateTime(form.from) },
+              { label:'วัน-เวลากลับ', value: fmtDateTime(form.to) },
+              { label:'ปลายทาง',      value: form.destination },
+              { label:'ผู้โดยสาร',    value: `${form.passengers} คน` },
+              ...(form.notes ? [{ label:'หมายเหตุ', value: form.notes }] : []),
+            ].map(({ label, value }) => (
+              <div key={label} style={{display:'grid', gridTemplateColumns:'110px 1fr', gap:8, paddingBottom:10, borderBottom:'1px dotted var(--border)'}}>
+                <span style={{color:'var(--text-3)', fontSize:12.5}}>{label}</span>
+                <span style={{fontWeight:500}}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Warning */}
+          <div style={{marginTop:18, padding:'10px 14px', background:'var(--warn-bg)', borderRadius:8, fontSize:12.5, color:'var(--warn)', fontWeight:500}}>
+            ⚠️ หลังยืนยันแล้ว คำขอจะถูกส่งให้ผู้จัดการพิจารณาอนุมัติทันที
+          </div>
+
+          {/* Actions */}
+          <div style={{display:'flex', gap:10, marginTop:18, justifyContent:'flex-end'}}>
+            <button className="btn ghost" onClick={() => setConfirmOpen(false)}>← แก้ไขข้อมูล</button>
+            <button className="btn accent lg" onClick={handleConfirmedSubmit} style={{minWidth:160}}>
+              ยืนยันการจอง
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (bookingId) {
