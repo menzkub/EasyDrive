@@ -2,6 +2,22 @@ import React from 'react'
 import { I, VehicleIcon, StatusPill, fmtNum, fmtTime, SearchInput } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES, TODAY } from '../data'
 
+const STATUS_ACCENT = {
+  available:   '#16a34a',
+  booked:      '#d97706',
+  approved:    '#2563eb',
+  urgent:      '#dc2626',
+  maintenance: '#7c3aed',
+  unavailable: '#6b7280',
+};
+const STATUS_IMG_BG = {
+  available:   'linear-gradient(135deg,#d1fae5 0%,#a7f3d0 100%)',
+  booked:      'linear-gradient(135deg,#fef3c7 0%,#fde68a 100%)',
+  approved:    'linear-gradient(135deg,#dbeafe 0%,#bfdbfe 100%)',
+  urgent:      'linear-gradient(135deg,#fee2e2 0%,#fecaca 100%)',
+  unavailable: 'linear-gradient(135deg,#f3f4f6 0%,#e5e7eb 100%)',
+};
+
 function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle }) {
   const today = TODAY;
   const [filter, setFilter] = React.useState("all");
@@ -66,16 +82,17 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
         </div>
       </div>
 
-      <div className="grid-4" style={{marginBottom:18}}>
+      <div className="grid-4 stat-row" style={{marginBottom:18}}>
         <StatBox lbl="รถทั้งหมด" val={counts.total} foot="ในระบบ" ico={I.car} variant="purple"/>
-        <StatBox lbl="พร้อมใช้งาน" val={counts.available} foot={`${Math.round(counts.available/counts.total*100)}% ของทั้งหมด`} ico={I.check} variant="ok"/>
+        <StatBox lbl="พร้อมใช้งาน" val={counts.available} foot={`${counts.total ? Math.round(counts.available/counts.total*100) : 0}% ของทั้งหมด`} ico={I.check} variant="ok"/>
         <StatBox lbl="กำลังใช้งาน / ติดจอง" val={counts.approved + counts.urgent + counts.booked} foot="วันนี้" ico={I.clock} variant="accent"/>
         <StatBox lbl="บำรุงรักษา" val={counts.maintenance} foot="นำเข้าศูนย์" ico={I.wrench} variant="warn"/>
       </div>
 
       <div className="grid-3 dash-main-grid" style={{gridTemplateColumns:'2fr 1fr', gap:18, alignItems:'start', marginBottom:18}}>
         <div className="card card-pad dash-timeline-card">
-          <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:14}}>
+          <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:14}}>
+            <div style={{width:4, height:20, borderRadius:99, background:'var(--pea-purple)', flexShrink:0}}/>
             <h2 className="mt-0" style={{margin:0}}>ไทม์ไลน์การใช้รถวันนี้</h2>
             <div className="muted text-xs" style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:6}}>
               06:00 – 20:00 · เรียลไทม์
@@ -87,7 +104,10 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
         </div>
 
         <div className="card card-pad">
-          <h2 className="mt-0">การแจ้งเตือน</h2>
+          <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:4}}>
+            <div style={{width:4, height:20, borderRadius:99, background:'var(--pea-orange)', flexShrink:0}}/>
+            <h2 className="mt-0" style={{margin:0}}>การแจ้งเตือน</h2>
+          </div>
           <p className="sub">รายการที่ต้องดำเนินการ</p>
           <DashAlerts user={user} vehicles={vehicles} bookings={bookings} users={users} todaysBookings={todaysBookings} pendingApprovals={pendingApprovals} setRoute={setRoute}/>
         </div>
@@ -95,9 +115,12 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
 
       <div className="card card-pad">
         <div style={{display:'flex', alignItems:'center', gap:14, marginBottom:14, flexWrap:'wrap'}}>
-          <div>
-            <h2 className="mt-0" style={{margin:0}}>สถานะรถยนต์ ({filtered.length} คัน)</h2>
-            <p className="sub" style={{margin:'2px 0 0'}}>รถยนต์ทั้งหมดในระบบ — สถานะอัพเดทเรียลไทม์</p>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <div style={{width:4, height:22, borderRadius:99, background:'linear-gradient(180deg,var(--pea-purple) 0%,var(--pea-orange) 100%)', flexShrink:0}}/>
+            <div>
+              <h2 className="mt-0" style={{margin:0}}>สถานะรถยนต์ ({filtered.length} คัน)</h2>
+              <p className="sub" style={{margin:'2px 0 0'}}>รถยนต์ทั้งหมดในระบบ — สถานะอัพเดทเรียลไทม์</p>
+            </div>
           </div>
           <div style={{display:'flex', alignItems:'center', gap:10, marginLeft:'auto'}}>
             <SearchInput value={search} onChange={setSearch} placeholder="ค้นหาทะเบียน/ยี่ห้อ..." style={{width:'min(230px,100%)'}} />
@@ -132,8 +155,8 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
             const tb = todaysBookings.find((b) => b.vehicleId === v.id);
             const bookingUser = tb && users.find((u) => u.id === tb.userId);
             return (
-              <div key={v.id} className="veh-card" onClick={() => onSelectVehicle(v)} style={{cursor:'pointer'}}>
-                <div className="veh-image">
+              <div key={v.id} className="veh-card" onClick={() => onSelectVehicle(v)} style={{cursor:'pointer', borderTop:`3px solid ${STATUS_ACCENT[status] || '#aaa'}`}}>
+                <div className="veh-image" style={status !== 'maintenance' ? {background: STATUS_IMG_BG[status] || STATUS_IMG_BG.unavailable} : {}}>
                   <VehicleIcon type={v.type} size={64}/>
                   <div style={{position:'absolute', top:8, right:8}}>
                     <StatusPill status={status}/>
@@ -183,11 +206,11 @@ function Dashboard({ user, vehicles, bookings, users, setRoute, onSelectVehicle 
 
 function StatBox({ lbl, val, foot, ico, variant }) {
   return (
-    <div className={"stat " + variant}>
+    <div className={"stat stat-animate " + variant}>
       <div className="stat-lbl">{lbl}</div>
       <div className="stat-val">{val}</div>
       <div className="stat-foot">{foot}</div>
-      <div className="stat-ico">{ico}</div>
+      <div className="stat-ico" style={{fontSize:18}}>{ico}</div>
     </div>
   );
 }
