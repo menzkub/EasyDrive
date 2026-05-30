@@ -39,6 +39,13 @@ function loadPos() {
 export function DevCardButton() {
   const [cfg, setCfg] = React.useState(loadDevCard);
   const [open, setOpen] = React.useState(false);
+  const [isDark, setIsDark] = React.useState(() => document.documentElement.dataset.dark === '1');
+  React.useEffect(() => {
+    const obs = new MutationObserver(() => setIsDark(document.documentElement.dataset.dark === '1'));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-dark'] });
+    return () => obs.disconnect();
+  }, []);
+  if (isDark) return null;
   const [expanded, setExpanded] = React.useState(false);
   const [pos, setPos] = React.useState(loadPos);   // { left, top } or null
   const [dragging, setDragging] = React.useState(false);
