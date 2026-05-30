@@ -740,6 +740,7 @@ function DeptManager({ departments, pushToast }) {
   const [saving, setSaving] = React.useState(false);
   const [deletingDept, setDeletingDept] = React.useState(null);
   const [confirmHideDept, setConfirmHideDept] = React.useState(null);
+  const [confirmAddName, setConfirmAddName] = React.useState(null);
   const [editModalDept, setEditModalDept] = React.useState(null);
   const [editName, setEditName] = React.useState('');
 
@@ -813,9 +814,9 @@ function DeptManager({ departments, pushToast }) {
 
       <div style={{display:'flex', gap:8, marginBottom:18}}>
         <input className="input" value={newName} onChange={e => setNewName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addDept()}
+          onKeyDown={e => e.key === 'Enter' && newName.trim() && setConfirmAddName(newName.trim())}
           placeholder="ชื่อแผนกใหม่..." style={{flex:1}}/>
-        <button className="btn primary" onClick={addDept} disabled={adding || !newName.trim()}>
+        <button className="btn primary" onClick={() => newName.trim() && setConfirmAddName(newName.trim())} disabled={adding || !newName.trim()}>
           {adding ? 'กำลังเพิ่ม...' : '+ เพิ่มแผนก'}
         </button>
       </div>
@@ -901,6 +902,20 @@ function DeptManager({ departments, pushToast }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Confirm add dialog */}
+      {confirmAddName && (
+        <ConfirmDialog
+          confirm={{
+            kind: "primary",
+            title: `เพิ่มแผนก "${confirmAddName}"?`,
+            message: "แผนกใหม่จะปรากฏในฟอร์มสมัครสมาชิกและแก้ไขโปรไฟล์ทันที สามารถซ่อนหรือแก้ไขชื่อได้ภายหลัง",
+            confirmLabel: "เพิ่มแผนก",
+            onConfirm: () => { setConfirmAddName(null); addDept(); },
+          }}
+          onClose={() => setConfirmAddName(null)}
+        />
       )}
 
       {/* Confirm hide dialog */}
