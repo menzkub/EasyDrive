@@ -89,7 +89,19 @@ function PhotoCapture({ photos, onAdd, onRemove, label, required, disabled, maxC
     const remaining = maxCount - photos.length;
     files.slice(0, remaining).forEach(file => {
       const reader = new FileReader();
-      reader.onload = (ev) => onAdd(ev.target.result);
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 900;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          onAdd(canvas.toDataURL('image/jpeg', 0.72));
+        };
+        img.src = ev.target.result;
+      };
       reader.readAsDataURL(file);
     });
     e.target.value = '';

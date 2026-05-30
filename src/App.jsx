@@ -5,6 +5,7 @@ import { BookingScreen } from './screens/BookingScreen'
 import { CalendarScreen } from './screens/CalendarScreen'
 import { MyBookingsScreen, ReportsScreen } from './screens/ReportsScreen'
 import { CheckinScreen } from './screens/CheckinScreen'
+import { CheckinHistoryScreen } from './screens/CheckinHistoryScreen'
 import { ApprovalsScreen, MembersScreen } from './screens/AdminScreen'
 import { VehiclesScreen } from './screens/VehiclesScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
@@ -396,7 +397,12 @@ function App() {
 
   // ── Check-in / Check-out ──
   async function handleCheckIn(bookingId, data) {
-    const { error } = await supabase.from('bookings').update({ mileageOut: data.mileageOut }).eq('id', bookingId);
+    const { error } = await supabase.from('bookings').update({
+      mileageOut: data.mileageOut,
+      checklist_data: data.checklist || null,
+      photos_before: data.photos?.length ? data.photos : null,
+      photos_mileage: data.mileageCorrection?.dashPhoto ? [data.mileageCorrection.dashPhoto] : null,
+    }).eq('id', bookingId);
     if (!error) {
       setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageOut: data.mileageOut } : b));
       if (data.mileageCorrection) {
@@ -415,7 +421,13 @@ function App() {
   }
 
   async function handleCheckOut(bookingId, data) {
-    const { error } = await supabase.from('bookings').update({ mileageIn: data.mileageIn, rating: data.rating, status: "completed" }).eq('id', bookingId);
+    const { error } = await supabase.from('bookings').update({
+      mileageIn: data.mileageIn,
+      rating: data.rating,
+      status: "completed",
+      notes: data.notes || null,
+      photos_after: data.photos?.length ? data.photos : null,
+    }).eq('id', bookingId);
     if (!error) {
       setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageIn: data.mileageIn, rating: data.rating, status: "completed" } : b));
       pushToast({ kind: "ok", title: "Check-in สำเร็จ ✓", body: `คืนรถแล้ว · ระยะทาง ${fmtNum(data.distance)} กม.` });
@@ -480,7 +492,7 @@ function App() {
   // ── Route guard ──
   React.useEffect(() => {
     if (!currentUser) return;
-    const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "help",
+    const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "checkin-history", "help",
       "settings", "settings-account", "settings-noti", "settings-calendar",
       ...(currentUser.role === "manager" ? ["approvals", "reports"] : []),
       ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts", "settings-manual", "settings-dev", "settings-about"] : [])
@@ -578,6 +590,7 @@ function App() {
         {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)}/>}
         {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
         {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)}/>}
+        {route === "checkin-history" && <CheckinHistoryScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser}/>}
         {route === "approvals" && <ApprovalsScreen bookings={bookings} vehicles={vehicles} users={users} mileageCorrections={mileageCorrections} user={currentUser} onApprove={handleApprove} onReject={handleReject} onApproveMileage={handleApproveMileageCorrection} onRejectMileage={handleRejectMileageCorrection} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)}/>}
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
