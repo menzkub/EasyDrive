@@ -608,6 +608,11 @@ function App() {
   function handleSetMaintenanceMode(v) {
     setMaintenanceMode(v);
     localStorage.setItem('pea-maintenance', v ? '1' : '0');
+    try {
+      const log = JSON.parse(localStorage.getItem('pea-maintenance-log') || '[]');
+      log.unshift({ at: new Date().toISOString(), action: v ? 'off' : 'on', by: currentUser?.name || 'admin' });
+      localStorage.setItem('pea-maintenance-log', JSON.stringify(log.slice(0, 50)));
+    } catch (_) {}
   }
   function handleSetMaintenanceCfg(cfg) {
     setMaintenanceCfg(cfg);

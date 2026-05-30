@@ -1282,14 +1282,192 @@ function DeptManager({ departments, pushToast }) {
 }
 
 // ─── Demo Settings ────────────────────────────────────────────────
+function DateTimePicker({ value, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const [viewDate, setViewDate] = React.useState(() => {
+    const d = value ? new Date(value) : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [time, setTime] = React.useState(() => {
+    if (!value) return { h: '08', m: '00' };
+    const d = new Date(value);
+    return { h: String(d.getHours()).padStart(2,'0'), m: String(d.getMinutes()).padStart(2,'0') };
+  });
+  const ref = React.useRef(null);
+
+  const selectedDate = value ? new Date(value) : null;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  React.useEffect(() => {
+    function onClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [open]);
+
+  function selectDay(y, mo, d) {
+    const h = parseInt(time.h) || 0;
+    const m = parseInt(time.m) || 0;
+    const iso = new Date(y, mo, d, h, m).toISOString().slice(0,16);
+    onChange(iso);
+    if (selectedDate) {
+      const prev = new Date(selectedDate);
+      prev.setFullYear(y); prev.setMonth(mo); prev.setDate(d);
+      prev.setHours(h, m, 0, 0);
+      onChange(prev.toISOString().slice(0,16));
+    }
+  }
+
+  function applyTime(field, val) {
+    const newTime = { ...time, [field]: val };
+    setTime(newTime);
+    if (selectedDate) {
+      const d = new Date(selectedDate);
+      d.setHours(parseInt(newTime.h)||0, parseInt(newTime.m)||0, 0, 0);
+      onChange(d.toISOString().slice(0,16));
+    }
+  }
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const TH_DAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+  function fmtSelected() {
+    if (!value) return '';
+    const d = new Date(value);
+    return `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear()+543} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  const weeks = [];
+  let cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(d);
+    if (cells.length === 7) { weeks.push(cells); cells = []; }
+  }
+  if (cells.length > 0) { while (cells.length < 7) cells.push(null); weeks.push(cells); }
+
+  return (
+    <div ref={ref} style={{position:'relative'}}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display:'flex', alignItems:'center', gap:8,
+          padding:'8px 12px', borderRadius:8, border:'1px solid var(--border)',
+          background:'var(--surface)', cursor:'pointer', fontSize:13,
+          color: value ? 'var(--text)' : 'var(--text-3)', width:'100%', textAlign:'left',
+          transition:'border-color 0.15s',
+          ...(open ? {borderColor:'var(--pea-purple)', boxShadow:'0 0 0 2px var(--pea-purple-20,rgba(109,40,217,.15))'} : {}),
+        }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,color:'var(--text-3)'}}>
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span style={{flex:1}}>{value ? fmtSelected() : 'เลือกวันที่และเวลา...'}</span>
+        {value && (
+          <span
+            onClick={e => { e.stopPropagation(); onChange(''); setOpen(false); }}
+            style={{color:'var(--text-3)', fontSize:14, lineHeight:1, padding:'0 2px', cursor:'pointer'}}
+            title="ล้าง">✕</span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:200,
+          background:'var(--surface)', border:'1px solid var(--border)',
+          borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.18)',
+          padding:14, minWidth:280,
+        }}>
+          {/* Month nav */}
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
+            <button type="button" className="btn sm ghost icon" onClick={() => setViewDate(new Date(year, month-1, 1))} style={{padding:'4px 8px'}}>‹</button>
+            <span style={{fontWeight:600, fontSize:13}}>{TH_MONTHS[month]} {year+543}</span>
+            <button type="button" className="btn sm ghost icon" onClick={() => setViewDate(new Date(year, month+1, 1))} style={{padding:'4px 8px'}}>›</button>
+          </div>
+
+          {/* Day headers */}
+          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:4}}>
+            {TH_DAYS.map(d => (
+              <div key={d} style={{textAlign:'center', fontSize:10.5, fontWeight:600, color:'var(--text-3)', padding:'2px 0'}}>{d}</div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          {weeks.map((wk, wi) => (
+            <div key={wi} style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:2}}>
+              {wk.map((day, di) => {
+                if (!day) return <div key={di}/>;
+                const thisDate = new Date(year, month, day);
+                thisDate.setHours(0,0,0,0);
+                const isPast = thisDate < today;
+                const isSel = selectedDate && thisDate.toDateString() === new Date(selectedDate).toDateString();
+                const isToday = thisDate.toDateString() === today.toDateString();
+                return (
+                  <button
+                    key={di}
+                    type="button"
+                    onClick={() => !isPast && selectDay(year, month, day)}
+                    style={{
+                      border: 'none', borderRadius:6, padding:'5px 2px',
+                      fontSize:12.5, cursor: isPast ? 'default' : 'pointer',
+                      fontWeight: isSel || isToday ? 700 : 400,
+                      background: isSel ? 'var(--pea-purple)' : isToday ? 'var(--pea-purple-50,rgba(109,40,217,.12))' : 'transparent',
+                      color: isSel ? '#fff' : isPast ? 'var(--text-3)' : 'var(--text)',
+                      transition:'background 0.1s',
+                    }}
+                  >{day}</button>
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Time picker */}
+          <div style={{
+            borderTop:'1px solid var(--border)', marginTop:10, paddingTop:10,
+            display:'flex', alignItems:'center', gap:8,
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{color:'var(--text-3)', flexShrink:0}}>
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span style={{fontSize:12, color:'var(--text-3)'}}>เวลา</span>
+            <div style={{display:'flex', alignItems:'center', gap:4, marginLeft:'auto'}}>
+              <input type="number" min="0" max="23" value={time.h}
+                onChange={e => applyTime('h', String(parseInt(e.target.value)||0).padStart(2,'0'))}
+                style={{width:42, textAlign:'center', padding:'4px 6px', borderRadius:6, border:'1px solid var(--border)', fontSize:13, fontFamily:'monospace', background:'var(--surface)', color:'var(--text)'}}
+              />
+              <span style={{fontWeight:700, color:'var(--text-3)'}}>:</span>
+              <input type="number" min="0" max="59" step="5" value={time.m}
+                onChange={e => applyTime('m', String(parseInt(e.target.value)||0).padStart(2,'0'))}
+                style={{width:42, textAlign:'center', padding:'4px 6px', borderRadius:6, border:'1px solid var(--border)', fontSize:13, fontFamily:'monospace', background:'var(--surface)', color:'var(--text)'}}
+              />
+            </div>
+            <button type="button" className="btn sm primary" style={{marginLeft:4, padding:'4px 10px', fontSize:12}} onClick={() => setOpen(false)}>ตกลง</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, maintenanceMode, onSetMaintenanceMode, maintenanceCfg, onSetMaintenanceCfg, defaultMaintenanceMsg }) {
   const demoBookings = (bookings || []).filter(b => b.id.startsWith('DEMO'));
   const [confirmDlg, setConfirmDlg] = React.useState(null);
+  const [showDemoList, setShowDemoList] = React.useState(true);
+  const [showLog, setShowLog] = React.useState(false);
 
   const DEFAULT_MSG = defaultMaintenanceMsg || 'ผู้ดูแลระบบกำลังปรับปรุงและอัปเดตระบบ\nกรุณาลองเข้าใช้งานใหม่ในภายหลัง';
   const [msg, setMsg] = React.useState(maintenanceCfg.message || DEFAULT_MSG);
   const [returnAt, setReturnAt] = React.useState(maintenanceCfg.returnAt || '');
   const msgChanged = msg !== (maintenanceCfg.message || DEFAULT_MSG) || returnAt !== (maintenanceCfg.returnAt || '');
+
+  const maintenanceLog = React.useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('pea-maintenance-log') || '[]'); } catch { return []; }
+  }, [maintenanceMode]);
 
   function saveCfg() {
     onSetMaintenanceCfg({ ...maintenanceCfg, message: msg, returnAt: returnAt || null });
@@ -1309,6 +1487,14 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, ma
     } else {
       setConfirmDlg({ kind:'negative', title:'ปิดระบบเพื่อบำรุงรักษา?', message:'ผู้ใช้ทั่วไปจะเข้าระบบไม่ได้จนกว่าแอดมินจะเปิดระบบอีกครั้ง · แอดมินยังเข้าได้ตามปกติ', onConfirm: () => onSetMaintenanceMode(true) });
     }
+  }
+
+  function fmtLogTime(iso) {
+    try {
+      const d = new Date(iso);
+      const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      return `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear()+543} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    } catch { return iso; }
   }
 
   return (
@@ -1350,22 +1536,61 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, ma
               วันที่/เวลาที่คาดว่าจะกลับมาให้บริการ
               <span style={{fontSize:11, fontWeight:400, color:'var(--text-3)', marginLeft:6}}>(ไม่บังคับ)</span>
             </label>
-            <div style={{display:'flex', gap:8, alignItems:'center'}}>
-              <input
-                type="datetime-local"
-                className="input"
-                value={returnAt}
-                onChange={e => setReturnAt(e.target.value)}
-                style={{fontSize:13, flex:1}}
-              />
-              {returnAt && (
-                <button className="btn sm ghost" style={{fontSize:12, flexShrink:0}} onClick={() => setReturnAt('')}>✕ ล้าง</button>
-              )}
-            </div>
+            <DateTimePicker value={returnAt} onChange={setReturnAt}/>
           </div>
           <button className="btn sm primary" style={{alignSelf:'flex-start'}} onClick={saveCfg} disabled={!msgChanged && !returnAt && !maintenanceCfg.returnAt}>
             💾 บันทึกข้อความ{msgChanged ? ' *' : ''}
           </button>
+        </div>
+
+        {/* Maintenance history log */}
+        <div style={{borderTop:'1px solid var(--border)', marginTop:14, paddingTop:12}}>
+          <button
+            type="button"
+            onClick={() => setShowLog(v => !v)}
+            style={{display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', padding:0, fontSize:12.5, color:'var(--text-2)', fontWeight:500}}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{transition:'transform 0.2s', transform: showLog ? 'rotate(90deg)' : 'rotate(0deg)'}}>
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            ประวัติการแก้ไขโหมดบำรุงรักษา
+            {maintenanceLog.length > 0 && <span style={{fontSize:11, padding:'1px 6px', borderRadius:99, background:'var(--surface-2)', color:'var(--text-3)', marginLeft:2}}>{maintenanceLog.length}</span>}
+          </button>
+          {showLog && (
+            <div style={{marginTop:10}}>
+              {maintenanceLog.length === 0 ? (
+                <p style={{fontSize:12, color:'var(--text-3)', margin:0}}>ยังไม่มีประวัติ</p>
+              ) : (
+                <div style={{position:'relative', paddingLeft:20}}>
+                  <div style={{position:'absolute', left:7, top:8, bottom:8, width:2, background:'var(--border)'}}/>
+                  {maintenanceLog.map((entry, i) => (
+                    <div key={i} style={{position:'relative', paddingBottom:10, display:'flex', alignItems:'flex-start', gap:10}}>
+                      <div style={{
+                        position:'absolute', left:-20, top:2,
+                        width:16, height:16, borderRadius:'50%',
+                        background: entry.action === 'off' ? 'var(--danger)' : 'var(--ok)',
+                        border:'2px solid var(--surface)',
+                        flexShrink:0,
+                      }}/>
+                      <div style={{background:'var(--surface-2)', borderRadius:8, padding:'6px 10px', fontSize:12, flex:1}}>
+                        <div style={{display:'flex', alignItems:'center', gap:6, flexWrap:'wrap'}}>
+                          <span style={{
+                            fontSize:11, fontWeight:700, padding:'1px 7px', borderRadius:99,
+                            background: entry.action === 'off' ? 'var(--danger-bg,#fee2e2)' : 'var(--ok-bg,#dcfce7)',
+                            color: entry.action === 'off' ? 'var(--danger)' : 'var(--ok)',
+                          }}>
+                            {entry.action === 'off' ? '🔴 ปิดระบบ' : '🟢 เปิดระบบ'}
+                          </span>
+                          <span style={{color:'var(--text-3)', fontSize:11, marginLeft:'auto'}}>{fmtLogTime(entry.at)}</span>
+                        </div>
+                        <div style={{color:'var(--text-2)', marginTop:3}}>โดย <b>{entry.by}</b></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1381,8 +1606,19 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, ma
       </div>
 
       <div className="card card-pad">
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: demoBookings.length ? 12 : 4}}>
-          <strong>การจอง Demo ในระบบ ({demoBookings.length} รายการ)</strong>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: (showDemoList && demoBookings.length) ? 12 : 4}}>
+          <button
+            type="button"
+            onClick={() => demoBookings.length > 0 && setShowDemoList(v => !v)}
+            style={{display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor: demoBookings.length > 0 ? 'pointer' : 'default', padding:0, fontSize:14, fontWeight:600, color:'var(--text)'}}
+          >
+            {demoBookings.length > 0 && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{transition:'transform 0.2s', transform: showDemoList ? 'rotate(90deg)' : 'rotate(0deg)'}}>
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            )}
+            การจอง Demo ในระบบ ({demoBookings.length} รายการ)
+          </button>
           {demoBookings.length > 0 && (
             <button className="btn sm danger" onClick={() => setConfirmDlg({
               kind: 'negative',
@@ -1394,7 +1630,7 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, ma
         </div>
         {demoBookings.length === 0 ? (
           <p style={{color:'var(--text-3)', fontSize:13, margin:0}}>ไม่มีการจอง Demo · กดปุ่ม "🎮 ทดสอบจอง" ในหน้าแดชบอร์ดเพื่อสร้าง</p>
-        ) : (
+        ) : showDemoList ? (
           <div style={{display:'flex', flexDirection:'column', gap:6}}>
             {demoBookings.map(b => (
               <div key={b.id} style={{display:'flex', gap:10, alignItems:'center', padding:'7px 10px', background:'var(--surface-2)', borderRadius:8, fontSize:12.5, flexWrap:'wrap'}}>
@@ -1407,7 +1643,7 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, ma
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
       <ConfirmDialog confirm={confirmDlg} onClose={() => setConfirmDlg(null)}/>
     </div>
