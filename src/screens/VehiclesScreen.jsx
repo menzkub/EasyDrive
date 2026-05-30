@@ -170,6 +170,8 @@ function calcEffectiveMileage(vehicleId, initialMileage, bookings) {
 }
 
 function VehicleDetailModal({ vehicle: v, bookings, users, onClose, onEdit, onHistory, vehicleTypes, fuelTypes }) {
+  const VEHICLE_TYPES = vehicleTypes;
+  const FUEL_TYPES = fuelTypes;
   const currentMileage = calcEffectiveMileage(v.id, v.mileage, bookings);
   const vBookings = bookings.filter((b) => b.vehicleId === v.id)
     .sort((a, b) => new Date(b.from) - new Date(a.from)).slice(0, 5);
@@ -282,6 +284,7 @@ function VehicleDetailModal({ vehicle: v, bookings, users, onClose, onEdit, onHi
 }
 
 function VehicleHistoryModal({ vehicle, history, onClose, vehicleTypes }) {
+  const VEHICLE_TYPES = vehicleTypes;
   return (
     <Modal title={`ประวัติการแก้ไขรถยนต์ · ${vehicle.id}`} onClose={onClose} width={680}>
       <div style={{display:'flex', gap:14, padding:'4px 0 18px', borderBottom:'1px solid var(--border)', marginBottom:14}}>
@@ -358,6 +361,8 @@ function VehicleHistoryModal({ vehicle, history, onClose, vehicleTypes }) {
 }
 
 function VehicleForm({ vehicle, users = [], effectiveMileage, onSave, onClose, vehicleTypes, fuelTypes }) {
+  const VEHICLE_TYPES = vehicleTypes;
+  const FUEL_TYPES = fuelTypes;
   const todayISO = new Date().toISOString().slice(0, 10);
   const nextServiceISO = new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10);
   const nextYearISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
