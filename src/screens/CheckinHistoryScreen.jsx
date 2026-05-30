@@ -1,6 +1,6 @@
 // Check-in / Check-out History — full log of all completed trips
 import React from 'react'
-import { I, VehicleIcon, fmtDate, fmtDateTime, fmtNum, SearchInput, Select } from '../components'
+import { I, Modal, VehicleIcon, fmtDate, fmtDateTime, fmtNum, SearchInput, Select } from '../components'
 import { VEHICLE_TYPES, CHECKLIST } from '../data'
 
 const CHECKLIST_MAP = Object.fromEntries(CHECKLIST.map((c) => [c.id, c.label]));
@@ -8,7 +8,7 @@ const CHECKLIST_MAP = Object.fromEntries(CHECKLIST.map((c) => [c.id, c.label]));
 const STATUS_ICON = { pass: '✅', fail: '❌', skip: '➖' };
 const STATUS_COLOR = { pass: 'var(--ok)', fail: 'var(--danger)', skip: 'var(--text-3)' };
 
-function CheckinHistoryScreen({ bookings, vehicles, users, currentUser }) {
+function CheckinHistoryScreen({ bookings, vehicles, users, currentUser, onUpdateRecord }) {
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
   const completed = bookings.filter((b) => {
@@ -22,6 +22,7 @@ function CheckinHistoryScreen({ bookings, vehicles, users, currentUser }) {
   const [filterDept, setFilterDept] = React.useState('all');
   const [filterRange, setFilterRange] = React.useState('all');
   const [expandedId, setExpandedId] = React.useState(null);
+  const [editingBooking, setEditingBooking] = React.useState(null);
 
   // Derived filter options
   const depts = [...new Set(
@@ -145,16 +146,30 @@ function CheckinHistoryScreen({ bookings, vehicles, users, currentUser }) {
               expanded={expandedId === b.id}
               onToggle={() => setExpandedId(expandedId === b.id ? null : b.id)}
               isAdmin={isAdmin}
+              onEdit={isAdmin ? () => setEditingBooking(b) : null}
             />
           ))}
         </div>
+      )}
+
+      {editingBooking && (
+        <EditTripModal
+          booking={editingBooking}
+          vehicle={vehicles.find((v) => v.id === editingBooking.vehicleId)}
+          user={users.find((u) => u.id === editingBooking.userId)}
+          onSave={async (data) => {
+            await onUpdateRecord(editingBooking.id, data);
+            setEditingBooking(null);
+          }}
+          onClose={() => setEditingBooking(null)}
+        />
       )}
     </div>
   );
 }
 
 // ─── Individual Trip Card ─────────────────────────────────────────
-function TripCard({ booking: b, vehicle: v, user: u, expanded, onToggle, isAdmin }) {
+function TripCard({ booking: b, vehicle: v, user: u, expanded, onToggle, isAdmin, onEdit }) {
   const dist = b.mileageIn != null && b.mileageOut != null ? b.mileageIn - b.mileageOut : null;
   const checklist = b.checklist_data || null;
   const photosBefore = b.photos_before || [];
@@ -229,6 +244,13 @@ function TripCard({ booking: b, vehicle: v, user: u, expanded, onToggle, isAdmin
             <div style={{fontSize:10, padding:'3px 8px', borderRadius:99, background:'var(--info-bg)', color:'var(--info)', fontWeight:600}}>
               📷 {photosBefore.length + photosAfter.length + photosMileage.length}
             </div>
+          )}
+          {onEdit && (
+            <button className="btn sm ghost icon" title="แก้ไขข้อมูล"
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              style={{color:'var(--pea-purple)'}}>
+              {I.edit}
+            </button>
           )}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             strokeLinecap="round" strokeLinejoin="round" style={{color:'var(--text-3)', transition:'transform 0.15s', transform: expanded ? 'rotate(180deg)' : undefined}}>
@@ -361,6 +383,123 @@ function PhotoGroup({ label, photos, color }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Admin Edit Modal ─────────────────────────────────────────────
+function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
+  const [mileageOut, setMileageOut] = React.useState(b.mileageOut ?? '');
+  const [mileageIn, setMileageIn] = React.useState(b.mileageIn ?? '');
+  const [rating, setRating] = React.useState(b.rating ?? 0);
+  const [notes, setNotes] = React.useState(b.notes ?? '');
+  const [checklist, setChecklist] = React.useState(b.checklist_data ? { ...b.checklist_data } : {});
+  const [saving, setSaving] = React.useState(false);
+
+  const dist = mileageIn && mileageOut ? Number(mileageIn) - Number(mileageOut) : null;
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave({
+      mileageOut: mileageOut !== '' ? Number(mileageOut) : null,
+      mileageIn:  mileageIn  !== '' ? Number(mileageIn)  : null,
+      rating: rating || null,
+      notes: notes.trim() || null,
+      checklist_data: Object.keys(checklist).length > 0 ? checklist : null,
+    });
+    setSaving(false);
+  }
+
+  return (
+    <Modal title={`แก้ไขข้อมูลการเดินทาง · ${b.id}`} onClose={onClose} width={660} noOutsideClose
+      footer={<>
+        <button className="btn ghost" onClick={onClose}>ยกเลิก</button>
+        <div style={{flex:1}}/>
+        <button className="btn primary" onClick={handleSave} disabled={saving}>
+          {saving ? 'กำลังบันทึก...' : `${I.check} บันทึกการแก้ไข`}
+        </button>
+      </>}
+    >
+      {/* Trip header */}
+      <div style={{display:'flex', gap:12, padding:'10px 14px', background:'var(--surface-2)', borderRadius:10, marginBottom:18, alignItems:'center'}}>
+        <div className="veh-ico" style={{width:44, height:44, flexShrink:0}}>
+          <VehicleIcon type={v?.type} size={26}/>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700, fontSize:13, color:'var(--pea-purple)', fontFamily:'var(--font-mono)'}}>
+            {(v?.plate || '').split(' ').slice(0,2).join(' ')}
+          </div>
+          <div style={{fontSize:12, color:'var(--text-2)'}}>{v?.brand} · {u?.name} · {fmtDate(b.from)}</div>
+        </div>
+        <div style={{fontSize:11, color:'var(--warn)', background:'var(--warn-bg)', padding:'4px 10px', borderRadius:99, fontWeight:600}}>
+          แก้ไขโดยแอดมิน
+        </div>
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:18}}>
+        {/* Mileage */}
+        <div>
+          <SectionLabel>เลขไมล์</SectionLabel>
+          <div className="field" style={{marginBottom:10}}>
+            <label className="field-lbl">ไมล์ก่อนออกเดินทาง (กม.)</label>
+            <input className="input" type="number" value={mileageOut}
+              onChange={(e) => setMileageOut(e.target.value)}
+              style={{fontFamily:'var(--font-mono)'}}/>
+          </div>
+          <div className="field" style={{marginBottom:10}}>
+            <label className="field-lbl">ไมล์หลังกลับมา (กม.)</label>
+            <input className="input" type="number" value={mileageIn}
+              onChange={(e) => setMileageIn(e.target.value)}
+              style={{fontFamily:'var(--font-mono)'}}/>
+          </div>
+          {dist != null && (
+            <div style={{padding:'8px 12px', background:'var(--pea-purple-50)', borderRadius:8, textAlign:'center', fontSize:13}}>
+              <span style={{color:'var(--text-3)'}}>ระยะทาง </span>
+              <span style={{fontWeight:700, color:'var(--pea-purple)', fontFamily:'var(--font-mono)', fontSize:16}}>{fmtNum(dist)}</span>
+              <span style={{color:'var(--text-3)'}}> กม.</span>
+            </div>
+          )}
+
+          <SectionLabel style={{marginTop:14}}>คะแนน</SectionLabel>
+          <div style={{display:'flex', gap:6}}>
+            {[1,2,3,4,5].map((s) => (
+              <button key={s} onClick={() => setRating(rating === s ? 0 : s)}
+                style={{fontSize:22, background:'none', border:'none', cursor:'pointer', opacity: s <= rating ? 1 : 0.25, transition:'opacity 0.1s'}}>
+                ⭐
+              </button>
+            ))}
+          </div>
+
+          <SectionLabel style={{marginTop:14}}>หมายเหตุ</SectionLabel>
+          <textarea className="textarea" value={notes} onChange={(e) => setNotes(e.target.value)}
+            placeholder="หมายเหตุจากการตรวจสอบ..." style={{minHeight:70, fontSize:12.5}}/>
+        </div>
+
+        {/* Checklist */}
+        <div>
+          <SectionLabel>ผลตรวจสภาพรถ</SectionLabel>
+          <div className="col gap-1" style={{marginTop:6}}>
+            {CHECKLIST.map((item) => {
+              const val = checklist[item.id];
+              return (
+                <div key={item.id} style={{display:'flex', alignItems:'center', gap:6, padding:'6px 8px', borderRadius:8, background:'var(--surface-2)', fontSize:12}}>
+                  <span style={{flex:1}}>{item.label}</span>
+                  {['pass','fail','skip'].map((opt) => (
+                    <button key={opt} onClick={() => setChecklist({...checklist, [item.id]: val === opt ? undefined : opt})}
+                      style={{
+                        padding:'2px 8px', borderRadius:99, border:'none', cursor:'pointer', fontSize:10, fontWeight:600,
+                        background: val === opt ? (opt === 'pass' ? 'var(--ok)' : opt === 'fail' ? 'var(--danger)' : 'var(--border)') : 'var(--border)',
+                        color: val === opt ? (opt === 'skip' ? 'var(--text-2)' : 'white') : 'var(--text-3)',
+                      }}>
+                      {opt === 'pass' ? 'ผ่าน' : opt === 'fail' ? 'ไม่ผ่าน' : 'ข้าม'}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

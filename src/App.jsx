@@ -414,6 +414,17 @@ function App() {
     setVehicleHistory((s) => [newEntry, ...s]);
   }
 
+  // ── Check-in history admin edit ──
+  async function handleUpdateCheckinRecord(bookingId, data) {
+    const { error } = await supabase.from('bookings').update(data).eq('id', bookingId);
+    if (!error) {
+      setBookings(bookings.map((b) => b.id === bookingId ? { ...b, ...data } : b));
+      pushToast({ kind: 'ok', title: 'แก้ไขข้อมูลเรียบร้อย', body: bookingId });
+    } else {
+      pushToast({ kind: 'warn', title: 'แก้ไขไม่สำเร็จ', body: error.message });
+    }
+  }
+
   // ── Check-in / Check-out ──
   async function handleCheckIn(bookingId, data) {
     const { error } = await supabase.from('bookings').update({
@@ -609,7 +620,7 @@ function App() {
         {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)}/>}
         {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
         {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)}/>}
-        {route === "checkin-history" && <CheckinHistoryScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser}/>}
+        {route === "checkin-history" && <CheckinHistoryScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onUpdateRecord={handleUpdateCheckinRecord}/>}
         {route === "approvals" && <ApprovalsScreen bookings={bookings} vehicles={vehicles} users={users} mileageCorrections={mileageCorrections} user={currentUser} onApprove={handleApprove} onReject={handleReject} onApproveMileage={handleApproveMileageCorrection} onRejectMileage={handleRejectMileageCorrection} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)}/>}
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
