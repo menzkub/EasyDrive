@@ -238,7 +238,7 @@ export function DevCardButton() {
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => { setOpen(false); setExpanded(false); setShowChangelog(false); }}/>
-          <div style={{ ...popupStyle(), borderRadius: 18, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.22), 0 0 0 1px rgba(109,40,217,0.12)', animation: 'devcard-in 0.18s ease', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...popupStyle(), borderRadius: 18, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.22), 0 0 0 1px rgba(109,40,217,0.12)', animation: 'devcard-in 0.18s ease', display: 'flex', flexDirection: 'column', maxHeight: Math.min(500, window.innerHeight - 32) }} onClick={e => e.stopPropagation()}>
             <style>{`@keyframes devcard-in { from { opacity:0; transform:translateY(10px) scale(0.97); } to { opacity:1; transform:none; } }`}</style>
 
             {/* Purple header */}
