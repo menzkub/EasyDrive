@@ -3,7 +3,11 @@ import { I } from '../components'
 import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
+const fmtTime = (iso) => iso ? new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
 function AuthScreen({ onLogin, registered, onRegister, departments }) {
+  const [showPublicCal, setShowPublicCal] = React.useState(false);
   const DEPARTMENTS = departments?.filter(d => d.active !== false).length
     ? departments.filter(d => d.active !== false).map(d => d.name)
     : DEPT_FALLBACK;
@@ -144,6 +148,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
   }
 
   return (
+    <>
     <div className="auth-wrap">
       <div className="auth-side" style={{paddingBottom:136}}>
         <div style={{display:'flex', alignItems:'center', gap:14, position:'relative', zIndex:2}}>
@@ -316,6 +321,10 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
                 {err && <div className="input-err">{err}</div>}
                 <button className="btn primary lg" onClick={doLogin} disabled={loading} style={{marginTop:8}}>
                   {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+                </button>
+                <button className="btn ghost lg" onClick={() => setShowPublicCal(true)} style={{marginTop:2, border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', gap:7}}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+                  ดูปฏิทินการจอง (สาธารณะ)
                 </button>
                 <div style={{textAlign:'center', fontSize:13, color:'var(--text-2)', marginTop:6}}>
                   ยังไม่มีบัญชี? <a style={{color:'var(--pea-purple)', fontWeight:600, cursor:'pointer'}} onClick={() => setMode("register")}>สมัครสมาชิก</a>
@@ -491,6 +500,186 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
           )}
         </div>
       </div>
+    </div>
+    {showPublicCal && <PublicCalendarModal onClose={() => setShowPublicCal(false)}/>}
+    </>
+  );
+}
+
+// ─── Public Calendar Modal (no auth needed) ───────────────────────
+function PublicCalendarModal({ onClose }) {
+  const [vehicles, setVehicles] = React.useState([]);
+  const [bookings, setBookings] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [refDate, setRefDate] = React.useState(() => new Date());
+  const [dayDetail, setDayDetail] = React.useState(null);
+  const [vehicleFilter, setVehicleFilter] = React.useState('all');
+
+  React.useEffect(() => {
+    Promise.all([
+      supabase.from('vehicles').select('id, plate, type, brand'),
+      supabase.from('bookings').select('id, vehicleId, from, to, status').in('status', ['approved', 'urgent', 'booked']),
+    ]).then(([vRes, bRes]) => {
+      setVehicles(vRes.data || []);
+      setBookings(bRes.data || []);
+      setLoading(false);
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !dayDetail) onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose, dayDetail]);
+
+  const filtered = vehicleFilter === 'all' ? bookings : bookings.filter(b => b.vehicleId === vehicleFilter);
+
+  const year = refDate.getFullYear();
+  const month = refDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekDay = firstDay.getDay();
+  const prevMonthLast = new Date(year, month, 0).getDate();
+  const cells = [];
+  for (let i = startWeekDay - 1; i >= 0; i--) cells.push({ d: prevMonthLast - i, other: true, fullDate: new Date(year, month - 1, prevMonthLast - i) });
+  for (let i = 1; i <= daysInMonth; i++) cells.push({ d: i, other: false, fullDate: new Date(year, month, i) });
+  while (cells.length % 7 !== 0) cells.push({ d: cells.length - daysInMonth - startWeekDay + 1, other: true, fullDate: new Date(year, month + 1, cells.length - daysInMonth - startWeekDay + 1) });
+
+  const today = new Date();
+  const monthName = refDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+  function dayEvents(date) {
+    const iso = date.toISOString().slice(0, 10);
+    return filtered.filter(b => b.from.slice(0, 10) === iso);
+  }
+
+  const STATUS_COLOR = { approved: 'approved', urgent: 'urgent', booked: 'booked' };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{zIndex:2000}}>
+      <div className="modal" style={{width:'min(96vw, 940px)', maxHeight:'92vh'}} onClick={e => e.stopPropagation()}>
+        <div className="modal-header" style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', rowGap:8}}>
+          <div style={{flex:1, minWidth:0}}>
+            <h2 style={{margin:0}}>ปฏิทินการจองรถ — สาธารณะ</h2>
+            <p style={{margin:0, fontSize:12, color:'var(--text-3)'}}>แสดงเฉพาะเลขทะเบียนและช่วงเวลา · ไม่แสดงข้อมูลส่วนตัว</p>
+          </div>
+          <select className="select" value={vehicleFilter} onChange={e => setVehicleFilter(e.target.value)} style={{width:'auto', minWidth:140, fontSize:12.5}}>
+            <option value="all">รถทั้งหมด ({vehicles.length})</option>
+            {vehicles.map(v => <option key={v.id} value={v.id}>{v.id} · {v.plate.split(' ').slice(0,2).join(' ')}</option>)}
+          </select>
+          <div style={{display:'flex', gap:4, alignItems:'center'}}>
+            <button className="btn icon ghost sm" onClick={() => { const d = new Date(refDate); d.setMonth(d.getMonth()-1); setRefDate(d); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </button>
+            <span style={{fontSize:13.5, fontWeight:600, minWidth:130, textAlign:'center'}}>{monthName}</span>
+            <button className="btn icon ghost sm" onClick={() => { const d = new Date(refDate); d.setMonth(d.getMonth()+1); setRefDate(d); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <button className="btn sm ghost" style={{fontSize:12}} onClick={() => setRefDate(new Date())}>วันนี้</button>
+          </div>
+          <button className="btn icon ghost" onClick={onClose}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+
+        <div className="modal-body" style={{padding:'12px 16px', overflowY:'auto'}}>
+          {loading ? (
+            <div style={{textAlign:'center', padding:'60px 0', color:'var(--text-3)'}}>กำลังโหลดข้อมูล...</div>
+          ) : (
+            <>
+              <div className="cal-grid" style={{marginBottom:8}}>
+                {[['อาทิตย์','อา'],['จันทร์','จ'],['อังคาร','อ'],['พุธ','พ'],['พฤหัสฯ','พฤ'],['ศุกร์','ศ'],['เสาร์','ส']].map(([full, short]) => (
+                  <div key={full} className="cal-head">
+                    <span className="cal-day-full">{full}</span>
+                    <span className="cal-day-short">{short}</span>
+                  </div>
+                ))}
+                {cells.map((c, i) => {
+                  const evts = dayEvents(c.fullDate);
+                  const isToday = !c.other && c.fullDate.toDateString() === today.toDateString();
+                  const isWeekend = (i % 7 === 0 || i % 7 === 6) && !c.other;
+                  return (
+                    <div key={i}
+                      className={"cal-cell" + (c.other ? " other" : "") + (isToday ? " today" : "") + (isWeekend && !isToday ? " weekend" : "")}
+                      style={{cursor: !c.other && evts.length ? 'pointer' : 'default'}}
+                      onClick={() => !c.other && evts.length && setDayDetail({ date: c.fullDate, events: evts })}
+                    >
+                      <div className="date-num">{c.d}</div>
+                      {evts.slice(0, 3).map(b => {
+                        const v = vehicles.find(x => x.id === b.vehicleId);
+                        return (
+                          <div key={b.id} className={"cal-event " + (STATUS_COLOR[b.status] || 'booked')}
+                            onClick={e => { e.stopPropagation(); setDayDetail({ date: c.fullDate, events: evts, highlight: b.id }); }}>
+                            {fmtTime(b.from)} {v?.plate.split(' ')[1] || v?.id || ''}
+                          </div>
+                        );
+                      })}
+                      {evts.length > 3 && (
+                        <div style={{fontSize:10.5, color:'var(--pea-purple)', fontWeight:600, marginTop:2}}>+{evts.length - 3} อื่นๆ →</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:'flex', gap:16, flexWrap:'wrap', fontSize:12, color:'var(--text-3)', paddingTop:8, borderTop:'1px solid var(--border)'}}>
+                <span style={{fontWeight:600}}>คำอธิบาย:</span>
+                {[['approved','อนุมัติแล้ว'],['booked','รออนุมัติ'],['urgent','ภารกิจด่วน']].map(([s,l]) => (
+                  <span key={s} style={{display:'flex', gap:5, alignItems:'center'}}>
+                    <span style={{width:12, height:12, borderRadius:3, background:`var(--status-${s}-bg)`, border:`1px solid var(--status-${s})`}}/>
+                    {l}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {dayDetail && (
+        <div className="modal-overlay" onClick={() => setDayDetail(null)} style={{zIndex:2100}}>
+          <div className="modal" style={{width:'min(92vw, 480px)'}} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>การจองรถ · {dayDetail.date.toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</h2>
+              <button className="btn icon ghost" onClick={() => setDayDetail(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              {dayDetail.events.length === 0 ? (
+                <div style={{textAlign:'center', padding:'30px 0', color:'var(--text-3)'}}>ไม่มีการจอง</div>
+              ) : (
+                <div className="col gap-2">
+                  {[...dayDetail.events].sort((a,b) => a.from.localeCompare(b.from)).map(b => {
+                    const v = vehicles.find(x => x.id === b.vehicleId);
+                    const statusLabel = { approved:'อนุมัติแล้ว', urgent:'ภารกิจด่วน', booked:'รออนุมัติ' }[b.status] || b.status;
+                    const statusColor = { approved:'var(--status-approved)', urgent:'var(--status-urgent)', booked:'var(--status-booked)' }[b.status];
+                    const statusBg = { approved:'var(--status-approved-bg)', urgent:'var(--status-urgent-bg)', booked:'var(--status-booked-bg)' }[b.status];
+                    return (
+                      <div key={b.id} style={{display:'flex', gap:12, padding:'11px 13px', border:'1px solid var(--border)', borderRadius:10, alignItems:'center', background: dayDetail.highlight === b.id ? 'var(--surface-2)' : undefined}}>
+                        <div style={{textAlign:'center', minWidth:56, padding:'7px 6px', background:'var(--pea-purple-50)', color:'var(--pea-purple)', borderRadius:8}}>
+                          <div style={{fontSize:12.5, fontWeight:700, fontFamily:'var(--font-mono)'}}>{fmtTime(b.from)}</div>
+                          <div style={{fontSize:9.5, color:'var(--text-3)'}}>ถึง</div>
+                          <div style={{fontSize:12.5, fontWeight:700, fontFamily:'var(--font-mono)'}}>{fmtTime(b.to)}</div>
+                        </div>
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{display:'flex', gap:7, alignItems:'center', flexWrap:'wrap'}}>
+                            <span style={{fontFamily:'var(--font-mono)', fontWeight:700, fontSize:13, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, padding:'1px 7px'}}>{v?.plate.split(' ').slice(0,2).join(' ') || b.vehicleId}</span>
+                            <span style={{fontSize:12.5, color:'var(--text-2)'}}>{v?.brand}</span>
+                          </div>
+                          <div style={{marginTop:5, fontSize:12, color:'var(--text-3)'}}>
+                            {fmtDate(b.from)} — {fmtDate(b.to)}
+                          </div>
+                        </div>
+                        <span style={{fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:6, background:statusBg, color:statusColor, whiteSpace:'nowrap'}}>{statusLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
