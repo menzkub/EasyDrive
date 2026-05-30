@@ -108,12 +108,20 @@ function App() {
       supabase.from('mileage_corrections').select('*').order('"requestedAt"', { ascending: false }),
       supabase.from('departments').select('*').order('sort_order'),
     ]);
-    setVehicles(v.data || []);
+    if (v.error)    console.error('[vehicles]', v.error.message, v.error.hint || '');
+    if (b.error)    console.error('[bookings]', b.error.message);
+    if (u.error)    console.error('[profiles]', u.error.message);
+    if (depts.error) console.error('[departments]', depts.error.message);
+    setVehicles((v.data || []).map(veh => ({ ...veh, plate: veh.plate || '', brand: veh.brand || '', id: veh.id || '' })));
     setBookings(b.data || []);
-    setUsers(u.data || []);
+    setUsers((u.data || []).map(usr => ({ ...usr, name: usr.name || '-' })));
     setVehicleHistory(vh.data || []);
     setMileageCorrections(mc.data || []);
     setDepartments(depts.data || []);
+
+    if (v.error?.code === '42501' || b.error?.code === '42501') {
+      pushToast({ kind: 'warn', title: 'สิทธิ์การเข้าถึงฐานข้อมูล', body: 'ตรวจสอบ RLS Policy ใน Supabase Dashboard' });
+    }
   }
 
   // ── Theme ──
@@ -347,6 +355,9 @@ function App() {
       setVehicles([...vehicles, newVehicle]);
       await addHistory({ vehicleId: id, action: "create", field: "เพิ่มรถยนต์", oldValue: "", newValue: `${data.brand} · ${data.plate}`, note: "เพิ่มรถใหม่เข้าระบบ", photo: false });
       pushToast({ kind: "ok", title: "เพิ่มรถยนต์ใหม่แล้ว", body: data.plate });
+    } else {
+      console.error('[addVehicle]', error.message, error.hint || '');
+      pushToast({ kind: "warn", title: "เพิ่มรถไม่สำเร็จ", body: error.message });
     }
   }
 

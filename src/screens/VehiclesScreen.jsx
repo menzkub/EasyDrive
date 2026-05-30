@@ -17,7 +17,10 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
     if (statusFilter !== "all" && v.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
-      if (!v.plate.toLowerCase().includes(q) && !v.brand.toLowerCase().includes(q) && !v.id.toLowerCase().includes(q)) return false;
+      const inPlate = (v.plate || '').toLowerCase().includes(q);
+      const inBrand = (v.brand || '').toLowerCase().includes(q);
+      const inId    = (v.id   || '').toLowerCase().includes(q);
+      if (!inPlate && !inBrand && !inId) return false;
     }
     return true;
   });
@@ -78,7 +81,7 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
                   </td>
                   <td>
                     <div style={{fontWeight:500}}>{v.brand}</div>
-                    <span className="plate" style={{fontSize:11, padding:'1px 6px'}}>{v.plate.split(' ').slice(0,2).join(' ')}</span>
+                    <span className="plate" style={{fontSize:11, padding:'1px 6px'}}>{(v.plate || '').split(' ').slice(0,2).join(' ')}</span>
                     <span className="text-xs muted" style={{marginLeft:6}}>ปี {v.year}</span>
                   </td>
                   <td className="text-sm">

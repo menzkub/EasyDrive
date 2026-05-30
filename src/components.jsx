@@ -455,7 +455,7 @@ function fmtTime(iso) {
 function fmtNum(n) { return (n ?? 0).toLocaleString('th-TH'); }
 function daysUntil(iso) {
   if (!iso) return Infinity;
-  const today = new Date('2026-05-21');
+  const today = new Date(); today.setHours(0,0,0,0);
   const t = new Date(iso);
   return Math.round((t - today) / 86400000);
 }
