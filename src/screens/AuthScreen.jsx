@@ -324,7 +324,7 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
                 </button>
                 <button className="btn ghost lg" onClick={() => setShowPublicCal(true)} style={{marginTop:2, border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', gap:7}}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
-                  ดูปฏิทินการจอง (สาธารณะ)
+                  ดูปฏิทินการจอง (กฟส. ฝาง)
                 </button>
                 <div style={{textAlign:'center', fontSize:13, color:'var(--text-2)', marginTop:6}}>
                   ยังไม่มีบัญชี? <a style={{color:'var(--pea-purple)', fontWeight:600, cursor:'pointer'}} onClick={() => setMode("register")}>สมัครสมาชิก</a>
@@ -505,15 +505,16 @@ function AuthScreen({ onLogin, registered, onRegister, departments }) {
 }
 
 // ─── Public Calendar Modal (no auth needed) ───────────────────────
-function PublicCalendarModal({ onClose }) {
-  const [vehicles, setVehicles] = React.useState([]);
-  const [bookings, setBookings] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+function PublicCalendarModal({ onClose, initialVehicles, initialBookings }) {
+  const [vehicles, setVehicles] = React.useState(initialVehicles || []);
+  const [bookings, setBookings] = React.useState(initialBookings || []);
+  const [loading, setLoading] = React.useState(!initialVehicles);
   const [refDate, setRefDate] = React.useState(() => new Date());
   const [dayDetail, setDayDetail] = React.useState(null);
   const [vehicleFilter, setVehicleFilter] = React.useState('all');
 
   React.useEffect(() => {
+    if (initialVehicles) return;
     Promise.all([
       supabase.from('vehicles').select('id, plate, type, brand'),
       supabase.from('bookings').select('id, vehicleId, from, to, status').in('status', ['approved', 'urgent', 'booked']),
@@ -558,7 +559,7 @@ function PublicCalendarModal({ onClose }) {
       <div className="modal" style={{width:'min(96vw, 940px)', maxHeight:'92vh'}} onClick={e => e.stopPropagation()}>
         <div className="modal-header" style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', rowGap:8}}>
           <div style={{flex:1, minWidth:0}}>
-            <h2 style={{margin:0}}>ปฏิทินการจองรถ — สาธารณะ</h2>
+            <h2 style={{margin:0}}>ปฏิทินการจองรถ — กฟส. ฝาง</h2>
             <p style={{margin:0, fontSize:12, color:'var(--text-3)'}}>แสดงเฉพาะเลขทะเบียนและช่วงเวลา · ไม่แสดงข้อมูลส่วนตัว</p>
           </div>
           <Select value={vehicleFilter} onChange={e => setVehicleFilter(e.target.value)} style={{minWidth:140, fontSize:12.5}}>
@@ -682,4 +683,4 @@ function PublicCalendarModal({ onClose }) {
   );
 }
 
-export { AuthScreen };
+export { AuthScreen, PublicCalendarModal };

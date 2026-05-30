@@ -2,9 +2,9 @@
 import React from 'react'
 import { I, StatusPill, VehicleIcon, Modal, fmtTime, Select } from '../components'
 
-function CalendarScreen({ vehicles, bookings, users, onSelectBooking }) {
+function CalendarScreen({ vehicles, bookings, users, onSelectBooking, onOpenPublicCal }) {
   const [view, setView] = React.useState("month"); // month | week
-  const [refDate, setRefDate] = React.useState(new Date('2026-05-21'));
+  const [refDate, setRefDate] = React.useState(() => new Date());
   const [vehicleFilter, setVehicleFilter] = React.useState("all");
   const [dayDetail, setDayDetail] = React.useState(null);
 
@@ -13,9 +13,17 @@ function CalendarScreen({ vehicles, bookings, users, onSelectBooking }) {
   return (
     <div>
       <div className="card card-pad" style={{marginBottom:14}}>
-        <div style={{marginBottom:10}}>
-          <h2 className="mt-0" style={{margin:'0 0 2px'}}>ปฏิทินการจอง</h2>
-          <p className="sub" style={{margin:0}}>ภาพรวมการใช้รถยนต์ทั้งหน่วยงาน</p>
+        <div style={{marginBottom:10, display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8}}>
+          <div>
+            <h2 className="mt-0" style={{margin:'0 0 2px'}}>ปฏิทินการจอง</h2>
+            <p className="sub" style={{margin:0}}>ภาพรวมการใช้รถยนต์ทั้งหน่วยงาน</p>
+          </div>
+          {onOpenPublicCal && (
+            <button className="btn sm ghost" style={{flexShrink:0, display:'flex', alignItems:'center', gap:5, fontSize:12}} onClick={onOpenPublicCal}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+              ปฏิทินสาธารณะ
+            </button>
+          )}
         </div>
         <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
           <Select value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)} style={{flex:'1 1 160px', minWidth:0}}>
@@ -32,7 +40,7 @@ function CalendarScreen({ vehicles, bookings, users, onSelectBooking }) {
               if (view === "month") d.setMonth(d.getMonth() - 1); else d.setDate(d.getDate() - 7);
               setRefDate(d);
             }}>{I.arrowLeft}</button>
-            <button className="btn sm ghost" onClick={() => setRefDate(new Date('2026-05-21'))}>วันนี้</button>
+            <button className="btn sm ghost" onClick={() => setRefDate(new Date())}>วันนี้</button>
             <button className="btn icon ghost" onClick={() => {
               const d = new Date(refDate);
               if (view === "month") d.setMonth(d.getMonth() + 1); else d.setDate(d.getDate() + 7);
@@ -64,7 +72,7 @@ function CalendarScreen({ vehicles, bookings, users, onSelectBooking }) {
           events={dayDetail.events}
           vehicles={vehicles} users={users}
           onClose={() => setDayDetail(null)}
-          onSelectBooking={(b) => { setDayDetail(null); onSelectBooking(b); }}
+          onSelectBooking={(b) => { onSelectBooking(b); }}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { AuthScreen } from './screens/AuthScreen'
+import { AuthScreen, PublicCalendarModal } from './screens/AuthScreen'
 import { Dashboard } from './screens/Dashboard'
 import { BookingScreen } from './screens/BookingScreen'
 import { CalendarScreen } from './screens/CalendarScreen'
@@ -45,6 +45,7 @@ function App() {
   const [selectedVehicle, setSelectedVehicle] = React.useState(null);
   const [selectedBooking, setSelectedBooking] = React.useState(null);
   const [voucherBooking, setVoucherBooking] = React.useState(null);
+  const [showPublicCal, setShowPublicCal] = React.useState(false);
   const [toasts, setToasts] = React.useState([]);
   const [confirm, setConfirm] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -624,7 +625,7 @@ function App() {
       <main className="main">
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}
         {route === "booking" && <BookingScreen user={currentUser} vehicles={vehicles} bookings={bookings} prefillVehicle={selectedVehicle} onSubmit={handleSubmitBooking} onCancel={() => setRoute("dashboard")} onGoToMyBookings={() => setRoute("my")}/>}
-        {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)}/>}
+        {route === "calendar" && <CalendarScreen vehicles={vehicles} bookings={bookings} users={users} onSelectBooking={(b) => setSelectedBooking(b)} onOpenPublicCal={() => setShowPublicCal(true)}/>}
         {route === "my" && <MyBookingsScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)} setRoute={setRoute}/>}
         {route === "checkin" && <CheckinScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onPrintChecklist={(b) => setVoucherBooking(b)}/>}
         {route === "checkin-history" && <CheckinHistoryScreen bookings={bookings} vehicles={vehicles} users={users} currentUser={currentUser} onUpdateRecord={handleUpdateCheckinRecord}/>}
@@ -639,6 +640,7 @@ function App() {
       {selectedVehicle && <VehicleQuickModal vehicle={selectedVehicle} bookings={bookings} users={users} onClose={() => setSelectedVehicle(null)} onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}/>}
       {selectedBooking && <BookingDetailModal booking={selectedBooking} vehicle={vehicles.find((v) => v.id === selectedBooking.vehicleId)} user={users.find((u) => u.id === selectedBooking.userId)} onClose={() => setSelectedBooking(null)}/>}
       {voucherBooking && <BookingVoucher booking={voucherBooking} vehicle={vehicles.find((v) => v.id === voucherBooking.vehicleId)} user={users.find((u) => u.id === voucherBooking.userId)} onClose={() => setVoucherBooking(null)} pushToast={pushToast}/>}
+      {showPublicCal && <PublicCalendarModal onClose={() => setShowPublicCal(false)} initialVehicles={vehicles} initialBookings={bookings.filter(b => ['approved','urgent','booked'].includes(b.status))}/>}
 
       <ToastStack toasts={toasts}/>
       <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)}/>
