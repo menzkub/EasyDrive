@@ -745,6 +745,12 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
   );
 }
 
+function fmtLogTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 // ─── Data Settings (admin only) ────────────────────────────────────
 function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pushToast }) {
   const [subTab, setSubTab] = React.useState('checklist');
@@ -762,6 +768,10 @@ function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pus
   const [fuelPrices, setFuelPrices] = React.useState(() => appConfig?.fuelPrices ? { ...DEFAULT_FUEL_PRICES, ...appConfig.fuelPrices } : { ...DEFAULT_FUEL_PRICES });
   const [fpSyncing, setFpSyncing] = React.useState(false);
   const [fpSyncMsg, setFpSyncMsg] = React.useState(null);
+  const [fpSyncLog, setFpSyncLog] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('pea-fuel-sync-log') || '[]'); } catch { return []; }
+  });
+  const [showFpLog, setShowFpLog] = React.useState(false);
   const fpChanged = JSON.stringify(fuelPrices) !== JSON.stringify(appConfig?.fuelPrices ? { ...DEFAULT_FUEL_PRICES, ...appConfig.fuelPrices } : DEFAULT_FUEL_PRICES);
 
   async function syncFuelPricesFromPTT() {
@@ -782,9 +792,23 @@ function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pus
       if (ptt.ngv?.price)          mapped.ngv     = parseFloat(ptt.ngv.price);
       mapped.updatedAt = new Date().toISOString();
       setFuelPrices(mapped);
-      setFpSyncMsg({ ok: true, text: `ซิงค์สำเร็จ — ราคา ณ ${data?.response?.date || 'วันนี้'}` });
+      const successMsg = `ซิงค์สำเร็จ — ราคา ณ ${data?.response?.date || 'วันนี้'}`;
+      setFpSyncMsg({ ok: true, text: successMsg });
+      const newEntry = { at: mapped.updatedAt, ok: true, note: successMsg, prices: { gasohol: mapped.gasohol, diesel: mapped.diesel, benzin: mapped.benzin, ngv: mapped.ngv } };
+      setFpSyncLog(prev => {
+        const updated = [newEntry, ...prev].slice(0, 50);
+        localStorage.setItem('pea-fuel-sync-log', JSON.stringify(updated));
+        return updated;
+      });
     } catch (err) {
-      setFpSyncMsg({ ok: false, text: 'ซิงค์ไม่สำเร็จ: ' + (err.message || 'เชื่อมต่อ API ไม่ได้') + ' — กรอกราคาด้วยตนเองแล้วกด "บันทึกราคา"' });
+      const errMsg = 'ซิงค์ไม่สำเร็จ: ' + (err.message || 'เชื่อมต่อ API ไม่ได้');
+      setFpSyncMsg({ ok: false, text: errMsg + ' — กรอกราคาด้วยตนเองแล้วกด "บันทึกราคา"' });
+      const failEntry = { at: new Date().toISOString(), ok: false, note: errMsg };
+      setFpSyncLog(prev => {
+        const updated = [failEntry, ...prev].slice(0, 50);
+        localStorage.setItem('pea-fuel-sync-log', JSON.stringify(updated));
+        return updated;
+      });
     } finally {
       setFpSyncing(false);
     }
@@ -1162,6 +1186,64 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
             <button className="btn primary sm" onClick={saveFuelPrices} disabled={!fpChanged}>
               💾 บันทึกราคา{fpChanged ? ' *' : ''}
             </button>
+          </div>
+
+          {/* Sync history */}
+          <div style={{marginTop:20, borderTop:'1px solid var(--border)', paddingTop:16}}>
+            <button
+              type="button"
+              onClick={() => setShowFpLog(v => !v)}
+              style={{display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', padding:0, fontSize:12.5, color:'var(--text-2)', fontWeight:500}}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{transition:'transform 0.2s', transform: showFpLog ? 'rotate(90deg)' : 'rotate(0deg)'}}>
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+              ประวัติการซิงค์ราคาเชื้อเพลิง
+              {fpSyncLog.length > 0 && <span style={{fontSize:11, padding:'1px 6px', borderRadius:99, background:'var(--surface-2)', color:'var(--text-3)', marginLeft:2}}>{fpSyncLog.length}</span>}
+            </button>
+            {showFpLog && (
+              <div style={{marginTop:10}}>
+                {fpSyncLog.length === 0 ? (
+                  <p style={{fontSize:12, color:'var(--text-3)', margin:0}}>ยังไม่มีประวัติการซิงค์</p>
+                ) : (
+                  <div style={{position:'relative', paddingLeft:20}}>
+                    <div style={{position:'absolute', left:7, top:8, bottom:8, width:2, background:'var(--border)'}}/>
+                    {fpSyncLog.map((entry, i) => (
+                      <div key={i} style={{position:'relative', paddingBottom:10, display:'flex', alignItems:'flex-start', gap:10}}>
+                        <div style={{
+                          position:'absolute', left:-20, top:2,
+                          width:16, height:16, borderRadius:'50%',
+                          background: entry.ok ? 'var(--ok)' : 'var(--danger)',
+                          border:'2px solid var(--surface)',
+                          flexShrink:0,
+                        }}/>
+                        <div style={{background:'var(--surface-2)', borderRadius:8, padding:'7px 10px', fontSize:12, flex:1}}>
+                          <div style={{display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom: entry.prices ? 5 : 0}}>
+                            <span style={{
+                              fontSize:11, fontWeight:700, padding:'1px 7px', borderRadius:99,
+                              background: entry.ok ? 'var(--ok-bg,#dcfce7)' : 'var(--danger-bg,#fee2e2)',
+                              color: entry.ok ? 'var(--ok)' : 'var(--danger)',
+                            }}>
+                              {entry.ok ? '✅ สำเร็จ' : '❌ ล้มเหลว'}
+                            </span>
+                            <span style={{color:'var(--text-3)', fontSize:11, marginLeft:'auto'}}>{fmtLogTime(entry.at)}</span>
+                          </div>
+                          {entry.prices && (
+                            <div style={{display:'flex', flexWrap:'wrap', gap:'3px 12px', fontSize:11.5, color:'var(--text-2)'}}>
+                              {entry.prices.gasohol && <span>แก๊สโซฮอล์ <b>{entry.prices.gasohol}</b>฿</span>}
+                              {entry.prices.diesel  && <span>ดีเซล <b>{entry.prices.diesel}</b>฿</span>}
+                              {entry.prices.benzin  && <span>เบนซิน <b>{entry.prices.benzin}</b>฿</span>}
+                              {entry.prices.ngv     && <span>NGV <b>{entry.prices.ngv}</b>฿</span>}
+                            </div>
+                          )}
+                          {!entry.ok && <div style={{color:'var(--text-3)', fontSize:11.5, marginTop:2}}>{entry.note}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1600,13 +1682,6 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, ma
     }
   }
 
-  function fmtLogTime(iso) {
-    try {
-      const d = new Date(iso);
-      const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-      return `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear()+543} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    } catch { return iso; }
-  }
 
   return (
     <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:12}}>
