@@ -4,6 +4,7 @@ import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 import { ManualScreen } from './ManualScreen'
 import { DevGuideScreen } from './DevGuideScreen'
+import { DevCardSettings } from '../DevCard'
 
 function calcPwStrength(pw) {
   const checks = [
@@ -31,7 +32,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
   const isAdmin = currentUser.role === 'admin';
 
   React.useEffect(() => {
-    if (activeTab) setTab((activeTab === "depts" || activeTab === "manual" || activeTab === "dev") && !isAdmin ? "account" : activeTab);
+    if (activeTab) setTab((activeTab === "depts" || activeTab === "manual" || activeTab === "dev" || activeTab === "about") && !isAdmin ? "account" : activeTab);
   }, [activeTab]);
 
   function changeTab(t) {
@@ -53,6 +54,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
           {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => changeTab("depts")}>🏢 จัดการแผนก</button>}
           {isAdmin && <button className={"tab" + (tab === "manual" ? " active" : "")} onClick={() => changeTab("manual")}>📖 คู่มือ</button>}
           {isAdmin && <button className={"tab" + (tab === "dev" ? " active" : "")} onClick={() => changeTab("dev")}>🛠️ นักพัฒนา</button>}
+          {isAdmin && <button className={"tab" + (tab === "about" ? " active" : "")} onClick={() => changeTab("about")}>🪪 เกี่ยวกับ</button>}
         </div>
         {tab === "account"  && <AccountSettings currentUser={currentUser} deptNames={deptNames} onUpdateProfile={onUpdateProfile} pushToast={pushToast}/>}
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
@@ -60,6 +62,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
         {tab === "depts"    && isAdmin && <DeptManager departments={departments || []} pushToast={pushToast}/>}
         {tab === "manual"   && isAdmin && <div style={{marginTop:14, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', height:600}}><ManualScreen role="admin"/></div>}
         {tab === "dev"      && isAdmin && <div style={{marginTop:14}}><DevGuideScreen/></div>}
+        {tab === "about"    && isAdmin && <DevCardSettings pushToast={pushToast}/>}
       </div>
     </div>
   );

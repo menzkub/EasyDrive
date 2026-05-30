@@ -1,0 +1,327 @@
+import React from 'react'
+
+const DEVCARD_KEY = 'easydrive-devcard';
+
+export const DEVCARD_DEFAULTS = {
+  show: true,
+  name: 'ธนพล มณีกุล',
+  position: 'พนักงานช่าง ระดับ 5',
+  dept: 'แผนกมิเตอร์และหม้อแปลง',
+  org: 'การไฟฟ้าส่วนภูมิภาค สาขาฝาง',
+  version: '1.0.0',
+  detail1Label: 'ฐานข้อมูล',
+  detail1Value: 'PostgreSQL (Supabase) · RLS Multi-tenant',
+  detail2Label: 'Tech Stack',
+  detail2Value: 'React 18 · Vite 5 · Supabase · Vercel',
+  detail3Label: 'ระบบ / การเชื่อมต่อ',
+  detail3Value: 'EasyDrive Vehicle Booking System',
+  footer: 'พัฒนาเพื่อใช้งานภายใน การไฟฟ้าส่วนภูมิภาค (PEA)',
+};
+
+export function loadDevCard() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DEVCARD_KEY) || 'null');
+    return saved ? { ...DEVCARD_DEFAULTS, ...saved } : { ...DEVCARD_DEFAULTS };
+  } catch { return { ...DEVCARD_DEFAULTS }; }
+}
+
+export function saveDevCard(cfg) {
+  localStorage.setItem(DEVCARD_KEY, JSON.stringify(cfg));
+}
+
+// ─── Floating button + popup card ────────────────────────────────────
+export function DevCardButton() {
+  const [cfg, setCfg] = React.useState(loadDevCard);
+  const [open, setOpen] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
+
+  React.useEffect(() => {
+    const onUpdate = () => setCfg(loadDevCard());
+    window.addEventListener('devcard-updated', onUpdate);
+    return () => window.removeEventListener('devcard-updated', onUpdate);
+  }, []);
+
+  if (!cfg.show) return null;
+
+  const firstName = (cfg.name || '').split(' ')[0] || cfg.name;
+
+  const details = [
+    { icon: '🗄️', label: cfg.detail1Label, value: cfg.detail1Value },
+    { icon: '⚙️', label: cfg.detail2Label, value: cfg.detail2Value },
+    { icon: '🔗', label: cfg.detail3Label, value: cfg.detail3Value },
+  ].filter(d => d.value);
+
+  return (
+    <>
+      {/* Floating pill button */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          position: 'fixed', bottom: 72, right: 16, zIndex: 200,
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+          color: 'white', border: 'none', borderRadius: 999,
+          padding: '7px 14px 7px 7px', cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 600,
+          boxShadow: '0 4px 20px rgba(109,40,217,0.38)',
+          fontFamily: 'var(--font-sans)',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(109,40,217,0.5)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 20px rgba(109,40,217,0.38)'; }}
+      >
+        <div style={{
+          width: 26, height: 26, borderRadius: '50%',
+          background: 'rgba(0,0,0,0.25)', display: 'grid',
+          placeItems: 'center', fontSize: 11, fontFamily: 'monospace', flexShrink: 0,
+        }}>{'</>'}</div>
+        <span>พัฒนาโดย {firstName}</span>
+        <span style={{ fontSize: 13 }}>✨</span>
+      </button>
+
+      {/* Popup card */}
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => { setOpen(false); setExpanded(false); }}/>
+          <div
+            style={{
+              position: 'fixed', bottom: 124, right: 16, zIndex: 1000,
+              width: 340, maxWidth: 'calc(100vw - 32px)',
+              borderRadius: 18, overflow: 'hidden',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.22), 0 0 0 1px rgba(109,40,217,0.12)',
+              animation: 'devcard-in 0.18s ease',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <style>{`@keyframes devcard-in { from { opacity:0; transform:translateY(12px) scale(0.97); } to { opacity:1; transform:none; } }`}</style>
+
+            {/* Purple header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 55%, #5b21b6 100%)',
+              padding: '20px 20px 22px', color: 'white', position: 'relative',
+            }}>
+              <button
+                onClick={() => { setOpen(false); setExpanded(false); }}
+                style={{
+                  position: 'absolute', top: 12, right: 12,
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.18)', border: 'none',
+                  cursor: 'pointer', display: 'grid', placeItems: 'center',
+                  color: 'white', fontSize: 14, lineHeight: 1,
+                }}>✕</button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                <span style={{ fontSize: 15 }}>✨</span>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.82 }}>
+                  Developed By
+                </span>
+              </div>
+
+              <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.15, marginBottom: 4 }}>{cfg.name}</div>
+              <div style={{ fontSize: 13, opacity: 0.88, marginBottom: 2 }}>{cfg.position}</div>
+              <div style={{ fontSize: 12.5, opacity: 0.72 }}>{cfg.dept}</div>
+
+              {cfg.org && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  marginTop: 13, background: 'rgba(255,255,255,0.14)',
+                  borderRadius: 999, padding: '5px 12px',
+                  fontSize: 11.5, fontWeight: 600,
+                }}>
+                  <span>📍</span>{cfg.org}
+                </div>
+              )}
+            </div>
+
+            {/* White body */}
+            <div style={{ background: 'var(--surface)' }}>
+              {/* Accordion toggle */}
+              <button
+                onClick={() => setExpanded(e => !e)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', padding: '11px 16px',
+                  background: 'none', border: 'none',
+                  borderBottom: '1px solid var(--border)',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  color: 'var(--text)', fontFamily: 'var(--font-sans)',
+                }}
+              >
+                <span>รายละเอียดเพิ่มเติม</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    background: '#7c3aed', color: 'white',
+                    borderRadius: 999, padding: '2px 8px',
+                    fontSize: 10, fontWeight: 700,
+                  }}>รุ่น {cfg.version}</span>
+                  <span style={{ color: 'var(--text-3)', fontSize: 11 }}>{expanded ? '▲' : '▼'}</span>
+                </div>
+              </button>
+
+              {expanded && details.length > 0 && (
+                <div>
+                  {details.map((d, i) => (
+                    <div key={i} style={{
+                      display: 'flex', gap: 12, padding: '10px 16px',
+                      borderBottom: '1px solid var(--border)',
+                    }}>
+                      <div style={{
+                        width: 34, height: 34, borderRadius: 9,
+                        background: 'var(--pea-purple-50)',
+                        display: 'grid', placeItems: 'center',
+                        fontSize: 16, flexShrink: 0,
+                      }}>{d.icon}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em',
+                          textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 3,
+                        }}>{d.label}</div>
+                        <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5 }}>{d.value}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '9px 14px 11px',
+                fontSize: 10.5, color: 'var(--text-3)',
+              }}>
+                <span style={{ fontWeight: 600 }}>เวอร์ชัน {cfg.version}</span>
+                <span style={{ textAlign: 'right', maxWidth: '65%', lineHeight: 1.45 }}>{cfg.footer}</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+// ─── Settings form (admin) ────────────────────────────────────────────
+export function DevCardSettings({ pushToast }) {
+  const [cfg, setCfg] = React.useState(loadDevCard);
+
+  function save() {
+    saveDevCard(cfg);
+    window.dispatchEvent(new Event('devcard-updated'));
+    pushToast?.({ kind: 'ok', title: 'บันทึกข้อมูลนักพัฒนาแล้ว' });
+  }
+
+  function reset() {
+    setCfg({ ...DEVCARD_DEFAULTS });
+    pushToast?.({ kind: 'ok', title: 'รีเซ็ตเป็นค่าเริ่มต้นแล้ว' });
+  }
+
+  const F = ({ label, k, placeholder = '', area = false }) => (
+    <div className="field">
+      <label className="field-lbl">{label}</label>
+      {area
+        ? <textarea className="input" value={cfg[k] || ''} rows={2} placeholder={placeholder}
+            style={{ resize: 'vertical', fontFamily: 'var(--font-sans)' }}
+            onChange={e => setCfg({ ...cfg, [k]: e.target.value })}/>
+        : <input className="input" value={cfg[k] || ''} placeholder={placeholder}
+            onChange={e => setCfg({ ...cfg, [k]: e.target.value })}/>
+      }
+    </div>
+  );
+
+  const firstName = (cfg.name || '').split(' ')[0] || 'นักพัฒนา';
+
+  return (
+    <div style={{ paddingTop: 14 }}>
+
+      {/* Live preview */}
+      <div style={{
+        background: 'linear-gradient(135deg, #7c3aed, #6d28d9, #5b21b6)',
+        borderRadius: 14, padding: '18px 20px 16px', marginBottom: 20, color: 'white',
+        display: 'flex', alignItems: 'flex-start', gap: 14,
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', opacity: 0.8, marginBottom: 8 }}>
+            ✨ DEVELOPED BY
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 800, lineHeight: 1.2 }}>{cfg.name || '(ชื่อ-นามสกุล)'}</div>
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{cfg.position}</div>
+          <div style={{ fontSize: 11.5, opacity: 0.7 }}>{cfg.dept}</div>
+          {cfg.org && (
+            <div style={{
+              marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 5,
+              background: 'rgba(255,255,255,0.14)', borderRadius: 999, padding: '4px 10px', fontSize: 11,
+            }}>📍 {cfg.org}</div>
+          )}
+        </div>
+        {/* Button preview */}
+        <div style={{
+          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(255,255,255,0.14)', borderRadius: 999,
+          padding: '6px 12px 6px 7px', fontSize: 11.5, fontWeight: 600,
+        }}>
+          <div style={{
+            width: 22, height: 22, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.22)', display: 'grid', placeItems: 'center',
+            fontFamily: 'monospace', fontSize: 9,
+          }}>{'</>'}</div>
+          <span>พัฒนาโดย {firstName}</span>
+          <span>✨</span>
+        </div>
+      </div>
+
+      {/* Toggle show */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '12px 14px', background: 'var(--surface-2)', borderRadius: 10,
+        marginBottom: 16, border: '1px solid var(--border)',
+      }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>แสดงปุ่มนักพัฒนา</div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>ปุ่มมุมขวาล่าง — ผู้ใช้ทุกคนมองเห็น</div>
+        </div>
+        <button className={"switch" + (cfg.show ? " on" : "")} onClick={() => setCfg({ ...cfg, show: !cfg.show })}/>
+      </div>
+
+      {/* Main fields */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 4 }}>
+        <F label="ชื่อ-นามสกุล *" k="name" placeholder="ธนพล มณีกุล"/>
+        <F label="ตำแหน่ง / ระดับ" k="position" placeholder="พนักงานช่าง ระดับ 5"/>
+        <F label="แผนก" k="dept" placeholder="แผนกมิเตอร์และหม้อแปลง"/>
+        <F label="หน่วยงาน" k="org" placeholder="การไฟฟ้าส่วนภูมิภาค สาขาฝาง"/>
+        <F label="เวอร์ชัน" k="version" placeholder="1.0.0"/>
+      </div>
+
+      <div className="divider" style={{ margin: '16px 0 12px' }}/>
+      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+        รายละเอียดเพิ่มเติม (ส่วนขยาย)
+      </div>
+
+      {[
+        ['detail1', 'รายละเอียดที่ 1 🗄️'],
+        ['detail2', 'รายละเอียดที่ 2 ⚙️'],
+        ['detail3', 'รายละเอียดที่ 3 🔗'],
+      ].map(([p, lbl]) => (
+        <div key={p} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 8 }}>
+          <div className="field" style={{ margin: 0 }}>
+            <label className="field-lbl">{lbl} — หัวข้อ</label>
+            <input className="input" value={cfg[p + 'Label'] || ''}
+              onChange={e => setCfg({ ...cfg, [p + 'Label']: e.target.value })}/>
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label className="field-lbl">เนื้อหา</label>
+            <input className="input" value={cfg[p + 'Value'] || ''} placeholder="(ว่างเปล่า = ไม่แสดง)"
+              onChange={e => setCfg({ ...cfg, [p + 'Value']: e.target.value })}/>
+          </div>
+        </div>
+      ))}
+
+      <div className="divider" style={{ margin: '16px 0 12px' }}/>
+      <F label="ข้อความท้ายการ์ด" k="footer" placeholder="พัฒนาเพื่อใช้งานภายใน ..." area/>
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+        <button className="btn ghost" onClick={reset}>รีเซ็ตค่าเริ่มต้น</button>
+        <button className="btn primary" onClick={save}>💾 บันทึก</button>
+      </div>
+    </div>
+  );
+}

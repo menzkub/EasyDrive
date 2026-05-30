@@ -14,6 +14,7 @@ import { NotificationCenter, generateNotifications } from './screens/Notificatio
 import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, CommandMenu, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
 import { VEHICLE_TYPES, FUEL_TYPES } from './data'
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakButton } from './TweaksPanel'
+import { DevCardButton } from './DevCard'
 import { supabase, isConfigured } from './supabase'
 
 const TWEAK_DEFAULTS = { theme: "purple-orange", density: "regular", dashboardLayout: "timeline" };
@@ -476,7 +477,7 @@ function App() {
     const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "help",
       "settings", "settings-account", "settings-noti", "settings-calendar",
       ...(currentUser.role === "manager" ? ["approvals", "reports"] : []),
-      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts", "settings-manual", "settings-dev"] : [])
+      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts", "settings-manual", "settings-dev", "settings-about"] : [])
     ];
     if (!allowed.includes(route)) setRoute("dashboard");
   }, [currentUser, route]);
@@ -622,6 +623,7 @@ function App() {
         onSelectVehicle={(v) => { setSelectedVehicle(v); setCmdOpen(false); }}
       />
 
+      <DevCardButton/>
       <TweaksPanel>
         <TweakSection label="ธีมสี"/>
         <TweakColor label="พาเลตต์"
