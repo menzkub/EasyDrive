@@ -630,8 +630,6 @@ function App() {
           onChange={(v) => { const themes = { "#6E2A8C": "purple-orange", "#1d4ed8": "blue", "#0d9488": "teal" }; setTweak("theme", themes[v[0]] || "purple-orange"); }}/>
         <TweakSection label="แดชบอร์ด"/>
         <TweakRadio label="Layout" value={t.dashboardLayout} options={["timeline","grid"]} onChange={(v) => setTweak("dashboardLayout", v)}/>
-        <TweakSection label="ทางลัด"/>
-        <TweakButton label="ออกจากระบบ" onClick={confirmLogout}/>
       </TweaksPanel>
     </div>
   );
