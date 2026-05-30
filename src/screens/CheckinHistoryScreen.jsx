@@ -152,18 +152,32 @@ function CheckinHistoryScreen({ bookings, vehicles, users, currentUser, onUpdate
         </div>
       )}
 
-      {editingBooking && (
-        <EditTripModal
-          booking={editingBooking}
-          vehicle={vehicles.find((v) => v.id === editingBooking.vehicleId)}
-          user={users.find((u) => u.id === editingBooking.userId)}
-          onSave={async (data) => {
-            await onUpdateRecord(editingBooking.id, data);
-            setEditingBooking(null);
-          }}
-          onClose={() => setEditingBooking(null)}
-        />
-      )}
+      {editingBooking && (() => {
+        const editVehicle = vehicles.find((v) => v.id === editingBooking.vehicleId);
+        const prevTrips = bookings.filter(
+          (x) => x.vehicleId === editingBooking.vehicleId
+            && x.status === 'completed'
+            && x.mileageIn != null
+            && x.id !== editingBooking.id
+            && new Date(x.from) < new Date(editingBooking.from)
+        );
+        const prevMileage = prevTrips.length > 0
+          ? Math.max(...prevTrips.map((x) => x.mileageIn))
+          : null;
+        return (
+          <EditTripModal
+            booking={editingBooking}
+            vehicle={editVehicle}
+            user={users.find((u) => u.id === editingBooking.userId)}
+            prevMileage={prevMileage}
+            onSave={async (data) => {
+              await onUpdateRecord(editingBooking.id, data);
+              setEditingBooking(null);
+            }}
+            onClose={() => setEditingBooking(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -387,8 +401,8 @@ function PhotoGroup({ label, photos, color }) {
 }
 
 // ─── Admin Edit Modal ─────────────────────────────────────────────
-function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
-  const [mileageOut, setMileageOut] = React.useState(b.mileageOut ?? '');
+function EditTripModal({ booking: b, vehicle: v, user: u, prevMileage, onSave, onClose }) {
+  const [mileageOut, setMileageOut] = React.useState(prevMileage != null ? prevMileage : (b.mileageOut ?? ''));
   const [mileageIn, setMileageIn] = React.useState(b.mileageIn ?? '');
   const [rating, setRating] = React.useState(b.rating ?? 0);
   const [notes, setNotes] = React.useState(b.notes ?? '');
@@ -514,6 +528,11 @@ function EditTripModal({ booking: b, vehicle: v, user: u, onSave, onClose }) {
             <input className="input" type="number" value={mileageOut}
               onChange={(e) => setMileageOut(e.target.value)}
               style={{fontFamily:'var(--font-mono)'}}/>
+            {prevMileage != null && prevMileage !== b.mileageOut && (
+              <div className="input-hint" style={{color:'var(--info)'}}>
+                เลขส่งคืนครั้งก่อน: {fmtNum(prevMileage)} กม.
+              </div>
+            )}
           </div>
           <div className="field" style={{marginBottom:10}}>
             <label className="field-lbl">ไมล์หลังกลับมา (กม.)</label>

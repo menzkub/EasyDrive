@@ -124,6 +124,7 @@ function VehiclesScreen({ vehicles, bookings, vehicleHistory = [], users = [], u
         <VehicleForm
           vehicle={editing}
           users={users}
+          effectiveMileage={editing ? calcEffectiveMileage(editing.id, editing.mileage, bookings) : null}
           onSave={(data) => {
             if (editing) onUpdateVehicle(editing.id, data);
             else onAddVehicle(data);
@@ -349,11 +350,12 @@ function VehicleHistoryModal({ vehicle, history, onClose }) {
   );
 }
 
-function VehicleForm({ vehicle, users = [], onSave, onClose }) {
+function VehicleForm({ vehicle, users = [], effectiveMileage, onSave, onClose }) {
   const todayISO = new Date().toISOString().slice(0, 10);
   const nextServiceISO = new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10);
   const nextYearISO = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
-  const [form, setForm] = React.useState(vehicle || {
+  const initMileage = vehicle ? (effectiveMileage ?? vehicle.mileage) : 0;
+  const [form, setForm] = React.useState(vehicle ? { ...vehicle, mileage: initMileage } : {
     nickname: "", vehicleCode: "", regDate: "",
     plate: "", brand: "", type: "sedan", year: new Date().getFullYear(), fuel: "gasohol", seats: 5,
     mileage: 0, lastService: todayISO, nextService: nextServiceISO,
@@ -390,7 +392,7 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
     setUploadingDoc(false);
   }
 
-  const originalMileage = vehicle?.mileage ?? 0;
+  const originalMileage = effectiveMileage ?? vehicle?.mileage ?? 0;
   const mileageChanged = vehicle && form.mileage !== originalMileage;
   const mileageBigChange = mileageChanged && Math.abs(form.mileage - originalMileage) > 5;
   const canSave = !mileageBigChange || (photo && editNote.trim().length > 3);
@@ -487,7 +489,7 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
           <div className="grid-2">
             <div className="field">
               <label className="field-lbl">เลขไมล์เดิมในระบบ</label>
-              <input className="input" type="text" value={vehicle ? fmtNum(originalMileage) + " กม." : "—"} disabled style={{fontFamily:'var(--font-mono)', background:'#ECE7F0', cursor:'not-allowed'}}/>
+              <input className="input" type="text" value={vehicle ? fmtNum(originalMileage) + " กม." : "—"} disabled style={{fontFamily:'var(--font-mono)', background:'var(--surface-2)', cursor:'not-allowed'}}/>
             </div>
             <div className="field">
               <label className="field-lbl">เลขไมล์ใหม่ <span className="req">*</span></label>

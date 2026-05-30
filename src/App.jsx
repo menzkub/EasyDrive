@@ -114,12 +114,13 @@ function App() {
     if (b.error)    console.error('[bookings]', b.error.message);
     if (u.error)    console.error('[profiles]', u.error.message);
     if (depts.error) console.error('[departments]', depts.error.message);
-    setVehicles((v.data || []).map(veh => ({ ...veh, plate: veh.plate || '', brand: veh.brand || '', id: veh.id || '' })));
-    setBookings(b.data || []);
-    setUsers((u.data || []).map(usr => ({ ...usr, name: usr.name || '-' })));
-    setVehicleHistory(vh.data || []);
-    setMileageCorrections(mc.data || []);
-    setDepartments(depts.data || []);
+    // Only overwrite state when we received valid data — never blank out on network/RLS errors
+    if (v.data)     setVehicles(v.data.map(veh => ({ ...veh, plate: veh.plate || '', brand: veh.brand || '', id: veh.id || '' })));
+    if (b.data)     setBookings(b.data);
+    if (u.data)     setUsers(u.data.map(usr => ({ ...usr, name: usr.name || '-' })));
+    if (vh.data)    setVehicleHistory(vh.data);
+    if (mc.data)    setMileageCorrections(mc.data);
+    if (depts.data) setDepartments(depts.data);
 
     if (v.error?.code === '42501' || b.error?.code === '42501') {
       pushToast({ kind: 'warn', title: 'สิทธิ์การเข้าถึงฐานข้อมูล', body: 'ตรวจสอบ RLS Policy ใน Supabase Dashboard' });

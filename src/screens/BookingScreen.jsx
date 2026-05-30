@@ -5,6 +5,7 @@ import { PURPOSES, VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
 function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefillVehicle, onCancel }) {
   const [step, setStep] = React.useState(1);
+  const [submitting, setSubmitting] = React.useState(false);
   const [form, setForm] = React.useState({
     purpose: PURPOSES[0],
     purposeNote: "",
@@ -36,7 +37,7 @@ function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefill
     );
   });
 
-  function next() {
+  async function next() {
     if (step === 1) {
       if (!form.purpose || !form.destination || !form.from || !form.to) return;
       setStep(2);
@@ -44,7 +45,12 @@ function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefill
       if (!form.vehicleId) return;
       setStep(3);
     } else {
-      onSubmit(form);
+      setSubmitting(true);
+      try {
+        await onSubmit(form);
+      } finally {
+        setSubmitting(false);
+      }
     }
   }
 
@@ -57,10 +63,19 @@ function BookingScreen({ user, vehicles, bookings, users = [], onSubmit, prefill
       {step === 3 && <Step3 form={form} setForm={setForm} user={user} vehicles={vehicles} bookings={bookings} users={users}/>}
 
       <div style={{display:'flex', gap:10, marginTop:18, justifyContent:'flex-end'}}>
-        {step > 1 && <button className="btn ghost" onClick={() => setStep(step - 1)}>{I.arrowLeft} ย้อนกลับ</button>}
-        <button className="btn" onClick={onCancel}>ยกเลิก</button>
+        {step > 1 && <button className="btn ghost" onClick={() => setStep(step - 1)} disabled={submitting}>{I.arrowLeft} ย้อนกลับ</button>}
+        <button className="btn" onClick={onCancel} disabled={submitting}>ยกเลิก</button>
         {step < 3 && <button className="btn primary" onClick={next}>ถัดไป {I.arrowRight}</button>}
-        {step === 3 && <button className="btn accent lg" onClick={next}>ยืนยันการจอง</button>}
+        {step === 3 && (
+          <button className="btn accent lg" onClick={next} disabled={submitting} style={{minWidth:160}}>
+            {submitting ? (
+              <span style={{display:'flex', alignItems:'center', gap:8}}>
+                <span style={{width:14, height:14, border:'2px solid rgba(255,255,255,0.4)', borderTopColor:'white', borderRadius:'50%', display:'inline-block', animation:'spin 0.7s linear infinite'}}/>
+                กำลังส่งคำขอ...
+              </span>
+            ) : 'ยืนยันการจอง'}
+          </button>
+        )}
       </div>
     </div>
   );
