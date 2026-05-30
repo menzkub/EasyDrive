@@ -23,10 +23,19 @@ function calcPwStrength(pw) {
   return { score, checks, missing, label, color };
 }
 
-function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast }) {
-  const [tab, setTab] = React.useState("account");
+function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange }) {
+  const [tab, setTab] = React.useState(activeTab || "account");
   const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const isAdmin = currentUser.role === 'admin';
+
+  React.useEffect(() => {
+    if (activeTab) setTab(activeTab === "depts" && !isAdmin ? "account" : activeTab);
+  }, [activeTab]);
+
+  function changeTab(t) {
+    setTab(t);
+    onTabChange && onTabChange(t);
+  }
 
   return (
     <div>
@@ -36,10 +45,10 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
       </div>
       <div className="card card-pad">
         <div className="tabs">
-          <button className={"tab" + (tab === "account" ? " active" : "")} onClick={() => setTab("account")}>👤 บัญชี</button>
-          <button className={"tab" + (tab === "noti" ? " active" : "")} onClick={() => setTab("noti")}>🔔 การแจ้งเตือน</button>
-          <button className={"tab" + (tab === "calendar" ? " active" : "")} onClick={() => setTab("calendar")}>📅 Calendar Sync</button>
-          {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => setTab("depts")}>🏢 จัดการแผนก</button>}
+          <button className={"tab" + (tab === "account" ? " active" : "")} onClick={() => changeTab("account")}>👤 บัญชี</button>
+          <button className={"tab" + (tab === "noti" ? " active" : "")} onClick={() => changeTab("noti")}>🔔 การแจ้งเตือน</button>
+          <button className={"tab" + (tab === "calendar" ? " active" : "")} onClick={() => changeTab("calendar")}>📅 Calendar Sync</button>
+          {isAdmin && <button className={"tab" + (tab === "depts" ? " active" : "")} onClick={() => changeTab("depts")}>🏢 จัดการแผนก</button>}
         </div>
         {tab === "account"  && <AccountSettings currentUser={currentUser} deptNames={deptNames} onUpdateProfile={onUpdateProfile} pushToast={pushToast}/>}
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}

@@ -87,6 +87,16 @@ function StatusPill({ status }) {
 }
 
 // ─── Sidebar ─────────────────────────────────────────────────────────
+const SETTINGS_CHILDREN = [
+  { key: "settings-account",  label: "บัญชีผู้ใช้" },
+  { key: "settings-noti",     label: "การแจ้งเตือน" },
+  { key: "settings-calendar", label: "Calendar Sync" },
+];
+const SETTINGS_CHILDREN_ADMIN = [
+  ...SETTINGS_CHILDREN,
+  { key: "settings-depts", label: "จัดการแผนก" },
+];
+
 const NAV = {
   user: [
     { key: "dashboard",   label: "แดชบอร์ด",         icon: "dashboard" },
@@ -94,7 +104,7 @@ const NAV = {
     { key: "calendar",    label: "ปฏิทินการจอง",      icon: "calendar" },
     { key: "my",          label: "การจองของฉัน",      icon: "history" },
     { key: "checkin",     label: "Check-in / out",   icon: "qr" },
-    { key: "settings",    label: "ตั้งค่า",           icon: "settings" },
+    { key: "settings",    label: "ตั้งค่า",           icon: "settings", children: SETTINGS_CHILDREN },
   ],
   manager: [
     { key: "dashboard",   label: "แดชบอร์ด",         icon: "dashboard" },
@@ -104,7 +114,7 @@ const NAV = {
     { key: "my",          label: "การจองของฉัน",      icon: "history" },
     { key: "checkin",     label: "Check-in / out",   icon: "qr" },
     { key: "reports",     label: "รายงาน",           icon: "stats" },
-    { key: "settings",    label: "ตั้งค่า",           icon: "settings" },
+    { key: "settings",    label: "ตั้งค่า",           icon: "settings", children: SETTINGS_CHILDREN },
   ],
   admin: [
     { key: "dashboard",   label: "แดชบอร์ด",         icon: "dashboard" },
@@ -115,12 +125,38 @@ const NAV = {
     { key: "reports",     label: "รายงาน",           icon: "stats" },
     { key: "booking",     label: "จองรถ",            icon: "plus", accent: true },
     { key: "checkin",     label: "Check-in / out",   icon: "qr" },
-    { key: "settings",    label: "ตั้งค่า",           icon: "settings" },
+    { key: "settings",    label: "ตั้งค่า",           icon: "settings", children: SETTINGS_CHILDREN_ADMIN },
   ],
 };
 
 function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
   const nav = NAV[user.role];
+
+  const [expanded, setExpanded] = React.useState(() => {
+    const init = {};
+    nav.forEach(n => {
+      if (n.children && n.children.some(c => c.key === route)) init[n.key] = true;
+    });
+    return init;
+  });
+
+  React.useEffect(() => {
+    nav.forEach(n => {
+      if (n.children && n.children.some(c => c.key === route)) {
+        setExpanded(e => ({ ...e, [n.key]: true }));
+      }
+    });
+  }, [route]);
+
+  function handleNavClick(n) {
+    if (n.children) {
+      setExpanded(e => ({ ...e, [n.key]: !e[n.key] }));
+    } else {
+      setRoute(n.key);
+      onClose && onClose();
+    }
+  }
+
   return (
     <>
       {isOpen && <div className="sidebar-backdrop" onClick={onClose}></div>}
@@ -144,19 +180,36 @@ function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
           </div>
         </div>
         <div className="nav-section nav-text">เมนูหลัก</div>
-        {nav.map((n) => (
-          <button
-            key={n.key}
-            className={"nav-item" + (route === n.key ? " active" : "")}
-            onClick={() => { setRoute(n.key); onClose && onClose(); }}
-          >
-            <span className="ico">{I[n.icon]}</span>
-            <span className="nav-text">{n.label}</span>
-            {n.badge && counts[n.badge] > 0 && (
-              <span className="badge">{counts[n.badge]}</span>
-            )}
-          </button>
-        ))}
+        {nav.map((n) => {
+          const isChildActive = n.children && n.children.some(c => c.key === route);
+          const isOpen_ = expanded[n.key];
+          return (
+            <React.Fragment key={n.key}>
+              <button
+                className={"nav-item" + (isChildActive ? " active-parent" : "") + (route === n.key ? " active" : "")}
+                onClick={() => handleNavClick(n)}
+              >
+                <span className="ico">{I[n.icon]}</span>
+                <span className="nav-text">{n.label}</span>
+                {n.badge && counts[n.badge] > 0 && <span className="badge">{counts[n.badge]}</span>}
+                {n.children && (
+                  <span className="nav-chevron nav-text" style={{transform: isOpen_ ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s', marginLeft:'auto'}}>
+                    {I.chevronDown}
+                  </span>
+                )}
+              </button>
+              {n.children && isOpen_ && n.children.map(child => (
+                <button
+                  key={child.key}
+                  className={"nav-sub-item" + (route === child.key ? " active" : "")}
+                  onClick={() => { setRoute(child.key); onClose && onClose(); }}
+                >
+                  <span className="nav-text">{child.label}</span>
+                </button>
+              ))}
+            </React.Fragment>
+          );
+        })}
         <div className="sidebar-footer">
           <div className="role-card">
             <div className="role-avatar">{user.name.charAt(0)}</div>

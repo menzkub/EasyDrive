@@ -393,9 +393,10 @@ function App() {
   // ── Route guard ──
   React.useEffect(() => {
     if (!currentUser) return;
-    const allowed = ["dashboard", "booking", "calendar", "my", "checkin", "settings",
+    const allowed = ["dashboard", "booking", "calendar", "my", "checkin",
+      "settings", "settings-account", "settings-noti", "settings-calendar",
       ...(currentUser.role === "manager" ? ["approvals", "reports"] : []),
-      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports"] : [])
+      ...(currentUser.role === "admin" ? ["approvals", "members", "vehicles", "reports", "settings-depts"] : [])
     ];
     if (!allowed.includes(route)) setRoute("dashboard");
   }, [currentUser, route]);
@@ -474,7 +475,7 @@ function App() {
   return (
     <div className="app">
       <Sidebar route={route} setRoute={setRoute} user={currentUser} counts={counts} onLogout={handleLogout} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)}/>
-      <Topbar title={(titles[route] || titles.dashboard).t} subtitle={null}
+      <Topbar title={(titles[route.startsWith("settings") ? "settings" : route] || titles.dashboard).t} subtitle={null}
         onMenuClick={() => setDrawerOpen(true)}
         onBellClick={() => setNotiOpen(!notiOpen)}
         unreadCount={unreadCount}
@@ -491,7 +492,7 @@ function App() {
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
-        {route === "settings" && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast}/>}
+        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)}/>}
       </main>
 
       {selectedVehicle && <VehicleQuickModal vehicle={selectedVehicle} bookings={bookings} users={users} onClose={() => setSelectedVehicle(null)} onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}/>}
