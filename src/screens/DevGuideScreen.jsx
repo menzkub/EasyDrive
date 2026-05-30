@@ -96,6 +96,7 @@ const SECTIONS = [
   { id: 'state',       icon: '⚙️', label: 'State Management' },
   { id: 'styling',     icon: '🎨', label: 'CSS & Theming' },
   { id: 'env',         icon: '🔑', label: 'Environment & Deploy' },
+  { id: 'changelog',   icon: '📋', label: 'Changelog' },
 ];
 
 // ─── Main DevGuideScreen ─────────────────────────────────────────────
@@ -204,12 +205,13 @@ export function DevGuideScreen() {
           <DevTable
             heads={['ไฟล์', 'หน้าที่', 'หมายเหตุ']}
             rows={[
-              ['src/App.jsx', 'Root component — จัดการ auth, routing, global state, handlers ทั้งหมด', 'ไฟล์ที่ใหญ่ที่สุด ~730 บรรทัด'],
+              ['src/App.jsx', 'Root component — จัดการ auth, routing, global state, handlers ทั้งหมด', 'ไฟล์ที่ใหญ่ที่สุด ~750 บรรทัด'],
               ['src/components.jsx', 'Shared UI components: I icons, Sidebar, Topbar, Modal, ConfirmDialog, CommandMenu, NavModal, DeptPicker, formatters', '~1,500+ บรรทัด'],
               ['src/supabase.js', 'สร้าง Supabase client จาก env vars, export isConfigured', '13 บรรทัด'],
               ['src/data.js', 'Static constants: VEHICLE_TYPES, FUEL_TYPES, DEPARTMENTS (fallback), PURPOSES, CHECKLIST', 'ข้อมูล fallback เมื่อยังไม่มี DB'],
               ['src/index.css', 'Global styles, CSS custom properties, dark mode, responsive, animations', '~2,000+ บรรทัด'],
               ['src/TweaksPanel.jsx', 'Dev panel สำหรับปรับ theme/layout (hidden, เปิดด้วย secret shortcut)', 'Dev tool'],
+              ['src/DevCard.jsx', 'Floating dev card — ปุ่มลอยมุมขวา, popup ข้อมูลนักพัฒนา, changelog tab, draggable, config ใน localStorage', 'แสดงเฉพาะ light mode'],
               ['src/main.jsx', 'Entry point — mount React app เข้า #root', '5 บรรทัด'],
             ]}
           />
@@ -230,6 +232,7 @@ export function DevGuideScreen() {
               ['SettingsScreen.jsx', 'settings-*', 'ทุกคน', 'Tabs: บัญชี, แจ้งเตือน, Calendar Sync, แผนก*, ทดสอบระบบ*, คู่มือ*, นักพัฒนา*'],
               ['ManualScreen.jsx', 'help / settings-manual', 'ทุกคน', 'คู่มือในระบบ แยกตามบทบาท user/manager/admin'],
               ['DevGuideScreen.jsx', 'settings-dev', 'admin', 'คู่มือนักพัฒนา (ไฟล์นี้)'],
+              ['DevGuideScreen.jsx', 'settings-dev', 'admin', 'คู่มือนักพัฒนา (ไฟล์นี้) — อัปเดต v1.1.0'],
               ['VoucherScreen.jsx', '(modal)', 'ทุกคน', 'Export: BookingVoucher (พิมพ์ใบจอง) + BookingDetailModal'],
               ['NotificationsScreen.jsx', '(panel)', 'ทุกคน', 'Export: NotificationCenter + generateNotifications()'],
             ]}
@@ -413,6 +416,7 @@ if (!allowed.includes(route)) setRoute("dashboard");`}</Code>
               ['departments', 'array', 'แผนก (เรียงตาม sort_order)'],
               ['vehicleHistory', 'array', 'ประวัติการเปลี่ยนแปลงรถ'],
               ['mileageCorrections', 'array', 'คำขอแก้ไขเลขไมล์'],
+              ['appConfig', 'object', 'ข้อมูลจาก app_config table: { checklist, purposes, vehicleTypes, fuelTypes, fuelPrices } — merge กับ data.js fallbacks'],
               ['route', 'string', 'หน้าจอปัจจุบัน'],
               ['toasts', 'array', 'Toast notifications'],
               ['confirm', 'object | null', 'ConfirmDialog config'],
@@ -439,6 +443,24 @@ pushToast({ kind: "ok",   title: "สำเร็จ", body: "รายละเ
 pushToast({ kind: "warn", title: "เตือน" })
 // kind: ok | warn | error | info
 // auto-dismiss หลัง 3.5 วินาที`}</Code>
+
+          <div style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, marginTop: 18 }}>localStorage Keys</div>
+          <DevTable
+            heads={['Key', 'ค่า', 'ใช้ที่ไหน']}
+            rows={[
+              ['pea-dark', '"1" | ""', 'Dark mode on/off'],
+              ['pea-sidebar-collapsed', '"1" | ""', 'Sidebar ย่อ/ขยาย'],
+              ['pea-maintenance', '"1" | ""', 'Maintenance mode on/off'],
+              ['pea-maintenance-cfg', 'JSON {message, scheduledEnd}', 'Maintenance config (ข้อความ, เวลากำหนดเปิด)'],
+              ['pea-maintenance-log', 'JSON [{at, action, by}]', 'ประวัติการเปิด/ปิดโหมดบำรุงรักษา'],
+              ['pea-demo-enabled', '"1" | ""', 'Demo booking mode on/off'],
+              ['pea-fuel-sync-log', 'JSON [{at, ok, note, prices}]', 'ประวัติการซิงค์ราคาน้ำมัน (max 50 รายการ)'],
+              ['pea-pub-vehicles', 'JSON []', 'Cache รถสำหรับปฏิทินสาธารณะ'],
+              ['pea-pub-bookings', 'JSON []', 'Cache การจองสำหรับปฏิทินสาธารณะ'],
+              ['easydrive-devcard', 'JSON {name, position, org, ...}', 'DevCard config'],
+              ['easydrive-devcard-pos', 'JSON {left, top}', 'DevCard button position'],
+            ]}
+          />
 
           <div style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, marginTop: 18 }}>Auto-logout (Idle)</div>
           <Code lang="js">{`const IDLE_MS = 30 * 60 * 1000;  // 30 นาที
@@ -593,10 +615,17 @@ npm run preview    # ทดสอบ production build`}</Code>
               { title: 'Photo Compression', desc: 'รูปถ่ายบีบอัดด้วย Canvas API ก่อนเก็บ: max 900px, JPEG 72%, ~100KB/รูป. เก็บเป็น base64 ใน JSONB column', file: 'CheckinScreen.jsx → PhotoCapture' },
               { title: 'QR Deep Link', desc: 'QR บนใบจองเข้ารหัสเป็น URL (origin/?booking=ID). App.jsx อ่าน ?booking= param หลัง login และแสดง VoucherModal โดยอัตโนมัติ จากนั้น clean URL', file: 'VoucherScreen.jsx + App.jsx' },
               { title: 'Custom Select', desc: 'Select component แทน native <select> ทั้งระบบ — parse <option> children ผ่าน React.Children.toArray, dropdown แบบ Command Menu, same onChange API', file: 'components.jsx → Select' },
-              { title: 'Demo Booking Mode', desc: 'Admin เปิด/ปิดปุ่ม 🎮 ทดสอบจอง จาก Settings > ทดสอบระบบ (พร้อม ConfirmDialog). Demo bookings ใช้ prefix "DEMO-" — ลบทีเดียวได้ทั้งหมดด้วย supabase.delete().like(id, "DEMO%")', file: 'SettingsScreen.jsx → DemoSettings · App.jsx → handleDemoBooking' },
+              { title: 'Demo Booking Mode', desc: 'Admin เปิด/ปิดปุ่ม 🎮 ทดสอบจอง (พร้อม ConfirmDialog + collapsible list). Demo bookings ใช้ prefix "DEMO-" — ลบทีเดียวได้ทั้งหมดด้วย supabase.delete().like(id, "DEMO%")', file: 'SettingsScreen.jsx → DemoSettings · App.jsx → handleDemoBooking' },
+              { title: 'DevCard + Changelog', desc: 'Floating draggable dev card popup — tab bar 2 แท็บ: ⚙️ รายละเอียด (tech stack, API info) และ 📋 ประวัติอัปเดต (CHANGELOG hardcoded per version). ซ่อนอัตโนมัติใน dark mode. Config (ชื่อ, ตำแหน่ง, org) บันทึก localStorage easydrive-devcard', file: 'DevCard.jsx → DevCardButton + CHANGELOG array' },
+              { title: 'FuelCostReport Admin Details', desc: 'Admin เห็น collapsible "รายละเอียดการคำนวณ" — ตารางราคาน้ำมันต่อประเภทเชื้อเพลิง, badge ว่าใช้ราคาจากระบบหรือค่าเริ่มต้น, สูตรการคำนวณ, badge "อัปเดตล่าสุด" เมื่อซิงค์จาก PTT', file: 'ReportsScreen.jsx → FuelCostReport (isAdmin prop)' },
+              { title: 'Sidebar Dark Purple', desc: 'Sidebar ใช้ dark purple gradient ตลอด (#4D1F66→#6E2A8C) ทั้ง light และ dark mode — text ขาว, active item: white bg + orange left-border. Dark mode ใช้ gradient ที่เข้มกว่า (#1e0d33→#4D1F66)', file: 'index.css → .sidebar styles' },
+              { title: 'Dashboard Header Gradient', desc: 'Topbar h1 ใช้ gradient text (purple-deep → purple → orange, 21px/800 weight). วันที่ใช้ purple-tinted 12.5px + emoji prefix 📅. Mobile fallback ลดขนาดแต่คง gradient', file: 'index.css → .topbar h1 · components.jsx → Topbar' },
               { title: 'PublicCalendar (กฟส. ฝาง)', desc: 'PublicCalendarModal รับ initialVehicles/initialBookings props — ถ้ามีข้อมูล ข้ามการ fetch Supabase (แก้ปัญหา RLS). หน้า Login fallback ไป localStorage cache (pea-pub-vehicles, pea-pub-bookings) ที่ loadAllData() เขียนทุกครั้ง', file: 'AuthScreen.jsx → PublicCalendarModal (exported) · App.jsx → loadAllData' },
-              { title: 'Admin-Config Data (app_config)', desc: 'Supabase ตาราง app_config เก็บ checklist, purposes, vehicle_types, fuel_types เป็น JSONB. LoadAllData โหลดและ merge กับ data.js fallbacks — ส่งเป็น props ไปทุก Screen ที่ใช้. DataSettings ใน SettingsScreen ให้ Admin แก้ไขพร้อม ConfirmDialog ทุก action ที่ทำลายข้อมูล', file: 'App.jsx → appConfig state · SettingsScreen.jsx → DataSettings' },
-              { title: 'Maintenance Mode', desc: 'localStorage "pea-maintenance" toggle ใน DemoSettings. เมื่อ ON: non-admin เห็นหน้า block fullscreen, admin เห็น orange banner พร้อมปุ่ม "เปิดระบบ" ด่วน. State อยู่ใน App.jsx — ไม่ผ่าน Supabase จึงรีเซ็ตถ้า localStorage ล้าง', file: 'App.jsx → maintenanceMode · SettingsScreen.jsx → DemoSettings' },
+              { title: 'Admin-Config Data (app_config)', desc: 'Supabase ตาราง app_config เก็บ checklist, purposes, vehicle_types, fuel_types, fuel_prices เป็น JSONB. LoadAllData โหลดและ merge กับ data.js fallbacks — ส่งเป็น props ไปทุก Screen ที่ใช้. DataSettings ให้ Admin แก้ไขพร้อม ConfirmDialog ทุก action ที่ทำลายข้อมูล', file: 'App.jsx → appConfig state · SettingsScreen.jsx → DataSettings' },
+              { title: 'Maintenance Mode + History Log', desc: 'localStorage "pea-maintenance" toggle. เมื่อ ON: non-admin เห็นหน้า block fullscreen, admin เห็น orange banner. บันทึกประวัติการเปิด/ปิดทุกครั้งใน pea-maintenance-log (array {at, action, by}) — ยุบ/ขยายได้ใน DemoSettings', file: 'App.jsx → handleSetMaintenanceMode · SettingsScreen.jsx → DemoSettings' },
+              { title: 'PTT Fuel Price Sync', desc: 'Admin ซิงค์ราคาน้ำมันจาก api.chnwt.dev/thai-oil-api/latest — map: gasohol_95→gasohol, diesel_b7→diesel, gasoline_95→benzin, ngv→ngv (EV กรอกเอง). บันทึกลง Supabase app_config เพื่อใช้คำนวณในรายงาน', file: 'SettingsScreen.jsx → syncFuelPricesFromPTT · DataSettings fuelPrices tab' },
+              { title: 'Fuel Sync History Log', desc: 'บันทึกทุก sync (success/fail) ลง pea-fuel-sync-log (array {at, ok, note, prices}) เก็บสูงสุด 50 รายการ — แสดงเป็น collapsible timeline พร้อมราคาที่ดึงมาแต่ละครั้ง', file: 'SettingsScreen.jsx → DataSettings fuelPrices tab · fpSyncLog state' },
+              { title: 'DateTimePicker (Thai calendar)', desc: 'Custom date-time picker แทน native datetime-local — grid ปฏิทินไทย (วัน/เดือน/ปี พ.ศ.) + scroll เลือกชั่วโมง/นาที, responsive, ใช้ใน maintenance schedule', file: 'SettingsScreen.jsx → DateTimePicker component' },
             ].map(({ title, desc, file }) => (
               <div key={title} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{title}</div>
@@ -605,6 +634,73 @@ npm run preview    # ทดสอบ production build`}</Code>
               </div>
             ))}
           </div>
+        </div>
+
+        <div style={{ height: 1, background: 'var(--border)', margin: '28px 0' }} />
+
+        {/* ── CHANGELOG ────────────────────────────────────── */}
+        <div id="dev-sec-changelog">
+          <SectionHead icon="📋" title="Changelog"
+            sub="ประวัติการพัฒนาและการปรับปรุงระบบ" />
+
+          {[
+            {
+              version: 'v1.1.0', date: '30 พ.ค. 2569', latest: true,
+              changes: [
+                { tag: 'feat', text: 'Sidebar dark purple gradient (always-on, ทั้ง light + dark mode)' },
+                { tag: 'feat', text: 'Dashboard topbar: gradient text h1 (purple→orange) + วันที่เด่นชัด' },
+                { tag: 'feat', text: 'PTT Fuel Price API sync + admin-editable fuel prices → app_config' },
+                { tag: 'feat', text: 'Fuel sync history log (pea-fuel-sync-log) — collapsible timeline' },
+                { tag: 'feat', text: 'FuelCostReport: admin-only รายละเอียดการคำนวณ + อัปเดตล่าสุด badge' },
+                { tag: 'feat', text: 'DateTimePicker — custom Thai calendar picker แทน native datetime-local' },
+                { tag: 'feat', text: 'Maintenance mode history log (pea-maintenance-log)' },
+                { tag: 'feat', text: 'Demo bookings list + DevCard: ปุ่มยุบ/ขยาย' },
+                { tag: 'feat', text: 'DevCard: popup tab bar — ⚙️ รายละเอียด + 📋 ประวัติอัปเดต (CHANGELOG)' },
+                { tag: 'feat', text: 'ManualScreen: admin-only สูตรคำนวณค่าน้ำมัน + อัตราการใช้งาน' },
+                { tag: 'fix',  text: 'Blank screen bug ใน Vehicles/Checkin/CheckinHistory/Booking (scope bug — module-level constants ไม่สามารถเข้าถึงจาก sub-components ที่ไม่ได้รับเป็น props)' },
+                { tag: 'fix',  text: 'Mobile member card click ไม่แสดงข้อมูล (AdminScreen)' },
+              ]
+            },
+            {
+              version: 'v1.0.0', date: 'พ.ค. 2569', latest: false,
+              changes: [
+                { tag: 'feat', text: 'ระบบจองรถ 3 ขั้นตอน (เลือกวัตถุประสงค์ → เลือกรถ → ยืนยัน) + GPS destination' },
+                { tag: 'feat', text: 'Check-in/out + Photo capture (Canvas compression) + Checklist 10 รายการ' },
+                { tag: 'feat', text: 'อนุมัติ/ปฏิเสธการจอง + ภารกิจด่วน' },
+                { tag: 'feat', text: 'ปฏิทินการจอง รายเดือน/สัปดาห์ + PublicCalendar (ไม่ต้อง login)' },
+                { tag: 'feat', text: 'รายงาน: สถิติการจอง, ระยะทาง, ค่าน้ำมัน, สถิติแผนก, export CSV' },
+                { tag: 'feat', text: 'จัดการรถ, สมาชิก, แผนก, Role (user/manager/admin)' },
+                { tag: 'feat', text: 'Command Menu (Ctrl+K) — ค้นหาทุกอย่างในระบบ' },
+                { tag: 'feat', text: 'Notification center + Auto-logout 30 นาที' },
+                { tag: 'feat', text: 'Dark mode + Responsive (mobile drawer sidebar, tablet icon-only sidebar)' },
+                { tag: 'feat', text: 'Supabase Auth + RLS + Realtime subscriptions' },
+                { tag: 'feat', text: 'QR deep link บนใบจอง, Voucher print, NavModal GPS navigation' },
+                { tag: 'feat', text: 'Demo booking mode + Maintenance mode' },
+                { tag: 'feat', text: 'DevCard floating button (draggable)' },
+                { tag: 'feat', text: 'app_config table: admin-configurable checklist, purposes, vehicle_types, fuel_types' },
+              ]
+            },
+          ].map(rel => (
+            <div key={rel.version} style={{ marginBottom: 24, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: rel.latest ? 'linear-gradient(135deg, var(--pea-purple-50), #f0e8f8)' : 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ background: rel.latest ? 'var(--pea-purple)' : 'var(--text-3)', color: 'white', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>{rel.version}</span>
+                <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>📅 {rel.date}</span>
+                {rel.latest && <span style={{ marginLeft: 'auto', fontSize: 10.5, background: '#dcfce7', color: '#16a34a', borderRadius: 999, padding: '2px 8px', fontWeight: 700, border: '1px solid #86efac' }}>● ล่าสุด</span>}
+              </div>
+              <div style={{ padding: '10px 16px' }}>
+                {rel.changes.map((c, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 0', borderBottom: i < rel.changes.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, flexShrink: 0, marginTop: 2, fontFamily: 'var(--font-mono)',
+                      background: c.tag === 'feat' ? '#dbeafe' : c.tag === 'fix' ? '#dcfce7' : '#f3f4f6',
+                      color:      c.tag === 'feat' ? '#1d4ed8' : c.tag === 'fix' ? '#15803d' : '#374151',
+                    }}>{c.tag}</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.55 }}>{c.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div style={{ height: 40 }} />

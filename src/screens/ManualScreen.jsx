@@ -391,7 +391,7 @@ function ManualScreen({ role = 'user' }) {
           ))}
 
           <div style={{ marginTop: 32, padding: '16px 20px', background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', fontSize: 12.5, color: 'var(--text-3)', textAlign: 'center' }}>
-            EasyDrive v1.0 · พัฒนาสำหรับ กฟภ. สาขาฝาง · หากพบปัญหา ติดต่อผู้ดูแลระบบ
+            EasyDrive v1.1.0 · พัฒนาสำหรับ กฟภ. สาขาฝาง · หากพบปัญหา ติดต่อผู้ดูแลระบบ
           </div>
         </div>
       </div>
