@@ -48,7 +48,7 @@ function CheckinScreen({ bookings, vehicles, users, currentUser, onCheckIn, onCh
                     borderRadius:9, cursor:'pointer'
                   }}>
                     <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:4}}>
-                      <span className="plate" style={{fontSize:11, padding:'1px 6px'}}>{v?.plate.split(' ').slice(0,2).join(' ')}</span>
+                      <span className="plate" style={{fontSize:11, padding:'1px 6px'}}>{(v?.plate || '').split(' ').slice(0,2).join(' ')}</span>
                       <span className="text-xs muted">{b.id}</span>
                     </div>
                     <div style={{fontSize:13, fontWeight:600}}>{v?.brand}</div>
@@ -80,28 +80,157 @@ function CheckinScreen({ bookings, vehicles, users, currentUser, onCheckIn, onCh
   );
 }
 
+// ─── Photo Capture Component ─────────────────────────────────────
+function PhotoCapture({ photos, onAdd, onRemove, label, required, disabled, maxCount = 4 }) {
+  const inputRef = React.useRef();
+
+  function handleFiles(e) {
+    const files = Array.from(e.target.files);
+    const remaining = maxCount - photos.length;
+    files.slice(0, remaining).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => onAdd(ev.target.result);
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  }
+
+  const hasPhotos = photos.length > 0;
+
+  return (
+    <div>
+      <input ref={inputRef} type="file" accept="image/*" multiple capture="environment"
+        style={{display:'none'}} onChange={handleFiles}/>
+
+      {hasPhotos && (
+        <div style={{display:'flex', gap:6, flexWrap:'wrap', marginBottom:8}}>
+          {photos.map((src, i) => (
+            <div key={i} style={{position:'relative', width:72, height:72, flexShrink:0}}>
+              <img src={src} alt={`รูป ${i+1}`}
+                style={{width:72, height:72, objectFit:'cover', borderRadius:8, border:'1.5px solid var(--border)', display:'block'}}/>
+              {!disabled && (
+                <button onClick={() => onRemove(i)} style={{
+                  position:'absolute', top:-5, right:-5, width:20, height:20,
+                  borderRadius:'50%', background:'var(--danger)', color:'white',
+                  border:'2px solid white', cursor:'pointer', display:'grid',
+                  placeItems:'center', fontSize:11, lineHeight:1, padding:0
+                }}>×</button>
+              )}
+            </div>
+          ))}
+          {photos.length < maxCount && !disabled && (
+            <button onClick={() => inputRef.current.click()} style={{
+              width:72, height:72, border:'2px dashed var(--border-strong)',
+              borderRadius:8, background:'var(--surface-2)', cursor:'pointer',
+              display:'grid', placeItems:'center', color:'var(--text-3)', fontSize:22
+            }}>+</button>
+          )}
+        </div>
+      )}
+
+      {!hasPhotos && !disabled && (
+        <button onClick={() => inputRef.current.click()} style={{
+          width:'100%', padding:'14px',
+          border: required ? '2px dashed var(--danger)' : '2px dashed var(--border)',
+          borderRadius:9,
+          background: required ? 'var(--danger-bg)' : 'var(--surface-2)',
+          cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          color: required ? 'var(--danger)' : 'var(--text-2)', fontSize:13, fontWeight:500
+        }}>
+          📷 {label} {required && <span style={{color:'var(--danger)', fontSize:12}}>* บังคับ ≥ 1 รูป</span>}
+        </button>
+      )}
+
+      {hasPhotos && (
+        <div style={{display:'flex', alignItems:'center', gap:6, marginTop:4}}>
+          <span style={{fontSize:12, color:'var(--ok)', fontWeight:600}}>✓ {photos.length} รูป · {label}</span>
+          {photos.length < maxCount && !disabled && (
+            <button onClick={() => inputRef.current.click()} style={{
+              marginLeft:'auto', fontSize:11.5, padding:'3px 10px', borderRadius:99,
+              border:'1px solid var(--border)', background:'white', cursor:'pointer', color:'var(--text-2)'
+            }}>+ เพิ่มรูป ({photos.length}/{maxCount})</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Alert/Notification component ────────────────────────────────
+function InlineAlert({ kind = 'warn', children }) {
+  const styles = {
+    warn: { bg: 'var(--warn-bg)', fg: 'var(--warn)', icon: '⚠️' },
+    danger: { bg: 'var(--danger-bg)', fg: 'var(--danger)', icon: '🚫' },
+    ok: { bg: 'var(--ok-bg)', fg: 'var(--ok)', icon: '✅' },
+  };
+  const s = styles[kind] || styles.warn;
+  return (
+    <div style={{display:'flex', gap:8, padding:'10px 12px', background:s.bg, borderRadius:9, fontSize:12.5, color:s.fg, alignItems:'flex-start', marginTop:8}}>
+      <span style={{flexShrink:0}}>{s.icon}</span>
+      <div>{children}</div>
+    </div>
+  );
+}
+
 function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheckOut, onPrintChecklist }) {
   const [mileageOut, setMileageOut] = React.useState(booking.mileageOut || vehicle.mileage);
   const [mileageIn, setMileageIn] = React.useState(booking.mileageIn || vehicle.mileage);
   const [checklist, setChecklist] = React.useState({});
   const [notes, setNotes] = React.useState("");
-  const [photos, setPhotos] = React.useState({ before: false, after: false, mileageDash: false });
+  const [photosBefore, setPhotosBefore] = React.useState([]);
+  const [photosAfter, setPhotosAfter] = React.useState([]);
+  const [photosMileage, setPhotosMileage] = React.useState([]);
   const [rating, setRating] = React.useState(5);
   const [mileageReason, setMileageReason] = React.useState("");
+  const [validationMsg, setValidationMsg] = React.useState(null);
 
   const mileageDiff = mileageOut - vehicle.mileage;
   const mileageMismatch = isOut && mileageDiff !== 0;
-  const needsCorrection = mileageMismatch && (mileageDiff > 5 || mileageDiff < -5); // tolerance ±5km
+  const needsCorrection = mileageMismatch && (mileageDiff > 5 || mileageDiff < -5);
 
   const distance = mileageIn - (booking.mileageOut || mileageOut);
   const passed = Object.keys(checklist).filter((k) => checklist[k] === "pass").length;
   const failed = Object.keys(checklist).filter((k) => checklist[k] === "fail").length;
   const allChecked = passed + failed === CHECKLIST.length;
 
-  // Block checkout if mismatch but no photo/reason, OR if no before-use photo
-  const canCheckout = allChecked && photos.before && (!needsCorrection || (photos.mileageDash && mileageReason.trim().length > 3));
-  // Block check-in completion if no after-use photo or no valid mileageIn
-  const canCheckinComplete = isIn && photos.after && mileageIn > (booking.mileageOut || 0);
+  function handleCheckoutClick() {
+    const issues = [];
+    if (!allChecked) issues.push(`ตรวจสอบรายการยังไม่ครบ (ตรวจแล้ว ${passed + failed}/${CHECKLIST.length} รายการ)`);
+    if (photosBefore.length === 0) issues.push('ต้องถ่ายรูปสภาพรถก่อนใช้งานอย่างน้อย 1 รูป');
+    if (needsCorrection && photosMileage.length === 0) issues.push('ต้องถ่ายรูปหน้าปัดเลขไมล์');
+    if (needsCorrection && mileageReason.trim().length <= 3) issues.push('ต้องระบุเหตุผลความไม่ตรงของเลขไมล์');
+
+    if (issues.length > 0) {
+      setValidationMsg(issues);
+      return;
+    }
+    setValidationMsg(null);
+    onCheckIn({
+      mileageOut, checklist,
+      photos: photosBefore,
+      mileageCorrection: needsCorrection ? {
+        claimedMileage: mileageOut,
+        systemMileage: vehicle.mileage,
+        diff: mileageDiff,
+        reason: mileageReason,
+        dashPhoto: photosMileage[0] || null,
+        status: "pending",
+      } : null,
+    });
+  }
+
+  function handleCheckinClick() {
+    const issues = [];
+    if (photosAfter.length === 0) issues.push('ต้องถ่ายรูปสภาพรถหลังใช้งานอย่างน้อย 1 รูป');
+    if (mileageIn <= (booking.mileageOut || 0)) issues.push('เลขไมล์หลังใช้งานต้องมากกว่าก่อนใช้งาน');
+
+    if (issues.length > 0) {
+      setValidationMsg(issues);
+      return;
+    }
+    setValidationMsg(null);
+    onCheckOut({ mileageIn, distance, rating, notes, photos: photosAfter });
+  }
 
   return (
     <div className="card card-pad">
@@ -111,7 +240,7 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
         </div>
         <div style={{flex:1}}>
           <div style={{display:'flex', alignItems:'center', gap:8}}>
-            <span className="plate">{vehicle.plate.split(' ').slice(0,2).join(' ')}</span>
+            <span className="plate">{(vehicle.plate || '').split(' ').slice(0,2).join(' ')}</span>
             <StatusPill status={booking.status}/>
           </div>
           <div style={{fontSize:16, fontWeight:600, marginTop:4}}>{vehicle.brand}</div>
@@ -120,14 +249,6 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
         </div>
         <div style={{display:'flex', gap:6, alignItems:'flex-start'}}>
           <button className="btn sm ghost" onClick={onPrintChecklist}>{I.print} พิมพ์</button>
-          <div style={{background:'var(--surface-2)', borderRadius:8, padding:'6px 10px', textAlign:'center'}}>
-            <div className="text-xs muted">QR Check-in</div>
-            <div style={{
-              width:50, height:50, marginTop:4,
-              background: `repeating-conic-gradient(#000 0 25%, #fff 0 50%) 0 0/8px 8px`,
-              borderRadius:4
-            }}></div>
-          </div>
         </div>
       </div>
 
@@ -135,7 +256,7 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
       <div style={{marginBottom:18}}>
         <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:10}}>
           <h3 style={{margin:0, fontSize:15, fontWeight:600}}>ตรวจสอบความพร้อมก่อนใช้งาน (10 รายการ)</h3>
-          <div className="text-xs" style={{color: failed ? 'var(--danger)' : 'var(--ok)'}}>
+          <div className="text-xs" style={{color: failed ? 'var(--danger)' : allChecked ? 'var(--ok)' : 'var(--text-3)'}}>
             ผ่าน {passed} / ไม่ผ่าน {failed} / ทั้งหมด {CHECKLIST.length}
           </div>
         </div>
@@ -159,14 +280,12 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
                   <div className="text-xs muted" style={{lineHeight:1.3}}>{item.hint}</div>
                 </div>
                 <div style={{display:'flex', gap:3}}>
-                  <button
-                    onClick={() => setChecklist({...checklist, [item.id]:"pass"})}
+                  <button onClick={() => setChecklist({...checklist, [item.id]:"pass"})}
                     style={{width:28, height:28, borderRadius:6, border:'none', cursor:'pointer',
                       background: v === "pass" ? 'var(--ok)' : 'var(--surface-2)',
                       color: v === "pass" ? 'white' : 'var(--ok)'
                     }} title="ผ่าน">{I.check}</button>
-                  <button
-                    onClick={() => setChecklist({...checklist, [item.id]:"fail"})}
+                  <button onClick={() => setChecklist({...checklist, [item.id]:"fail"})}
                     style={{width:28, height:28, borderRadius:6, border:'none', cursor:'pointer',
                       background: v === "fail" ? 'var(--danger)' : 'var(--surface-2)',
                       color: v === "fail" ? 'white' : 'var(--danger)'
@@ -177,9 +296,9 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
           })}
         </div>
         {failed > 0 && (
-          <div style={{marginTop:10, padding:'8px 12px', background:'var(--danger-bg)', borderRadius:8, fontSize:12.5, color:'var(--danger)'}}>
-            ⚠️ พบรายการไม่ผ่านการตรวจ {failed} รายการ — กรุณาแจ้งผู้รับผิดชอบประจำรถก่อนใช้งาน
-          </div>
+          <InlineAlert kind="danger">
+            พบรายการไม่ผ่านการตรวจ <b>{failed} รายการ</b> — กรุณาแจ้งผู้รับผิดชอบประจำรถก่อนใช้งาน
+          </InlineAlert>
         )}
       </div>
 
@@ -193,14 +312,11 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
           </div>
           <div className="field" style={{marginBottom:10}}>
             <label className="field-lbl">เลขไมล์ก่อนใช้งาน (กม.) <span className="req">*</span></label>
-            <input
-              className="input"
-              type="number"
+            <input className="input" type="number"
               value={booking.mileageOut || mileageOut}
               onChange={(e) => setMileageOut(parseInt(e.target.value) || 0)}
               disabled={booking.mileageOut != null}
-              style={needsCorrection ? {borderColor:'var(--warn)', background:'var(--warn-bg)'} : null}
-            />
+              style={needsCorrection ? {borderColor:'var(--warn)', background:'var(--warn-bg)'} : null}/>
             <div className="input-hint">
               เลขไมล์ในระบบ: <b>{fmtNum(vehicle.mileage)}</b> กม.
               {mileageMismatch && (
@@ -211,58 +327,39 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
             </div>
           </div>
 
-          {/* Mismatch correction flow */}
           {needsCorrection && isOut && (
-            <div style={{
-              background:'#fff', border:'1.5px solid var(--warn)', borderRadius:9,
-              padding:'12px 14px', marginBottom:10
-            }}>
-              <div style={{display:'flex', alignItems:'flex-start', gap:8, marginBottom:8}}>
-                <div style={{width:22, height:22, borderRadius:6, background:'var(--warn)', color:'white', display:'grid', placeItems:'center', flexShrink:0}}>
-                  {I.warn}
-                </div>
-                <div style={{fontSize:12.5, lineHeight:1.5}}>
-                  <b style={{color:'var(--warn)'}}>เลขไมล์ไม่ตรงกับในระบบ</b><br/>
-                  ระบบบันทึก <b>{fmtNum(vehicle.mileage)}</b> กม. แต่ท่านระบุ <b>{fmtNum(mileageOut)}</b> กม.
-                  ต้องถ่ายรูปหน้าจอเลขไมล์รถ + ระบุเหตุผล เพื่อส่งให้แอดมินตรวจสอบ
-                </div>
+            <div style={{background:'white', border:'1.5px solid var(--warn)', borderRadius:9, padding:'12px 14px', marginBottom:10}}>
+              <InlineAlert kind="warn">
+                <b>เลขไมล์ไม่ตรงกับในระบบ</b> ระบบบันทึก <b>{fmtNum(vehicle.mileage)}</b> กม. แต่ท่านระบุ <b>{fmtNum(mileageOut)}</b> กม.
+                ต้องถ่ายรูปหน้าปัดเลขไมล์ + ระบุเหตุผล
+              </InlineAlert>
+              <div style={{marginTop:10}}>
+                <PhotoCapture
+                  photos={photosMileage}
+                  onAdd={(src) => setPhotosMileage(p => [...p, src])}
+                  onRemove={(i) => setPhotosMileage(p => p.filter((_, idx) => idx !== i))}
+                  label="ถ่ายรูปหน้าปัดเลขไมล์"
+                  required={true}
+                  maxCount={2}
+                />
               </div>
-
-              <button
-                onClick={() => setPhotos({...photos, mileageDash: !photos.mileageDash})}
-                style={{
-                  width:'100%', padding:'12px',
-                  border: photos.mileageDash ? '2px solid var(--ok)' : '2px dashed var(--warn)',
-                  borderRadius:8,
-                  background: photos.mileageDash ? 'var(--ok-bg)' : 'var(--warn-bg)',
-                  cursor:'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-                  color: photos.mileageDash ? 'var(--ok)' : '#7a5500',
-                  fontSize:12.5, fontWeight:500, marginBottom:8
-                }}>
-                {photos.mileageDash
-                  ? <>✓ ถ่ายรูปเลขไมล์หน้าปัดรถแล้ว — รอแอดมินตรวจสอบ</>
-                  : <><span>{I.upload}</span> ถ่ายรูปหน้าจอเลขไมล์ของรถ <span className="req">*</span></>}
-              </button>
-
-              <textarea
-                className="textarea"
-                placeholder="ระบุเหตุผล เช่น เลขไมล์ปัจจุบันบนหน้าปัดสูงกว่าในระบบเนื่องจากผู้ใช้คนก่อนไม่ได้บันทึก ฯลฯ"
-                value={mileageReason}
-                onChange={(e) => setMileageReason(e.target.value)}
-                style={{minHeight:60, fontSize:12.5}}
-              />
-              <div className="input-hint" style={{marginTop:6, color:'var(--text-3)'}}>
-                การส่งคำขอแก้ไขเลขไมล์จะถูกส่งให้ผู้ดูแลระบบอนุมัติ เพื่อปรับปรุงข้อมูลในระบบให้ถูกต้อง
-              </div>
+              <textarea className="textarea" style={{marginTop:8, minHeight:60, fontSize:12.5}}
+                placeholder="ระบุเหตุผล เช่น เลขไมล์ปัจจุบันสูงกว่าในระบบเนื่องจากผู้ใช้คนก่อนไม่ได้บันทึก ฯลฯ"
+                value={mileageReason} onChange={(e) => setMileageReason(e.target.value)}/>
             </div>
           )}
 
-          <button
-            onClick={() => setPhotos({...photos, before: !photos.before})}
-            style={{width:'100%', padding:'14px', border: photos.before ? '2px solid var(--pea-purple)' : '2px dashed var(--danger)', borderRadius:9, background: photos.before ? 'var(--pea-purple-50)' : 'var(--danger-bg)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, color: photos.before ? 'var(--text-2)' : 'var(--danger)', fontSize:13, fontWeight:500}}>
-            {photos.before ? "✓ ถ่ายรูปสภาพรถก่อนใช้งานแล้ว (4 รูป)" : <><span>{I.upload}</span> ถ่ายรูปสภาพรถก่อนใช้งาน <span style={{color:'var(--danger)'}}>* (บังคับ ≥ 1 รูป)</span></>}
-          </button>
+          <div style={{marginTop:8}}>
+            <PhotoCapture
+              photos={photosBefore}
+              onAdd={(src) => setPhotosBefore(p => [...p, src])}
+              onRemove={(i) => setPhotosBefore(p => p.filter((_, idx) => idx !== i))}
+              label="ถ่ายรูปสภาพรถก่อนใช้งาน"
+              required={true}
+              disabled={booking.mileageOut != null}
+              maxCount={4}
+            />
+          </div>
         </div>
 
         <div style={{background:'var(--surface-2)', borderRadius:10, padding:'14px 16px'}}>
@@ -272,29 +369,23 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
           </div>
           <div className="field" style={{marginBottom:10}}>
             <label className="field-lbl">เลขไมล์หลังใช้งาน (กม.) <span className="req">*</span></label>
-            <input className="input" type="number" value={mileageIn} onChange={(e) => setMileageIn(parseInt(e.target.value) || 0)} disabled={!isIn}/>
+            <input className="input" type="number" value={mileageIn}
+              onChange={(e) => setMileageIn(parseInt(e.target.value) || 0)} disabled={!isIn}/>
             {booking.mileageOut != null && distance > 0 && (
               <div className="input-hint" style={{color:'var(--pea-purple)', fontWeight:600}}>
                 ระยะทางที่ใช้: <span style={{fontSize:16}}>{fmtNum(distance)}</span> กม.
               </div>
             )}
-            {isIn && mileageIn <= booking.mileageOut && (
-              <div className="input-err">เลขไมล์หลังใช้งานต้องมากกว่าก่อนใช้งาน</div>
-            )}
           </div>
-          <button
-            onClick={() => setPhotos({...photos, after: !photos.after})}
+          <PhotoCapture
+            photos={photosAfter}
+            onAdd={(src) => setPhotosAfter(p => [...p, src])}
+            onRemove={(i) => setPhotosAfter(p => p.filter((_, idx) => idx !== i))}
+            label="ถ่ายรูปสภาพรถหลังใช้งาน"
+            required={isIn}
             disabled={!isIn}
-            style={{width:'100%', padding:'14px',
-              border: !isIn ? '2px dashed var(--border-strong)' : photos.after ? '2px solid var(--pea-purple)' : '2px dashed var(--danger)',
-              borderRadius:9,
-              background: !isIn ? 'transparent' : photos.after ? 'var(--pea-purple-50)' : 'var(--danger-bg)',
-              cursor: isIn ? 'pointer' : 'not-allowed',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-              color: !isIn ? 'var(--text-3)' : photos.after ? 'var(--text-2)' : 'var(--danger)',
-              fontSize:13, fontWeight:500, opacity: isIn ? 1 : 0.6}}>
-            {photos.after ? "✓ ถ่ายรูปสภาพรถหลังใช้งานแล้ว (4 รูป)" : <><span>{I.upload}</span> ถ่ายรูปสภาพรถหลังใช้งาน {isIn && <span style={{color:'var(--danger)'}}>* (บังคับ ≥ 1 รูป)</span>}</>}
-          </button>
+            maxCount={4}
+          />
         </div>
       </div>
 
@@ -312,42 +403,31 @@ function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheck
         </div>
       )}
 
+      {/* Validation errors */}
+      {validationMsg && (
+        <div style={{marginBottom:14, padding:'12px 14px', background:'var(--danger-bg)', border:'1.5px solid var(--danger)', borderRadius:10}}>
+          <div style={{fontSize:13, fontWeight:700, color:'var(--danger)', marginBottom:6}}>🚫 ไม่สามารถดำเนินการได้ — กรุณาตรวจสอบ:</div>
+          <ul style={{margin:0, paddingLeft:18}}>
+            {validationMsg.map((msg, i) => (
+              <li key={i} style={{fontSize:12.5, color:'var(--danger)', marginBottom:2}}>{msg}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div style={{display:'flex', gap:8, justifyContent:'flex-end', alignItems:'center'}}>
-        {needsCorrection && isOut && !canCheckout && (
-          <div className="text-xs" style={{color:'var(--warn)', marginRight:'auto'}}>
-            {I.warn} ต้องถ่ายรูปเลขไมล์ + ระบุเหตุผลก่อน Check-out
-          </div>
-        )}
         {isOut && (
-          <button className="btn accent lg" disabled={!canCheckout}
-            onClick={() => onCheckIn({
-              mileageOut, checklist,
-              photos: photos.before,
-              mileageCorrection: needsCorrection ? {
-                claimedMileage: mileageOut,
-                systemMileage: vehicle.mileage,
-                diff: mileageDiff,
-                reason: mileageReason,
-                dashPhoto: photos.mileageDash,
-                status: "pending",
-              } : null,
-            })}>
+          <button className="btn accent lg" onClick={handleCheckoutClick}>
             {I.check} ยืนยัน Check-out & รับรถ
             {needsCorrection && " (+ ส่งคำขอแก้ไขเลขไมล์)"}
           </button>
         )}
         {isIn && (
-          <button className="btn primary lg" onClick={() => onCheckOut({ mileageIn, distance, rating, notes, photos: photos.after })}>
+          <button className="btn primary lg" onClick={handleCheckinClick}>
             {I.check} ยืนยัน Check-in & คืนรถ
           </button>
         )}
       </div>
-
-      {!allChecked && isOut && (
-        <div className="text-xs muted" style={{textAlign:'right', marginTop:6}}>
-          ต้องตรวจสอบความพร้อมครบทั้ง 10 รายการก่อนรับรถ
-        </div>
-      )}
     </div>
   );
 }

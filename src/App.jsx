@@ -407,8 +407,10 @@ function App() {
         setMileageCorrections((s) => [mc, ...s]);
         pushToast({ kind: "warn", title: "ส่งคำขอแก้ไขเลขไมล์แล้ว", body: `เลขที่ ${id} · รอแอดมินอนุมัติ` });
       } else {
-        pushToast({ kind: "ok", title: "Check-out สำเร็จ", body: "บันทึกเลขไมล์ก่อนใช้งานแล้ว" });
+        pushToast({ kind: "ok", title: "Check-out สำเร็จ ✓", body: "รับรถและบันทึกเลขไมล์แล้ว" });
       }
+    } else {
+      pushToast({ kind: "warn", title: "Check-out ไม่สำเร็จ", body: error.message });
     }
   }
 
@@ -416,7 +418,9 @@ function App() {
     const { error } = await supabase.from('bookings').update({ mileageIn: data.mileageIn, rating: data.rating, status: "completed" }).eq('id', bookingId);
     if (!error) {
       setBookings(bookings.map((b) => b.id === bookingId ? { ...b, mileageIn: data.mileageIn, rating: data.rating, status: "completed" } : b));
-      pushToast({ kind: "ok", title: "Check-in สำเร็จ", body: `ระยะทาง ${data.distance} กม.` });
+      pushToast({ kind: "ok", title: "Check-in สำเร็จ ✓", body: `คืนรถแล้ว · ระยะทาง ${fmtNum(data.distance)} กม.` });
+    } else {
+      pushToast({ kind: "warn", title: "Check-in ไม่สำเร็จ", body: error.message });
     }
   }
 
@@ -584,7 +588,7 @@ function App() {
 
       {selectedVehicle && <VehicleQuickModal vehicle={selectedVehicle} bookings={bookings} users={users} onClose={() => setSelectedVehicle(null)} onBook={() => { setSelectedVehicle(null); setRoute("booking"); }}/>}
       {selectedBooking && <BookingDetailModal booking={selectedBooking} vehicle={vehicles.find((v) => v.id === selectedBooking.vehicleId)} user={users.find((u) => u.id === selectedBooking.userId)} onClose={() => setSelectedBooking(null)}/>}
-      {voucherBooking && <BookingVoucher booking={voucherBooking} vehicle={vehicles.find((v) => v.id === voucherBooking.vehicleId)} user={users.find((u) => u.id === voucherBooking.userId)} onClose={() => setVoucherBooking(null)}/>}
+      {voucherBooking && <BookingVoucher booking={voucherBooking} vehicle={vehicles.find((v) => v.id === voucherBooking.vehicleId)} user={users.find((u) => u.id === voucherBooking.userId)} onClose={() => setVoucherBooking(null)} pushToast={pushToast}/>}
 
       <ToastStack toasts={toasts}/>
       <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)}/>

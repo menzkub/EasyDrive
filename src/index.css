@@ -834,8 +834,35 @@ a { color: inherit; text-decoration: none; }
 @media print {
   body * { visibility: hidden; }
   .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-  .no-print { display: none !important; }
+  .print-area { position: fixed; left: 0; top: 0; width: 100%; z-index: 9999; }
+  .no-print { display: none !important; visibility: hidden !important; }
+
+  /* Voucher overlay: keep visible so print-area inside shows */
+  .voucher-overlay {
+    position: fixed !important;
+    background: none !important;
+    padding: 0 !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+  .voucher-overlay .modal {
+    box-shadow: none !important;
+    max-height: none !important;
+    position: static !important;
+    width: 100% !important;
+    visibility: visible !important;
+  }
+  .voucher-overlay .modal-body {
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+    visibility: visible !important;
+  }
+  .voucher-overlay .print-area {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    position: static !important;
+  }
 }
 
 /* Default: show full day names, hide short */

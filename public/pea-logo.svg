@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Outer purple ring -->
+  <circle cx="100" cy="100" r="98" fill="#7B1D7E"/>
+  <circle cx="100" cy="100" r="90" fill="none" stroke="#C8932D" stroke-width="3"/>
+
+  <!-- Wheat wreaths left -->
+  <g fill="white" opacity="0.85">
+    <ellipse cx="22" cy="68" rx="5" ry="9" transform="rotate(-35 22 68)"/>
+    <ellipse cx="17" cy="82" rx="5" ry="9" transform="rotate(-25 17 82)"/>
+    <ellipse cx="15" cy="97" rx="5" ry="9" transform="rotate(-10 15 97)"/>
+    <ellipse cx="17" cy="112" rx="5" ry="9" transform="rotate(10 17 112)"/>
+    <ellipse cx="23" cy="125" rx="5" ry="9" transform="rotate(25 23 125)"/>
+    <ellipse cx="32" cy="136" rx="5" ry="9" transform="rotate(38 32 136)"/>
+  </g>
+  <!-- Wheat wreaths right -->
+  <g fill="white" opacity="0.85">
+    <ellipse cx="178" cy="68" rx="5" ry="9" transform="rotate(35 178 68)"/>
+    <ellipse cx="183" cy="82" rx="5" ry="9" transform="rotate(25 183 82)"/>
+    <ellipse cx="185" cy="97" rx="5" ry="9" transform="rotate(10 185 97)"/>
+    <ellipse cx="183" cy="112" rx="5" ry="9" transform="rotate(-10 183 112)"/>
+    <ellipse cx="177" cy="125" rx="5" ry="9" transform="rotate(-25 177 125)"/>
+    <ellipse cx="168" cy="136" rx="5" ry="9" transform="rotate(-38 168 136)"/>
+  </g>
+
+  <!-- Inner gold circle -->
+  <circle cx="100" cy="100" r="66" fill="#C8932D"/>
+  <!-- White inner -->
+  <circle cx="100" cy="100" r="59" fill="white"/>
+
+  <!-- Horizontal lines (lower half) -->
+  <clipPath id="c"><circle cx="100" cy="100" r="57"/></clipPath>
+  <g clip-path="url(#c)" fill="none" stroke="#C8932D" stroke-width="2.2" opacity="0.55">
+    <line x1="43" y1="115" x2="157" y2="115"/>
+    <line x1="43" y1="121" x2="157" y2="121"/>
+    <line x1="43" y1="127" x2="157" y2="127"/>
+    <line x1="43" y1="133" x2="157" y2="133"/>
+    <line x1="43" y1="139" x2="157" y2="139"/>
+    <line x1="43" y1="145" x2="157" y2="145"/>
+  </g>
+
+  <!-- Thailand map silhouette simplified -->
+  <path d="M94 44 Q98 41 104 42 Q112 43 115 50 Q119 56 116 63 Q120 70 115 76 Q118 83 112 89 Q114 96 108 101 Q106 107 102 110 Q99 115 95 112 Q91 108 91 103 Q87 98 89 92 Q83 87 86 81 Q81 75 84 69 Q80 62 83 55 Q85 49 90 46 Z" fill="#8B6225" opacity="0.9"/>
+
+  <!-- Lightning bolts fan -->
+  <g fill="#C8932D" stroke="white" stroke-width="0.8">
+    <path d="M100 105 L88 125 L97 122 L93 142 L105 120 L96 123 Z"/>
+    <path d="M100 105 L80 118 L88 120 L78 138 L95 118 L86 120 Z" opacity="0.75"/>
+    <path d="M100 105 L120 118 L112 120 L122 138 L105 118 L114 120 Z" opacity="0.75"/>
+  </g>
+
+  <!-- Curved text path -->
+  <path id="tp1" d="M 26,115 A 80,80 0 0,0 174,115" fill="none"/>
+  <text font-size="13.5" fill="white" font-weight="700" font-family="serif" letter-spacing="1">
+    <textPath href="#tp1" startOffset="50%" text-anchor="middle">การไฟฟ้าส่วนภูมิภาค</textPath>
+  </text>
+
+  <!-- Decorative bottom dashes -->
+  <path d="M 30,148 Q 100,170 170,148" stroke="white" stroke-width="1.5" fill="none" stroke-dasharray="4,3" opacity="0.6"/>
+</svg>

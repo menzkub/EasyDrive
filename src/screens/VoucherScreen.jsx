@@ -1,16 +1,64 @@
 // Voucher (printable booking confirmation) + Booking detail modal
 
 import React from 'react'
+import QRCode from 'qrcode'
 import { I, StatusPill, VehicleIcon, Modal, NavModal, fmtDate, fmtDateTime, fmtTime, fmtNum, STATUS_LABEL } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
-function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
+function BookingVoucher({ booking, vehicle, user, approver, onClose, pushToast }) {
   if (!booking || !vehicle) return null;
   const refCode = booking.id;
   const distance = booking.mileageIn != null ? booking.mileageIn - booking.mileageOut : null;
+  const [qrUrl, setQrUrl] = React.useState(null);
+
+  React.useEffect(() => {
+    const text = [
+      'EASYDRIVE BOOKING',
+      `ID: ${booking.id}`,
+      `VEH: ${booking.vehicleId} ${vehicle?.plate || ''}`,
+      `USER: ${user?.name || ''} (${user?.emp || ''})`,
+      `DATE: ${fmtDateTime(booking.from)} - ${fmtTime(booking.to)}`,
+      `DEST: ${booking.destination}`,
+      `STATUS: ${booking.status}`,
+    ].join('\n');
+    QRCode.toDataURL(text, { width: 110, margin: 1, color: { dark: '#1F1530', light: '#FFFFFF' } })
+      .then(setQrUrl)
+      .catch(() => {});
+  }, [booking.id]);
+
+  function handleExportCSV() {
+    const rows = [
+      ['เลขที่ใบจอง', booking.id],
+      ['สถานะ', STATUS_LABEL[booking.status] || booking.status],
+      ['ผู้จอง', user?.name || ''],
+      ['รหัสพนักงาน', user?.emp || ''],
+      ['สังกัด', user?.dept || ''],
+      ['รถยนต์', `${vehicle?.id} - ${vehicle?.plate}`],
+      ['ยี่ห้อ/รุ่น', vehicle?.brand || ''],
+      ['วัตถุประสงค์', booking.purpose || ''],
+      ['รายละเอียด', booking.purposeNote || ''],
+      ['วันเวลาไป', fmtDateTime(booking.from)],
+      ['วันเวลากลับ', fmtDateTime(booking.to)],
+      ['ปลายทาง', booking.destination || ''],
+      ['ผู้โดยสาร', booking.passengers || 1],
+      ['ผู้อนุมัติ', booking.approvedBy || ''],
+      ['วันที่จอง', fmtDateTime(booking.createdAt)],
+      booking.mileageOut != null ? ['เลขไมล์ก่อนใช้', booking.mileageOut] : null,
+      booking.mileageIn != null ? ['เลขไมล์หลังใช้', booking.mileageIn] : null,
+      distance != null ? ['ระยะทาง (กม.)', distance] : null,
+    ].filter(Boolean);
+
+    const csv = '﻿' + rows.map(([k, v]) => `"${k}","${String(v).replace(/"/g, '""')}"`).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `EasyDrive_${booking.id}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    if (pushToast) pushToast({ kind: 'ok', title: 'ดาวน์โหลด CSV แล้ว', body: `${booking.id}.csv` });
+  }
 
   return (
-    <div className="modal-overlay no-print" onClick={onClose}>
+    <div className="modal-overlay voucher-overlay" onClick={onClose}>
       <div className="modal" style={{ width: 800, maxHeight: '92vh' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header no-print">
           <h2>ใบจองรถยนต์ — สำหรับยืนยันสิทธิ์การใช้งาน</h2>
@@ -28,7 +76,17 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
 
             {/* Header */}
             <div style={{display:'flex', alignItems:'flex-start', gap:14, paddingBottom:14, borderBottom:'2px solid var(--pea-purple)', position:'relative', zIndex:1}}>
-              <div style={{width:60, height:60, background:'var(--pea-orange)', borderRadius:12, display:'grid', placeItems:'center', color:'white', fontWeight:700, fontSize:14, letterSpacing:'0.02em'}}>PEA</div>
+              <img
+                src="/pea-logo.svg"
+                alt="PEA"
+                width={60} height={60}
+                style={{borderRadius:'50%', objectFit:'contain', flexShrink:0}}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'grid';
+                }}
+              />
+              <div style={{width:60, height:60, background:'var(--pea-orange)', borderRadius:12, display:'none', placeItems:'center', color:'white', fontWeight:700, fontSize:14, letterSpacing:'0.02em', flexShrink:0}}>PEA</div>
               <div style={{flex:1}}>
                 <div style={{fontSize:11, color:'var(--text-3)', letterSpacing:'0.08em', textTransform:'uppercase'}}>การไฟฟ้าส่วนภูมิภาค สาขาฝาง</div>
                 <div style={{fontSize:22, fontWeight:700, color:'var(--pea-purple)', letterSpacing:'-0.01em'}}>ใบจองรถยนต์ใช้งาน</div>
@@ -43,7 +101,7 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
               </div>
             </div>
 
-            {/* QR + Vehicle */}
+            {/* QR + User info */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 120px', gap:18, marginTop:18, position:'relative', zIndex:1}}>
               <div>
                 <SectionHead n="1" title="ข้อมูลผู้จอง"/>
@@ -54,23 +112,11 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
                 <Row k="โทรศัพท์" v={user?.phone}/>
               </div>
               <div style={{textAlign:'center'}}>
-                <div style={{
-                  width:110, height:110, margin:'0 auto 4px',
-                  background:`
-                    radial-gradient(black 25%, transparent 25%) 0 0/22px 22px,
-                    radial-gradient(black 25%, transparent 25%) 11px 11px/22px 22px,
-                    repeating-linear-gradient(0deg, black 0 2px, transparent 2px 6px),
-                    repeating-linear-gradient(90deg, black 0 2px, transparent 2px 6px),
-                    white
-                  `,
-                  borderRadius:4, border:'4px solid black',
-                  position:'relative', overflow:'hidden'
-                }}>
-                  <div style={{position:'absolute', top:6, left:6, width:24, height:24, background:'white', border:'5px solid black'}}></div>
-                  <div style={{position:'absolute', top:6, right:6, width:24, height:24, background:'white', border:'5px solid black'}}></div>
-                  <div style={{position:'absolute', bottom:6, left:6, width:24, height:24, background:'white', border:'5px solid black'}}></div>
-                </div>
-                <div style={{fontSize:10, color:'var(--text-3)'}}>สแกนเพื่อยืนยัน</div>
+                {qrUrl
+                  ? <img src={qrUrl} width={110} height={110} style={{borderRadius:4, border:'1px solid #e0d8e8', display:'block'}} alt="QR Code"/>
+                  : <div style={{width:110, height:110, background:'var(--surface-2)', borderRadius:4, display:'grid', placeItems:'center', fontSize:10, color:'var(--text-3)'}}>กำลังสร้าง QR...</div>
+                }
+                <div style={{fontSize:10, color:'var(--text-3)', marginTop:4}}>สแกนเพื่อยืนยัน</div>
               </div>
             </div>
 
@@ -104,7 +150,9 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
                 return <Row k="ระยะเวลารวม" v={<b style={{color:'var(--pea-purple)'}}>{label}</b>}/>;
               })()}
               <Row k="สถานที่ปลายทาง" v={booking.destination}/>
-              <Row k="พิกัด GPS" v={<span style={{fontFamily:'var(--font-mono)'}}>{booking.coords[0].toFixed(5)}, {booking.coords[1].toFixed(5)}</span>}/>
+              {Array.isArray(booking.coords) && booking.coords.length === 2 && (
+                <Row k="พิกัด GPS" v={<span style={{fontFamily:'var(--font-mono)'}}>{Number(booking.coords[0]).toFixed(5)}, {Number(booking.coords[1]).toFixed(5)}</span>}/>
+              )}
               <Row k="ผู้โดยสาร" v={`${booking.passengers || 1} คน`}/>
               {booking.mileageOut != null && <Row k="เลขไมล์ก่อนใช้งาน" v={`${fmtNum(booking.mileageOut)} กม.`}/>}
               {booking.mileageIn != null && <Row k="เลขไมล์หลังใช้งาน" v={`${fmtNum(booking.mileageIn)} กม. (ใช้ไป ${fmtNum(distance)} กม.)`}/>}
@@ -113,8 +161,7 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
             <div style={{marginTop:14, position:'relative', zIndex:1}}>
               <SectionHead n="4" title="การอนุมัติ"/>
               <Row k="วันที่จอง" v={fmtDateTime(booking.createdAt)}/>
-              <Row k="วันที่อนุมัติ" v="2026-05-20 09:30"/>
-              <Row k="ผู้อนุมัติ" v={<><b>{booking.approvedBy}</b> · ผู้จัดการ</>}/>
+              <Row k="ผู้อนุมัติ" v={booking.approvedBy ? <><b>{booking.approvedBy}</b></> : '—'}/>
             </div>
 
             <div style={{marginTop:22, paddingTop:14, borderTop:'1px dashed var(--border-strong)', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:18, position:'relative', zIndex:1}}>
@@ -130,7 +177,7 @@ function BookingVoucher({ booking, vehicle, user, approver, onClose }) {
           </div>
         </div>
         <div className="modal-foot no-print">
-          <button className="btn ghost" onClick={() => alert('ส่งออกเป็น CSV/Excel (mock)')}>{I.download} ส่งออก CSV</button>
+          <button className="btn ghost" onClick={handleExportCSV}>{I.download} ส่งออก CSV</button>
           <button className="btn primary" onClick={() => window.print()}>{I.print} พิมพ์ใบจอง</button>
         </div>
       </div>
@@ -174,7 +221,7 @@ function BookingDetailModal({ booking, vehicle, user, onClose }) {
     <>
     {showNav && <NavModal booking={booking} onClose={() => setShowNav(false)}/>}
     <Modal title={`รายละเอียดการจอง · ${booking.id}`} onClose={onClose} width={620}
-      footer={booking.coords?.length === 2 && (
+      footer={Array.isArray(booking.coords) && booking.coords.length === 2 && (
         <button className="btn primary" style={{marginLeft:'auto'}} onClick={() => setShowNav(true)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
           นำทาง
@@ -187,7 +234,7 @@ function BookingDetailModal({ booking, vehicle, user, onClose }) {
         </div>
         <div style={{flex:1}}>
           <div style={{display:'flex', gap:8, alignItems:'center'}}>
-            <span className="plate">{vehicle.plate.split(' ').slice(0,2).join(' ')}</span>
+            <span className="plate">{(vehicle.plate || '').split(' ').slice(0,2).join(' ')}</span>
             <StatusPill status={booking.status}/>
           </div>
           <div style={{fontSize:16, fontWeight:600, marginTop:4}}>{vehicle.brand}</div>
@@ -203,7 +250,9 @@ function BookingDetailModal({ booking, vehicle, user, onClose }) {
         <Field label="เวลาไป" value={fmtDateTime(booking.from)}/>
         <Field label="เวลากลับ" value={fmtDateTime(booking.to)}/>
         <Field label="ปลายทาง" value={booking.destination}/>
-        <Field label="พิกัด" value={<span style={{fontFamily:'var(--font-mono)', fontSize:12}}>{booking.coords[0].toFixed(4)}, {booking.coords[1].toFixed(4)}</span>}/>
+        {Array.isArray(booking.coords) && booking.coords.length === 2 && (
+          <Field label="พิกัด" value={<span style={{fontFamily:'var(--font-mono)', fontSize:12}}>{Number(booking.coords[0]).toFixed(4)}, {Number(booking.coords[1]).toFixed(4)}</span>}/>
+        )}
         <Field label="ผู้โดยสาร" value={`${booking.passengers || 1} คน`}/>
         {booking.approvedBy && <Field label="อนุมัติโดย" value={booking.approvedBy}/>}
         {booking.rejectReason && <Field label="เหตุผลปฏิเสธ" value={<span style={{color:'var(--danger)'}}>{booking.rejectReason}</span>}/>}
