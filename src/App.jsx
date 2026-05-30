@@ -13,7 +13,7 @@ import { BookingVoucher, BookingDetailModal } from './screens/VoucherScreen'
 import { NotificationCenter, generateNotifications } from './screens/NotificationsScreen'
 import { I, VehicleIcon, StatusPill, STATUS_LABEL, Sidebar, Topbar, Modal, ConfirmDialog, ToastStack, CommandMenu, fmtDate, fmtDateTime, fmtTime, fmtNum } from './components'
 import { VEHICLE_TYPES, FUEL_TYPES } from './data'
-import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakButton } from './TweaksPanel'
+import { useTweaks } from './TweaksPanel'
 import { DevCardButton } from './DevCard'
 import { supabase, isConfigured } from './supabase'
 
@@ -630,15 +630,6 @@ function App() {
       />
 
       <DevCardButton/>
-      <TweaksPanel>
-        <TweakSection label="ธีมสี"/>
-        <TweakColor label="พาเลตต์"
-          value={t.theme === "blue" ? ["#1d4ed8","#f59e0b"] : t.theme === "teal" ? ["#0d9488","#f59e0b"] : ["#6E2A8C","#F37021"]}
-          options={[["#6E2A8C","#F37021"],["#1d4ed8","#f59e0b"],["#0d9488","#f59e0b"]]}
-          onChange={(v) => { const themes = { "#6E2A8C": "purple-orange", "#1d4ed8": "blue", "#0d9488": "teal" }; setTweak("theme", themes[v[0]] || "purple-orange"); }}/>
-        <TweakSection label="แดชบอร์ด"/>
-        <TweakRadio label="Layout" value={t.dashboardLayout} options={["timeline","grid"]} onChange={(v) => setTweak("dashboardLayout", v)}/>
-      </TweaksPanel>
     </div>
   );
 }
