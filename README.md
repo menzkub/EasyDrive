@@ -1,25 +1,160 @@
-# CODING AGENTS: READ THIS FIRST
+# 🚗 EasyDrive — Vehicle Booking System
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+> ระบบจองรถยนต์สำหรับ **การไฟฟ้าส่วนภูมิภาค สาขาฝาง**
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+[![Live](https://img.shields.io/badge/🌐_Live-easydrive.vercel.app-4f46e5?style=flat-square)](https://easydrive.vercel.app)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://reactjs.org)
+[![Supabase](https://img.shields.io/badge/Supabase-backend-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
+[![Vite](https://img.shields.io/badge/Vite-build-646CFF?style=flat-square&logo=vite)](https://vitejs.dev)
 
-## What you should do — IMPORTANT
+---
 
-**Read the chat transcripts first.** There are 1 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+## ✨ ฟีเจอร์หลัก
 
-**Read `project/PEA FANG Booking System.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+| ฟีเจอร์ | รายละเอียด |
+|---|---|
+| 📅 จองรถออนไลน์ | เลือกรถ วันเวลา จุดหมาย พร้อมระบุพิกัด GPS |
+| ✅ อนุมัติ / ปฏิเสธ | ผู้จัดการอนุมัติ-ปฏิเสธพร้อมเหตุผล |
+| 📆 ปฏิทินการจอง | ดูภาพรวมทุกรถในรูปแบบปฏิทิน (สาธารณะ ไม่ต้อง login) |
+| 🗺️ นำทาง | เปิด Google Maps / Apple Maps ไปจุดหมายได้เลย |
+| ⌨️ Command Menu | กด `Ctrl+K` ค้นหาทุกอย่างในระบบ |
+| 📖 คู่มือในระบบ | คู่มือตามบทบาท user / manager / admin |
+| 🔒 Auto-Logout | ออกระบบอัตโนมัติเมื่อไม่มีการใช้งาน 30 นาที |
+| 🌙 Dark Mode | รองรับ dark mode |
+| 📱 Responsive | ใช้งานได้ทั้ง desktop, tablet, และมือถือ |
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+---
 
-## About the design files
+## 🏗️ Tech Stack
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+- **Frontend**: React 18 + Vite (JavaScript, no TypeScript)
+- **Backend**: Supabase (PostgreSQL, Auth, Realtime, RLS)
+- **Styling**: CSS custom properties (no CSS framework)
+- **Deploy**: Vercel
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+---
 
-## Bundle contents
+## 📁 โครงสร้างโปรเจกต์
 
-- `README.md` — this file
-- `chats/` — conversation transcripts (read these!)
-- `project/` — the `PEA FANG vehicle booking system.` project files (HTML prototypes, assets, components)
+```
+repo/
+├── public/
+├── src/
+│   ├── screens/
+│   │   ├── AuthScreen.jsx      # หน้า login / register + ปฏิทินสาธารณะ
+│   │   ├── DashboardScreen.jsx # แดชบอร์ดหลัก
+│   │   ├── VoucherScreen.jsx   # รายการจอง + navigation
+│   │   ├── CalendarScreen.jsx  # ปฏิทินการจอง
+│   │   ├── FleetScreen.jsx     # จัดการยานพาหนะ (admin)
+│   │   ├── UsersScreen.jsx     # จัดการผู้ใช้ (admin)
+│   │   ├── ReportsScreen.jsx   # รายงาน (manager/admin)
+│   │   ├── SettingsScreen.jsx  # ตั้งค่า
+│   │   └── ManualScreen.jsx    # คู่มือการใช้งาน
+│   ├── App.jsx                 # root component + routing + auth state
+│   ├── components.jsx          # shared components (Topbar, Sidebar, Modals...)
+│   ├── supabase.js             # Supabase client
+│   └── index.css               # global styles
+├── .env.local                  # (ไม่ commit) Supabase keys
+├── index.html
+├── vite.config.js
+└── package.json
+```
+
+---
+
+## 👥 บทบาทผู้ใช้
+
+| Role | สิทธิ์ |
+|---|---|
+| `user` | จองรถ, ดูการจองของตัวเอง, ดูปฏิทิน |
+| `manager` | ทุกอย่างของ user + อนุมัติ/ปฏิเสธ, ดูรายงาน |
+| `admin` | ทุกอย่างของ manager + จัดการรถ/ผู้ใช้/แผนก, แก้ไขไมล์ |
+
+---
+
+## 🚀 รันในเครื่อง (Local Development)
+
+### 1. Clone
+
+```bash
+git clone https://github.com/menzkub/PEA-FANG-vehicle-booking-system.git
+cd PEA-FANG-vehicle-booking-system
+npm install
+```
+
+### 2. ตั้งค่า Environment Variables
+
+สร้างไฟล์ `.env.local` ที่ root:
+
+```env
+VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### 3. รัน Dev Server
+
+```bash
+npm run dev
+```
+
+เปิด [http://localhost:5173](http://localhost:5173)
+
+### 4. Build สำหรับ Production
+
+```bash
+npm run build
+```
+
+---
+
+## 🗄️ Supabase Setup
+
+### Tables หลัก
+
+| Table | คำอธิบาย |
+|---|---|
+| `users` | ข้อมูลผู้ใช้ (name, email, role, dept, approved) |
+| `vehicles` | ยานพาหนะ (plate, brand, type, status, mileage) |
+| `bookings` | การจอง (userId, vehicleId, from, to, purpose, status, coords, destination) |
+| `departments` | แผนก (name) |
+
+### RLS (Row Level Security)
+
+- `users`: อ่านได้ทุกคน, แก้ไขได้เฉพาะ admin
+- `bookings`: user ดูได้เฉพาะของตัวเอง, manager/admin ดูทั้งหมด
+- `vehicles`: อ่านได้ทุกคน, แก้ไขได้เฉพาะ admin
+
+### Realtime
+
+เปิด Realtime สำหรับ tables: `bookings`, `vehicles`, `users`
+
+---
+
+## ☁️ Deploy บน Vercel
+
+1. Push code ขึ้น GitHub
+2. Import repo ใน [vercel.com](https://vercel.com)
+3. ตั้ง Environment Variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+4. Deploy
+
+---
+
+## 🎯 ฟีเจอร์เด่น
+
+### ⌨️ Command Menu (`Ctrl+K`)
+ค้นหาทั่วทั้งระบบ — หน้า, การจอง, รถ, ผู้ใช้ — จากทุกที่ในแอป
+
+### 🗺️ Navigation Modal
+ตรวจจับ GPS อัตโนมัติ แสดงระยะทาง และเปิด Google Maps / Apple Maps ได้โดยตรง
+
+### 📖 In-App Manual
+คู่มือการใช้งานแบบ role-based ครบทุกฟีเจอร์ ไม่ต้องพึ่งเอกสารภายนอก
+
+### 🔐 Auto-Logout
+แจ้งเตือน 2 นาทีก่อนออกระบบอัตโนมัติ เมื่อไม่มีการใช้งานนาน 30 นาที
+
+---
+
+## 📄 License
+
+Internal use — การไฟฟ้าส่วนภูมิภาค สาขาฝาง
