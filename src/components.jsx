@@ -236,7 +236,7 @@ function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose, col
 }
 
 // ─── Topbar ──────────────────────────────────────────────────────────
-function Topbar({ title, subtitle, children, onMenuClick, onBellClick, unreadCount = 0, isDark, onDarkToggle }) {
+function Topbar({ title, subtitle, children, onMenuClick, onBellClick, unreadCount = 0, isDark, onDarkToggle, onLogout }) {
   const now = new Date('2026-05-21T10:30');
   const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   return (
@@ -268,6 +268,11 @@ function Topbar({ title, subtitle, children, onMenuClick, onBellClick, unreadCou
             }}>{unreadCount > 9 ? "9+" : unreadCount}</span>
           )}
         </button>
+        {onLogout && (
+          <button className="btn icon ghost topbar-logout" title="ออกจากระบบ" onClick={onLogout}>
+            {I.logout}
+          </button>
+        )}
       </div>
     </header>
   );

@@ -140,6 +140,52 @@ function App() {
   }
   function handleRegister() { setRegistered(true); }
 
+  // ── Auto-logout on idle ──
+  const IDLE_MS = 30 * 60 * 1000;   // 30 minutes
+  const WARN_MS = 2 * 60 * 1000;    // warn 2 minutes before
+  const [idleWarning, setIdleWarning] = React.useState(false);
+  const [idleCountdown, setIdleCountdown] = React.useState(120);
+  const idleWarnTimer = React.useRef(null);
+  const idleOutTimer = React.useRef(null);
+  const countdownInterval = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!currentUser) return;
+
+    function resetIdle() {
+      clearTimeout(idleWarnTimer.current);
+      clearTimeout(idleOutTimer.current);
+      clearInterval(countdownInterval.current);
+      setIdleWarning(false);
+
+      idleWarnTimer.current = setTimeout(() => {
+        setIdleWarning(true);
+        setIdleCountdown(WARN_MS / 1000);
+        countdownInterval.current = setInterval(() => {
+          setIdleCountdown((c) => {
+            if (c <= 1) { clearInterval(countdownInterval.current); return 0; }
+            return c - 1;
+          });
+        }, 1000);
+      }, IDLE_MS - WARN_MS);
+
+      idleOutTimer.current = setTimeout(() => {
+        handleLogout();
+      }, IDLE_MS);
+    }
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach((e) => document.addEventListener(e, resetIdle, { passive: true }));
+    resetIdle();
+
+    return () => {
+      events.forEach((e) => document.removeEventListener(e, resetIdle));
+      clearTimeout(idleWarnTimer.current);
+      clearTimeout(idleOutTimer.current);
+      clearInterval(countdownInterval.current);
+    };
+  }, [currentUser]);
+
   // ── Booking handlers ──
   async function handleSubmitBooking(form) {
     const id = `BK${new Date().toISOString().slice(0,10).replace(/-/g,'').slice(2)}-${(bookings.length+1).toString().padStart(3,"0")}`;
@@ -482,6 +528,7 @@ function App() {
         unreadCount={unreadCount}
         isDark={isDark}
         onDarkToggle={() => setIsDark(d => !d)}
+        onLogout={handleLogout}
       />
       <main className="main">
         {route === "dashboard" && <Dashboard user={currentUser} vehicles={vehicles} bookings={bookings} users={users} setRoute={setRoute} onSelectVehicle={(v) => setSelectedVehicle(v)}/>}
@@ -502,6 +549,36 @@ function App() {
 
       <ToastStack toasts={toasts}/>
       <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)}/>
+
+      {idleWarning && (
+        <div className="modal-overlay center" style={{zIndex:3000}} onClick={null}>
+          <div className="modal" style={{width:380}} onClick={(e) => e.stopPropagation()}>
+            <div style={{padding:'24px 24px 18px', textAlign:'center'}}>
+              <div style={{width:56,height:56,borderRadius:'50%',background:'var(--warn-bg)',color:'var(--warn)',display:'grid',placeItems:'center',margin:'0 auto 14px',boxShadow:'0 0 0 8px rgba(234,179,8,0.12)'}}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h2 style={{margin:'0 0 6px',fontSize:18,fontWeight:700}}>เซสชันกำลังจะหมดอายุ</h2>
+              <p style={{margin:'0 0 16px',color:'var(--text-2)',fontSize:13.5,lineHeight:1.55}}>
+                ไม่มีการใช้งานนาน {IDLE_MS / 60000} นาที<br/>
+                ระบบจะออกจากระบบอัตโนมัติใน
+              </p>
+              <div style={{fontSize:42,fontWeight:800,fontFamily:'var(--font-mono)',color:'var(--warn)',letterSpacing:'-0.02em',lineHeight:1}}>
+                {Math.floor(idleCountdown / 60).toString().padStart(2,'0')}:{(idleCountdown % 60).toString().padStart(2,'0')}
+              </div>
+            </div>
+            <div className="modal-foot" style={{gap:10}}>
+              <button className="btn ghost" style={{flex:1}} onClick={handleLogout}>ออกจากระบบ</button>
+              <button className="btn primary" style={{flex:2}} onClick={() => {
+                clearTimeout(idleWarnTimer.current);
+                clearTimeout(idleOutTimer.current);
+                clearInterval(countdownInterval.current);
+                setIdleWarning(false);
+                document.dispatchEvent(new MouseEvent('mousemove'));
+              }}>ยังใช้งานอยู่</button>
+            </div>
+          </div>
+        </div>
+      )}
       <NotificationCenter open={notiOpen} notifications={notifications} onClose={() => setNotiOpen(false)} onMarkRead={(id) => setReadNotifications(new Set([...readNotifications, id]))} onMarkAllRead={() => setReadNotifications(new Set(notifications.map((n) => n.id)))} onNavigate={(r) => setRoute(r)}/>
 
       <TweaksPanel>

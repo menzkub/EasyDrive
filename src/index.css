@@ -924,6 +924,7 @@ a { color: inherit; text-decoration: none; }
   /* Topbar actions */
   .topbar-actions .btn { display: none; }
   .topbar-actions .btn.icon { display: grid; }
+  .topbar-logout { display: grid !important; }
 
   /* Calendar — mobile */
   .cal-grid { font-size: 11px; }
@@ -999,6 +1000,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .menu-btn { display: none; }
+.topbar-logout { display: none; }
 
 /* Leaflet tweaks */
 .leaflet-container {
