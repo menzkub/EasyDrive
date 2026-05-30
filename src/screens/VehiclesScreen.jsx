@@ -243,10 +243,7 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
   const [unavailReason, setUnavailReason] = React.useState("");
   const [editNote, setEditNote] = React.useState("");
   const [photo, setPhoto] = React.useState(false);
-  const [documents, setDocuments] = React.useState(vehicle?.documents || (vehicle ? [
-    { id: "d1", type: "พ.ร.บ.", name: "porbor-2569.pdf", size: "245 KB", uploaded: "2025-11-18" },
-    { id: "d2", type: "ใบทะเบียนรถ", name: "registration.jpg", size: "1.2 MB", uploaded: "2024-03-15" },
-  ] : []));
+  const [documents, setDocuments] = React.useState(vehicle?.documents || []);
   const [uploadingDoc, setUploadingDoc] = React.useState(false);
   const [newDoc, setNewDoc] = React.useState({ type: "พ.ร.บ.", name: "" });
   const [deletingDoc, setDeletingDoc] = React.useState(null);
@@ -265,7 +262,7 @@ function VehicleForm({ vehicle, users = [], onSave, onClose }) {
   const canSave = !mileageBigChange || (photo && editNote.trim().length > 3);
 
   return (
-    <Modal title={vehicle ? `แก้ไขรถยนต์ ${vehicle.id}` : "เพิ่มรถยนต์ใหม่"} onClose={onClose} width={680}
+    <Modal title={vehicle ? `แก้ไขรถยนต์ ${vehicle.id}` : "เพิ่มรถยนต์ใหม่"} onClose={onClose} width={680} noOutsideClose
       footer={<>
         <button className="btn" onClick={onClose}>ยกเลิก</button>
         <button className="btn primary" disabled={!canSave}

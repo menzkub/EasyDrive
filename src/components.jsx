@@ -294,14 +294,14 @@ function Topbar({ title, subtitle, children, onMenuClick, onBellClick, unreadCou
 }
 
 // ─── Modal ───────────────────────────────────────────────────────────
-function Modal({ title, onClose, children, footer, width = 560 }) {
+function Modal({ title, onClose, children, footer, width = 560, noOutsideClose = false }) {
   React.useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => { if (e.key === 'Escape' && !noOutsideClose) onClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, noOutsideClose]);
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={noOutsideClose ? undefined : onClose}>
       <div className="modal" style={{ width }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
