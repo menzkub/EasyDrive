@@ -49,6 +49,10 @@ function App() {
   const [showPublicCal, setShowPublicCal] = React.useState(false);
   const [demoEnabled, setDemoEnabled] = React.useState(() => localStorage.getItem('pea-demo-enabled') === '1');
   const [maintenanceMode, setMaintenanceMode] = React.useState(() => localStorage.getItem('pea-maintenance') === '1');
+  const DEFAULT_MAINTENANCE_MSG = 'ผู้ดูแลระบบกำลังปรับปรุงและอัปเดตระบบ\nกรุณาลองเข้าใช้งานใหม่ในภายหลัง';
+  const [maintenanceCfg, setMaintenanceCfg] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('pea-maintenance-cfg') || '{}'); } catch { return {}; }
+  });
   const [toasts, setToasts] = React.useState([]);
   const [confirm, setConfirm] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -605,6 +609,10 @@ function App() {
     setMaintenanceMode(v);
     localStorage.setItem('pea-maintenance', v ? '1' : '0');
   }
+  function handleSetMaintenanceCfg(cfg) {
+    setMaintenanceCfg(cfg);
+    localStorage.setItem('pea-maintenance-cfg', JSON.stringify(cfg));
+  }
 
   async function handleSaveConfig(key, value) {
     const { error } = await supabase.from('app_config').upsert({ key, value, updated_at: new Date().toISOString() });
@@ -711,10 +719,20 @@ function App() {
       <main className="main">
         {/* Maintenance mode: block non-admins, warn admin */}
         {maintenanceMode && currentUser.role !== 'admin' && (
-          <div style={{position:'fixed',inset:0,zIndex:4000,background:'var(--bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:24}}>
+          <div style={{position:'fixed',inset:0,zIndex:4000,background:'var(--bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:24,textAlign:'center'}}>
             <div style={{fontSize:56}}>🔧</div>
-            <h2 style={{margin:0,fontSize:22,fontWeight:700,textAlign:'center'}}>ระบบปิดบำรุงรักษาชั่วคราว</h2>
-            <p style={{margin:0,fontSize:14,color:'var(--text-2)',textAlign:'center',maxWidth:360,lineHeight:1.6}}>ผู้ดูแลระบบกำลังปรับปรุงระบบ<br/>กรุณาลองเข้าใช้งานใหม่ในภายหลัง</p>
+            <h2 style={{margin:0,fontSize:22,fontWeight:700}}>ระบบปิดบำรุงรักษาชั่วคราว</h2>
+            <p style={{margin:0,fontSize:14,color:'var(--text-2)',maxWidth:400,lineHeight:1.7,whiteSpace:'pre-wrap'}}>
+              {maintenanceCfg.message || DEFAULT_MAINTENANCE_MSG}
+            </p>
+            {maintenanceCfg.returnAt && (
+              <div style={{background:'var(--pea-purple-50)',border:'1px solid var(--pea-purple-100)',borderRadius:10,padding:'10px 20px',fontSize:13}}>
+                <span style={{color:'var(--text-3)'}}>คาดว่าจะกลับมาให้บริการ: </span>
+                <span style={{fontWeight:600,color:'var(--pea-purple)'}}>
+                  {new Date(maintenanceCfg.returnAt).toLocaleString('th-TH',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+                </span>
+              </div>
+            )}
             <p style={{margin:0,fontSize:12,color:'var(--text-3)'}}>หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ</p>
           </div>
         )}
@@ -736,7 +754,7 @@ function App() {
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES} fuelTypes={appConfig.fuelTypes || FUEL_TYPES}/>}
         {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
-        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings} maintenanceMode={maintenanceMode} onSetMaintenanceMode={handleSetMaintenanceMode} appConfig={appConfig} onSaveConfig={handleSaveConfig} defaultConfig={{ checklist: CHECKLIST, vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES, purposes: PURPOSES }}/>}
+        {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings} maintenanceMode={maintenanceMode} onSetMaintenanceMode={handleSetMaintenanceMode} maintenanceCfg={maintenanceCfg} onSetMaintenanceCfg={handleSetMaintenanceCfg} defaultMaintenanceMsg={DEFAULT_MAINTENANCE_MSG} appConfig={appConfig} onSaveConfig={handleSaveConfig} defaultConfig={{ checklist: CHECKLIST, vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES, purposes: PURPOSES }}/>}
         {route === "help" && <ManualScreen role={currentUser?.role}/>}
       </main>
 

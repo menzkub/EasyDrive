@@ -26,7 +26,7 @@ function calcPwStrength(pw) {
   return { score, checks, missing, label, color };
 }
 
-function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange, demoEnabled, onSetDemoEnabled, onDeleteDemoBookings, maintenanceMode, onSetMaintenanceMode, appConfig, onSaveConfig, defaultConfig }) {
+function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdateProfile, pushToast, activeTab, onTabChange, demoEnabled, onSetDemoEnabled, onDeleteDemoBookings, maintenanceMode, onSetMaintenanceMode, maintenanceCfg, onSetMaintenanceCfg, defaultMaintenanceMsg, appConfig, onSaveConfig, defaultConfig }) {
   const [tab, setTab] = React.useState(activeTab || "account");
   const deptNames = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
   const isAdmin = currentUser.role === 'admin';
@@ -62,7 +62,7 @@ function SettingsScreen({ currentUser, bookings, vehicles, departments, onUpdate
         {tab === "noti"     && <NotificationSettings pushToast={pushToast}/>}
         {tab === "calendar" && <CalendarSync currentUser={currentUser} bookings={bookings} vehicles={vehicles}/>}
         {tab === "data"     && isAdmin && <DataSettings appConfig={appConfig} onSaveConfig={onSaveConfig} defaultConfig={defaultConfig} departments={departments || []} pushToast={pushToast}/>}
-        {tab === "demo"     && isAdmin && <DemoSettings demoEnabled={demoEnabled} onSetDemoEnabled={onSetDemoEnabled} bookings={bookings} onDeleteAll={onDeleteDemoBookings} maintenanceMode={maintenanceMode} onSetMaintenanceMode={onSetMaintenanceMode}/>}
+        {tab === "demo"     && isAdmin && <DemoSettings demoEnabled={demoEnabled} onSetDemoEnabled={onSetDemoEnabled} bookings={bookings} onDeleteAll={onDeleteDemoBookings} maintenanceMode={maintenanceMode} onSetMaintenanceMode={onSetMaintenanceMode} maintenanceCfg={maintenanceCfg||{}} onSetMaintenanceCfg={onSetMaintenanceCfg} defaultMaintenanceMsg={defaultMaintenanceMsg}/>}
         {tab === "manual"   && isAdmin && <div style={{marginTop:14, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', height:600}}><ManualScreen role="admin"/></div>}
         {tab === "dev"      && isAdmin && <div style={{marginTop:14}}><DevGuideScreen/></div>}
         {tab === "about"    && isAdmin && <DevCardSettings pushToast={pushToast}/>}
@@ -1282,9 +1282,18 @@ function DeptManager({ departments, pushToast }) {
 }
 
 // ─── Demo Settings ────────────────────────────────────────────────
-function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, maintenanceMode, onSetMaintenanceMode }) {
+function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, maintenanceMode, onSetMaintenanceMode, maintenanceCfg, onSetMaintenanceCfg, defaultMaintenanceMsg }) {
   const demoBookings = (bookings || []).filter(b => b.id.startsWith('DEMO'));
   const [confirmDlg, setConfirmDlg] = React.useState(null);
+
+  const DEFAULT_MSG = defaultMaintenanceMsg || 'ผู้ดูแลระบบกำลังปรับปรุงและอัปเดตระบบ\nกรุณาลองเข้าใช้งานใหม่ในภายหลัง';
+  const [msg, setMsg] = React.useState(maintenanceCfg.message || DEFAULT_MSG);
+  const [returnAt, setReturnAt] = React.useState(maintenanceCfg.returnAt || '');
+  const msgChanged = msg !== (maintenanceCfg.message || DEFAULT_MSG) || returnAt !== (maintenanceCfg.returnAt || '');
+
+  function saveCfg() {
+    onSetMaintenanceCfg({ ...maintenanceCfg, message: msg, returnAt: returnAt || null });
+  }
 
   function requestToggle() {
     if (demoEnabled) {
@@ -1306,17 +1315,58 @@ function DemoSettings({ demoEnabled, onSetDemoEnabled, bookings, onDeleteAll, ma
     <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:12}}>
 
       {/* ── Maintenance mode ── */}
-      <div className="card card-pad" style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:16, border: maintenanceMode ? '1.5px solid var(--danger)' : undefined}}>
-        <div>
-          <div style={{display:'flex', alignItems:'center', gap:8}}>
-            <strong>🔧 โหมดบำรุงรักษา</strong>
-            {maintenanceMode && <span style={{fontSize:11, padding:'2px 8px', borderRadius:99, background:'var(--danger-bg,#fee2e2)', color:'var(--danger)', fontWeight:600}}>ปิดระบบอยู่</span>}
+      <div className="card card-pad" style={{border: maintenanceMode ? '1.5px solid var(--danger)' : undefined}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:16, marginBottom:14}}>
+          <div>
+            <div style={{display:'flex', alignItems:'center', gap:8}}>
+              <strong>🔧 โหมดบำรุงรักษา</strong>
+              {maintenanceMode && <span style={{fontSize:11, padding:'2px 8px', borderRadius:99, background:'var(--danger-bg,#fee2e2)', color:'var(--danger)', fontWeight:600}}>ปิดระบบอยู่</span>}
+            </div>
+            <p style={{margin:'3px 0 0', fontSize:12.5, color:'var(--text-2)'}}>เมื่อปิดระบบ ผู้ใช้ทั่วไปจะเห็นหน้า "ระบบปิดบำรุงรักษา" — แอดมินยังเข้าใช้งานได้พร้อมแถบเตือนสีส้ม</p>
           </div>
-          <p style={{margin:'3px 0 0', fontSize:12.5, color:'var(--text-2)'}}>เมื่อปิดระบบ ผู้ใช้ทั่วไปจะเห็นหน้า "ระบบปิดบำรุงรักษา" — แอดมินยังเข้าใช้งานได้พร้อมแถบเตือนสีส้ม</p>
+          <button className={"btn sm" + (maintenanceMode ? " danger" : " ghost")} onClick={requestToggleMaintenance} style={{flexShrink:0, minWidth:90}}>
+            {maintenanceMode ? '🔴 ปิดระบบอยู่' : 'เปิดระบบอยู่'}
+          </button>
         </div>
-        <button className={"btn sm" + (maintenanceMode ? " danger" : " ghost")} onClick={requestToggleMaintenance} style={{flexShrink:0, minWidth:90}}>
-          {maintenanceMode ? '🔴 ปิดระบบอยู่' : 'เปิดระบบอยู่'}
-        </button>
+
+        {/* Message & return time config */}
+        <div style={{borderTop:'1px solid var(--border)', paddingTop:14, display:'flex', flexDirection:'column', gap:10}}>
+          <div>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5}}>
+              <label style={{fontSize:13, fontWeight:500}}>ข้อความแจ้งผู้ใช้งาน</label>
+              <button className="btn sm ghost" style={{fontSize:11, padding:'2px 8px'}} onClick={() => setMsg(DEFAULT_MSG)} title="คืนค่าเริ่มต้น">↺ ค่าเริ่มต้น</button>
+            </div>
+            <textarea
+              className="input"
+              rows={3}
+              value={msg}
+              onChange={e => setMsg(e.target.value)}
+              style={{fontSize:13, resize:'vertical', lineHeight:1.6, width:'100%'}}
+              placeholder="ข้อความที่ผู้ใช้เห็นขณะระบบปิด..."
+            />
+          </div>
+          <div>
+            <label style={{fontSize:13, fontWeight:500, display:'block', marginBottom:5}}>
+              วันที่/เวลาที่คาดว่าจะกลับมาให้บริการ
+              <span style={{fontSize:11, fontWeight:400, color:'var(--text-3)', marginLeft:6}}>(ไม่บังคับ)</span>
+            </label>
+            <div style={{display:'flex', gap:8, alignItems:'center'}}>
+              <input
+                type="datetime-local"
+                className="input"
+                value={returnAt}
+                onChange={e => setReturnAt(e.target.value)}
+                style={{fontSize:13, flex:1}}
+              />
+              {returnAt && (
+                <button className="btn sm ghost" style={{fontSize:12, flexShrink:0}} onClick={() => setReturnAt('')}>✕ ล้าง</button>
+              )}
+            </div>
+          </div>
+          <button className="btn sm primary" style={{alignSelf:'flex-start'}} onClick={saveCfg} disabled={!msgChanged && !returnAt && !maintenanceCfg.returnAt}>
+            💾 บันทึกข้อความ{msgChanged ? ' *' : ''}
+          </button>
+        </div>
       </div>
 
       {/* ── Demo booking ── */}
