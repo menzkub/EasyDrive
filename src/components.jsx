@@ -129,7 +129,7 @@ const NAV = {
   ],
 };
 
-function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
+function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose, collapsed, onToggleCollapse }) {
   const nav = NAV[user.role];
 
   const [expanded, setExpanded] = React.useState(() => {
@@ -160,7 +160,7 @@ function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
   return (
     <>
       {isOpen && <div className="sidebar-backdrop" onClick={onClose}></div>}
-      <aside className={"sidebar" + (isOpen ? " open" : "")}>
+      <aside className={"sidebar" + (isOpen ? " open" : "") + (collapsed ? " collapsed" : "")}>
         <div className="brand">
           <div className="brand-logo">
             <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
@@ -178,6 +178,14 @@ function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
             <b>EasyDrive</b>
             <small>ระบบจองรถใช้งาน</small>
           </div>
+          <button className="sidebar-toggle-btn nav-text" onClick={onToggleCollapse} title={collapsed ? "ขยาย Sidebar" : "ย่อ Sidebar"}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {collapsed
+                ? <><rect x="3" y="3" width="7" height="18" rx="1"/><path d="M14 9l4 3-4 3"/></>
+                : <><rect x="3" y="3" width="7" height="18" rx="1"/><path d="M18 9l-4 3 4 3"/></>
+              }
+            </svg>
+          </button>
         </div>
         <div className="nav-section nav-text">เมนูหลัก</div>
         {nav.map((n) => {

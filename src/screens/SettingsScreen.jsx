@@ -737,18 +737,27 @@ function CalendarSync({ currentUser, bookings, vehicles }) {
 function DeptManager({ departments, pushToast }) {
   const [newName, setNewName] = React.useState('');
   const [adding, setAdding] = React.useState(false);
-  const [editId, setEditId] = React.useState(null);
-  const [editName, setEditName] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [deletingDept, setDeletingDept] = React.useState(null);
+  const [confirmHideDept, setConfirmHideDept] = React.useState(null);
+  const [editModalDept, setEditModalDept] = React.useState(null);
+  const [editName, setEditName] = React.useState('');
 
-  const sorted = [...departments].sort((a, b) => a.sort_order - b.sort_order);
+  const [localDepts, setLocalDepts] = React.useState(() =>
+    [...departments].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+  );
+  React.useEffect(() => {
+    setLocalDepts([...departments].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
+  }, [departments]);
+
+  const activeCount = localDepts.filter(d => d.active !== false).length;
+  const hiddenCount = localDepts.filter(d => d.active === false).length;
 
   async function addDept() {
     const name = newName.trim();
     if (!name) return;
     setAdding(true);
-    const maxOrder = departments.reduce((m, d) => Math.max(m, d.sort_order || 0), 0);
+    const maxOrder = localDepts.reduce((m, d) => Math.max(m, d.sort_order || 0), 0);
     const id = `dept-${Date.now()}`;
     const { error } = await supabase.from('departments').insert({ id, name, sort_order: maxOrder + 1, active: true });
     setAdding(false);
@@ -757,26 +766,33 @@ function DeptManager({ departments, pushToast }) {
     pushToast({ kind: 'ok', title: `เพิ่มแผนก "${name}" เรียบร้อยแล้ว` });
   }
 
-  async function saveEdit(dept) {
+  async function saveEdit() {
+    const dept = editModalDept;
     const name = editName.trim();
-    if (!name || name === dept.name) { setEditId(null); return; }
+    if (!name || name === dept.name) { setEditModalDept(null); return; }
     setSaving(true);
     const { error } = await supabase.from('departments').update({ name }).eq('id', dept.id);
     setSaving(false);
     if (error) { pushToast({ kind: 'danger', title: error.message.includes('unique') ? 'ชื่อแผนกนี้มีอยู่แล้ว' : error.message }); return; }
-    setEditId(null);
-    pushToast({ kind: 'ok', title: 'แก้ไขชื่อแผนกแล้ว' });
+    setEditModalDept(null);
+    pushToast({ kind: 'ok', title: `แก้ไขชื่อแผนก "${dept.name}" → "${name}" แล้ว` });
   }
 
   async function toggleActive(dept) {
-    await supabase.from('departments').update({ active: !dept.active }).eq('id', dept.id);
-    pushToast({ kind: 'ok', title: `${dept.active ? 'ซ่อน' : 'เปิดใช้'} แผนก "${dept.name}" แล้ว` });
+    const newActive = !dept.active;
+    setLocalDepts(prev => prev.map(d => d.id === dept.id ? { ...d, active: newActive } : d));
+    await supabase.from('departments').update({ active: newActive }).eq('id', dept.id);
+    pushToast({ kind: 'ok', title: `${newActive ? 'เปิดใช้' : 'ซ่อน'} แผนก "${dept.name}" แล้ว` });
+    setConfirmHideDept(null);
   }
 
   async function moveOrder(dept, dir) {
-    const idx = sorted.findIndex(d => d.id === dept.id);
-    const swap = sorted[idx + dir];
+    const idx = localDepts.findIndex(d => d.id === dept.id);
+    const swap = localDepts[idx + dir];
     if (!swap) return;
+    const newDepts = [...localDepts];
+    [newDepts[idx], newDepts[idx + dir]] = [newDepts[idx + dir], newDepts[idx]];
+    setLocalDepts(newDepts);
     await Promise.all([
       supabase.from('departments').update({ sort_order: swap.sort_order }).eq('id', dept.id),
       supabase.from('departments').update({ sort_order: dept.sort_order }).eq('id', swap.id),
@@ -795,7 +811,6 @@ function DeptManager({ departments, pushToast }) {
         แผนกที่เปิดใช้งานจะแสดงในฟอร์มสมัครสมาชิกและแก้ไขโปรไฟล์ ซ่อนแผนกเพื่อไม่ให้เลือกใหม่ (ไม่ลบข้อมูลเดิม)
       </div>
 
-      {/* Add new department */}
       <div style={{display:'flex', gap:8, marginBottom:18}}>
         <input className="input" value={newName} onChange={e => setNewName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addDept()}
@@ -805,75 +820,110 @@ function DeptManager({ departments, pushToast }) {
         </button>
       </div>
 
-      {/* Department list */}
       <div className="col gap-2">
-        {sorted.length === 0 && (
+        {localDepts.length === 0 && (
           <div style={{textAlign:'center', padding:'28px 0', color:'var(--text-3)'}}>
             <div style={{fontSize:32, marginBottom:8}}>🏢</div>
             ยังไม่มีแผนก — เพิ่มแผนกแรกด้านบน
           </div>
         )}
-        {sorted.map((dept, idx) => (
+        {localDepts.map((dept, idx) => (
           <div key={dept.id} style={{
-            display:'flex', alignItems:'center', gap:10, padding:'12px 14px',
-            border: `1px solid ${dept.active ? 'var(--border)' : 'var(--border)'}`,
-            borderRadius:10, background: dept.active ? 'var(--surface)' : 'var(--surface-2)',
-            opacity: dept.active ? 1 : 0.6,
+            display:'flex', alignItems:'center', gap:10, padding:'11px 14px',
+            border: '1px solid var(--border)', borderRadius:10,
+            background: dept.active !== false ? 'var(--surface)' : 'var(--bg)',
+            opacity: dept.active !== false ? 1 : 0.7,
           }}>
-            {/* Reorder buttons */}
-            <div className="col gap-1" style={{flexShrink:0}}>
-              <button className="btn ghost" style={{padding:'2px 6px', fontSize:11, minWidth:0}}
-                onClick={() => moveOrder(dept, -1)} disabled={idx === 0}>▲</button>
-              <button className="btn ghost" style={{padding:'2px 6px', fontSize:11, minWidth:0}}
-                onClick={() => moveOrder(dept, 1)} disabled={idx === sorted.length - 1}>▼</button>
+            <div style={{display:'flex', flexDirection:'column', gap:2, flexShrink:0}}>
+              <button onClick={() => moveOrder(dept, -1)} disabled={idx === 0}
+                style={{background:'none', border:'1px solid var(--border)', borderRadius:4, width:22, height:20, cursor:idx===0?'default':'pointer', color:idx===0?'var(--text-3)':'var(--text-2)', fontSize:10, display:'grid', placeItems:'center', lineHeight:1}}>▲</button>
+              <button onClick={() => moveOrder(dept, 1)} disabled={idx === localDepts.length - 1}
+                style={{background:'none', border:'1px solid var(--border)', borderRadius:4, width:22, height:20, cursor:idx===localDepts.length-1?'default':'pointer', color:idx===localDepts.length-1?'var(--text-3)':'var(--text-2)', fontSize:10, display:'grid', placeItems:'center', lineHeight:1}}>▼</button>
             </div>
 
-            {/* Name or edit input */}
-            <div style={{flex:1, minWidth:0}}>
-              {editId === dept.id ? (
-                <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                  <input className="input" value={editName} autoFocus
-                    onChange={e => setEditName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(dept); if (e.key === 'Escape') setEditId(null); }}
-                    style={{flex:1, padding:'6px 10px'}}/>
-                  <button className="btn sm primary" onClick={() => saveEdit(dept)} disabled={saving}>บันทึก</button>
-                  <button className="btn sm ghost" onClick={() => setEditId(null)}>ยกเลิก</button>
-                </div>
-              ) : (
-                <div style={{display:'flex', alignItems:'center', gap:8}}>
-                  <span style={{fontWeight:500, fontSize:14}}>{dept.name}</span>
-                  {!dept.active && <span className="pill" style={{fontSize:11}}>ซ่อน</span>}
-                </div>
+            <div style={{flex:1, minWidth:0, display:'flex', alignItems:'center', gap:8}}>
+              <span style={{fontWeight:500, fontSize:14}}>{dept.name}</span>
+              {dept.active === false && (
+                <span style={{fontSize:11, background:'var(--warn-bg)', color:'var(--warn)', padding:'1px 8px', borderRadius:999, fontWeight:600}}>ซ่อน</span>
               )}
             </div>
 
-            {/* Actions */}
-            {editId !== dept.id && (
-              <div style={{display:'flex', gap:6, flexShrink:0}}>
-                <button className="btn sm ghost" title="แก้ไขชื่อ"
-                  onClick={() => { setEditId(dept.id); setEditName(dept.name); }}>✏️</button>
-                <button className="btn sm ghost" title={dept.active ? 'ซ่อนแผนก' : 'เปิดใช้แผนก'}
-                  onClick={() => toggleActive(dept)}>
-                  {dept.active ? '🙈 ซ่อน' : '👁️ แสดง'}
-                </button>
-                <button className="btn sm danger" title="ลบแผนก"
-                  onClick={() => setDeletingDept(dept)}>🗑️</button>
-              </div>
-            )}
+            <div style={{display:'flex', gap:6, flexShrink:0}}>
+              <button className="btn sm ghost" title="แก้ไขชื่อ"
+                onClick={() => { setEditModalDept(dept); setEditName(dept.name); }}>✏️</button>
+              {dept.active !== false
+                ? <button className="btn sm ghost" onClick={() => setConfirmHideDept(dept)}>🙈 ซ่อน</button>
+                : <button className="btn sm ghost" style={{color:'var(--ok)'}} onClick={() => toggleActive(dept)}>👁️ แสดง</button>
+              }
+              <button className="btn sm danger" onClick={() => setDeletingDept(dept)}>🗑️</button>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="text-xs muted" style={{marginTop:12, lineHeight:1.6}}>
-        {sorted.length} แผนก · {departments.filter(d => d.active).length} เปิดใช้งาน · {departments.filter(d => !d.active).length} ซ่อน
+      {/* Real-time stats */}
+      <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap', alignItems:'center'}}>
+        <span style={{display:'inline-flex', alignItems:'center', gap:5, fontSize:12.5, fontWeight:600, padding:'4px 10px', borderRadius:999, background:'rgba(110,42,140,0.1)', color:'var(--pea-purple)'}}>
+          🏢 {localDepts.length} แผนก
+        </span>
+        <span style={{display:'inline-flex', alignItems:'center', gap:5, fontSize:12.5, fontWeight:600, padding:'4px 10px', borderRadius:999, background:'var(--ok-bg)', color:'var(--ok)'}}>
+          ✓ {activeCount} เปิดใช้งาน
+        </span>
+        {hiddenCount > 0 && (
+          <span style={{display:'inline-flex', alignItems:'center', gap:5, fontSize:12.5, fontWeight:600, padding:'4px 10px', borderRadius:999, background:'var(--warn-bg)', color:'var(--warn)'}}>
+            🙈 {hiddenCount} ซ่อน
+          </span>
+        )}
       </div>
 
+      {/* Edit modal */}
+      {editModalDept && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'grid', placeItems:'center', zIndex:300}} onClick={e => e.target === e.currentTarget && setEditModalDept(null)}>
+          <div style={{background:'var(--surface)', borderRadius:16, padding:'28px 28px 24px', width:400, maxWidth:'90vw', boxShadow:'0 20px 60px rgba(0,0,0,0.25)'}}>
+            <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:20}}>
+              <div style={{width:40, height:40, borderRadius:10, background:'var(--warn-bg)', display:'grid', placeItems:'center', fontSize:20}}>⚠️</div>
+              <div>
+                <div style={{fontWeight:700, fontSize:15}}>แก้ไขชื่อแผนก</div>
+                <div style={{fontSize:12.5, color:'var(--text-3)'}}>"{editModalDept.name}"</div>
+              </div>
+            </div>
+            <div className="field" style={{marginBottom:16}}>
+              <label className="field-lbl">ชื่อใหม่ <span className="req">*</span></label>
+              <input className="input" autoFocus value={editName}
+                onChange={e => setEditName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditModalDept(null); }}/>
+            </div>
+            <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+              <button className="btn ghost" onClick={() => setEditModalDept(null)}>ยกเลิก</button>
+              <button className="btn primary" onClick={saveEdit} disabled={saving || !editName.trim()}>
+                {saving ? 'กำลังบันทึก...' : 'บันทึกชื่อใหม่'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm hide dialog */}
+      {confirmHideDept && (
+        <ConfirmDialog
+          confirm={{
+            kind: "warn",
+            title: `ซ่อนแผนก "${confirmHideDept.name}"?`,
+            message: "แผนกนี้จะไม่แสดงในฟอร์มสมัครสมาชิก แต่สมาชิกที่อยู่ในแผนกนี้จะไม่ถูกกระทบ สามารถกดแสดงเพื่อยกเลิกได้ภายหลัง",
+            confirmLabel: "ซ่อนแผนก",
+            onConfirm: () => toggleActive(confirmHideDept),
+          }}
+          onClose={() => setConfirmHideDept(null)}
+        />
+      )}
+
+      {/* Confirm delete dialog */}
       {deletingDept && (
         <ConfirmDialog
           confirm={{
             kind: "negative",
             title: `ลบแผนก "${deletingDept.name}"?`,
-            message: "หากมีสมาชิกอยู่ในแผนกนี้ ข้อมูลสมาชิกจะไม่ถูกลบ — แต่แผนกจะหายออกจากรายการ",
+            message: "หากมีสมาชิกอยู่ในแผนกนี้ ข้อมูลสมาชิกจะไม่ถูกลบ — แต่แผนกจะหายออกจากรายการถาวร",
             confirmLabel: "ลบแผนก",
             onConfirm: () => doDeleteDept(deletingDept),
           }}

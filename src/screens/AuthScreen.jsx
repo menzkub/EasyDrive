@@ -4,7 +4,9 @@ import { DEPARTMENTS as DEPT_FALLBACK } from '../data'
 import { supabase } from '../supabase'
 
 function AuthScreen({ onLogin, registered, onRegister, departments }) {
-  const DEPARTMENTS = departments?.length ? departments.map(d => d.name) : DEPT_FALLBACK;
+  const DEPARTMENTS = departments?.filter(d => d.active !== false).length
+    ? departments.filter(d => d.active !== false).map(d => d.name)
+    : DEPT_FALLBACK;
   const [mode, setMode] = React.useState("login");
 
   // ── Public stats from Supabase (no auth required) ──

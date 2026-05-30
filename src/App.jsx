@@ -47,6 +47,7 @@ function App() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [notiOpen, setNotiOpen] = React.useState(false);
   const [readNotifications, setReadNotifications] = React.useState(new Set());
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => localStorage.getItem('pea-sidebar-collapsed') === '1');
 
   // ── Init: restore session on page refresh ──
   React.useEffect(() => {
@@ -92,7 +93,7 @@ function App() {
       supabase.from('profiles').select('*').neq('status', 'rejected'),
       supabase.from('vehicle_history').select('*').order('at', { ascending: false }),
       supabase.from('mileage_corrections').select('*').order('"requestedAt"', { ascending: false }),
-      supabase.from('departments').select('*').eq('active', true).order('sort_order'),
+      supabase.from('departments').select('*').order('sort_order'),
     ]);
     setVehicles(v.data || []);
     setBookings(b.data || []);
@@ -473,8 +474,8 @@ function App() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="app">
-      <Sidebar route={route} setRoute={setRoute} user={currentUser} counts={counts} onLogout={handleLogout} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)}/>
+    <div className={"app" + (sidebarCollapsed ? " sidebar-min" : "")}>
+      <Sidebar route={route} setRoute={setRoute} user={currentUser} counts={counts} onLogout={handleLogout} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} collapsed={sidebarCollapsed} onToggleCollapse={() => { const v = !sidebarCollapsed; setSidebarCollapsed(v); localStorage.setItem('pea-sidebar-collapsed', v ? '1' : '0'); }}/>
       <Topbar title={(titles[route.startsWith("settings") ? "settings" : route] || titles.dashboard).t} subtitle={null}
         onMenuClick={() => setDrawerOpen(true)}
         onBellClick={() => setNotiOpen(!notiOpen)}
