@@ -757,6 +757,45 @@ function DataSettings({ appConfig, onSaveConfig, defaultConfig, departments, pus
   const [vehicleTypes, setVehicleTypes] = React.useState(() => appConfig?.vehicleTypes || defaultConfig?.vehicleTypes || {});
   const [fuelTypes, setFuelTypes] = React.useState(() => appConfig?.fuelTypes || defaultConfig?.fuelTypes || {});
 
+  const DEFAULT_FUEL_PRICES = { gasohol: 38.5, diesel: 32.5, benzin: 41.5, ngv: 16.5, ev: 4.5 };
+  const FUEL_CONSUMPTION = { gasohol: 14, diesel: 12, benzin: 14, ngv: 10, ev: 6 };
+  const [fuelPrices, setFuelPrices] = React.useState(() => appConfig?.fuelPrices ? { ...DEFAULT_FUEL_PRICES, ...appConfig.fuelPrices } : { ...DEFAULT_FUEL_PRICES });
+  const [fpSyncing, setFpSyncing] = React.useState(false);
+  const [fpSyncMsg, setFpSyncMsg] = React.useState(null);
+  const fpChanged = JSON.stringify(fuelPrices) !== JSON.stringify(appConfig?.fuelPrices ? { ...DEFAULT_FUEL_PRICES, ...appConfig.fuelPrices } : DEFAULT_FUEL_PRICES);
+
+  async function syncFuelPricesFromPTT() {
+    setFpSyncing(true);
+    setFpSyncMsg(null);
+    try {
+      const res = await fetch('https://api.chnwt.dev/thai-oil-api/latest');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const ptt = data?.response?.stations?.ptt || data?.response?.stations?.bcp;
+      if (!ptt) throw new Error('ไม่พบข้อมูลราคา PTT');
+      const mapped = { ...fuelPrices };
+      if (ptt.gasohol_95?.price)   mapped.gasohol = parseFloat(ptt.gasohol_95.price);
+      if (ptt.gasohol_91?.price)   mapped.gasohol = mapped.gasohol || parseFloat(ptt.gasohol_91.price);
+      if (ptt.diesel?.price)       mapped.diesel  = parseFloat(ptt.diesel.price);
+      if (ptt.diesel_b7?.price)    mapped.diesel  = parseFloat(ptt.diesel_b7.price);
+      if (ptt.gasoline_95?.price)  mapped.benzin  = parseFloat(ptt.gasoline_95.price);
+      if (ptt.ngv?.price)          mapped.ngv     = parseFloat(ptt.ngv.price);
+      mapped.updatedAt = new Date().toISOString();
+      setFuelPrices(mapped);
+      setFpSyncMsg({ ok: true, text: `ซิงค์สำเร็จ — ราคา ณ ${data?.response?.date || 'วันนี้'}` });
+    } catch (err) {
+      setFpSyncMsg({ ok: false, text: 'ซิงค์ไม่สำเร็จ: ' + (err.message || 'เชื่อมต่อ API ไม่ได้') + ' — กรอกราคาด้วยตนเองแล้วกด "บันทึกราคา"' });
+    } finally {
+      setFpSyncing(false);
+    }
+  }
+
+  function saveFuelPrices() {
+    const payload = { ...fuelPrices, updatedAt: new Date().toISOString() };
+    confirm({ kind:'primary', title:'บันทึกราคาเชื้อเพลิง?', message:'ราคาใหม่จะใช้ในการคำนวณค่าเชื้อเพลิงในรายงานทันที',
+      onConfirm: () => save('fuel_prices', payload) });
+  }
+
   const [editingCl, setEditingCl] = React.useState(null);
   const [newCl, setNewCl] = React.useState({ label: '', hint: '' });
   const [editingPurpose, setEditingPurpose] = React.useState(null);
@@ -869,7 +908,7 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
   return (
     <div style={{marginTop:16}}>
       <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:16}}>
-        {[['checklist','✅ รายการตรวจสอบ'],['purposes','📋 วัตถุประสงค์'],['vehicleTypes','🚗 ประเภทรถ'],['fuelTypes','⛽ เชื้อเพลิง'],['depts','🏢 แผนก']].map(([k,l]) => (
+        {[['checklist','✅ รายการตรวจสอบ'],['purposes','📋 วัตถุประสงค์'],['vehicleTypes','🚗 ประเภทรถ'],['fuelTypes','⛽ เชื้อเพลิง'],['fuelPrices','💰 ราคาน้ำมัน'],['depts','🏢 แผนก']].map(([k,l]) => (
           <button key={k} className={"btn sm" + (subTab === k ? " primary" : " ghost")} onClick={() => setSubTab(k)}>{l}</button>
         ))}
       </div>
@@ -1052,6 +1091,78 @@ CREATE POLICY "auth_write" ON app_config FOR ALL TO authenticated USING (true);`
             </div>
           </div>
           <button className="btn primary" onClick={requestSaveFuel} disabled={saving}>{saving ? 'กำลังบันทึก...' : '💾 บันทึกเชื้อเพลิง'}</button>
+        </div>
+      )}
+
+      {/* ── Fuel prices ── */}
+      {subTab === 'fuelPrices' && (
+        <div>
+          <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:16, flexWrap:'wrap'}}>
+            <div style={{flex:1}}>
+              <p className="muted" style={{margin:0, fontSize:13}}>ราคาเชื้อเพลิง (บาท/ลิตร หรือ บาท/หน่วย) ใช้ในการคำนวณ "ค่าเชื้อเพลิงโดยประมาณ" ในรายงาน</p>
+              {fuelPrices.updatedAt && (
+                <p className="muted" style={{margin:'3px 0 0', fontSize:11.5}}>อัปเดตล่าสุด: {new Date(fuelPrices.updatedAt).toLocaleString('th-TH', {dateStyle:'medium',timeStyle:'short'})}</p>
+              )}
+            </div>
+            <button className="btn sm ghost" onClick={syncFuelPricesFromPTT} disabled={fpSyncing} style={{flexShrink:0, display:'flex', alignItems:'center', gap:6}}>
+              {fpSyncing ? '⏳ กำลังซิงค์...' : '🔄 ซิงค์ราคาจาก PTT'}
+            </button>
+          </div>
+
+          {fpSyncMsg && (
+            <div style={{padding:'9px 13px', borderRadius:8, marginBottom:14, fontSize:12.5, display:'flex', gap:8, alignItems:'flex-start',
+              background: fpSyncMsg.ok ? 'var(--ok-bg)' : 'var(--warn-bg)',
+              border: `1px solid ${fpSyncMsg.ok ? 'var(--ok)' : 'var(--warn)'}`,
+              color: fpSyncMsg.ok ? 'var(--ok)' : 'var(--warn)',
+            }}>
+              <span>{fpSyncMsg.ok ? '✅' : '⚠️'}</span>
+              <span>{fpSyncMsg.text}</span>
+            </div>
+          )}
+
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px,1fr))', gap:10, marginBottom:16}}>
+            {[
+              { key:'gasohol', label:'แก๊สโซฮอล์', unit:'บาท/ล.', note:'Gasohol 95' },
+              { key:'diesel',  label:'ดีเซล',       unit:'บาท/ล.', note:'Diesel B7' },
+              { key:'benzin',  label:'เบนซิน',      unit:'บาท/ล.', note:'Gasoline 95' },
+              { key:'ngv',     label:'NGV',          unit:'บาท/ก.ก.', note:'Natural Gas' },
+              { key:'ev',      label:'EV',           unit:'บาท/หน่วย', note:'ไม่ดึงจาก PTT — กรอกเอง' },
+            ].map(({ key, label, unit, note }) => (
+              <div key={key} style={{background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 14px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom:6}}>
+                  <span style={{fontWeight:600, fontSize:13}}>{label}</span>
+                  <span style={{fontSize:11, color:'var(--text-3)'}}>{note}</span>
+                </div>
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={fuelPrices[key] ?? ''}
+                    onChange={e => setFuelPrices(p => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
+                    className="input"
+                    style={{flex:1, fontFamily:'var(--font-mono)', fontSize:16, fontWeight:700, padding:'6px 10px'}}
+                  />
+                  <span style={{fontSize:11.5, color:'var(--text-3)', whiteSpace:'nowrap', flexShrink:0}}>{unit}</span>
+                </div>
+                <div style={{marginTop:6, fontSize:11.5, color:'var(--text-3)'}}>
+                  อัตราสิ้นเปลือง: <b>{FUEL_CONSUMPTION[key] || '—'}</b> กม./ล.
+                  {fuelPrices[key] > 0 && FUEL_CONSUMPTION[key] && (
+                    <span style={{marginLeft:6, color:'var(--pea-purple)', fontWeight:600}}>
+                      (100 กม. ≈ ฿{Math.round(100 / FUEL_CONSUMPTION[key] * fuelPrices[key])})
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+            <button className="btn ghost sm" onClick={() => setFuelPrices({ ...DEFAULT_FUEL_PRICES })}>↺ คืนค่าเริ่มต้น</button>
+            <button className="btn primary sm" onClick={saveFuelPrices} disabled={!fpChanged}>
+              💾 บันทึกราคา{fpChanged ? ' *' : ''}
+            </button>
+          </div>
         </div>
       )}
 

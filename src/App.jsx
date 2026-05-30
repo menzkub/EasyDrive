@@ -40,7 +40,7 @@ function App() {
   const [vehicleHistory, setVehicleHistory] = React.useState([]);
   const [mileageCorrections, setMileageCorrections] = React.useState([]);
   const [departments, setDepartments] = React.useState([]);
-  const [appConfig, setAppConfig] = React.useState({ checklist: null, vehicleTypes: null, fuelTypes: null, purposes: null });
+  const [appConfig, setAppConfig] = React.useState({ checklist: null, vehicleTypes: null, fuelTypes: null, purposes: null, fuelPrices: null });
 
   const [route, setRoute] = React.useState("dashboard");
   const [selectedVehicle, setSelectedVehicle] = React.useState(null);
@@ -147,7 +147,7 @@ function App() {
     if (cfg.data) {
       const map = {};
       cfg.data.forEach(r => { map[r.key] = r.value; });
-      setAppConfig({ checklist: map.checklist || null, vehicleTypes: map.vehicle_types || null, fuelTypes: map.fuel_types || null, purposes: map.purposes || null });
+      setAppConfig({ checklist: map.checklist || null, vehicleTypes: map.vehicle_types || null, fuelTypes: map.fuel_types || null, purposes: map.purposes || null, fuelPrices: map.fuel_prices || null });
     }
 
     if (v.error?.code === '42501' || b.error?.code === '42501') {
@@ -622,7 +622,7 @@ function App() {
   async function handleSaveConfig(key, value) {
     const { error } = await supabase.from('app_config').upsert({ key, value, updated_at: new Date().toISOString() });
     if (error) throw error;
-    const keyMap = { checklist: 'checklist', vehicle_types: 'vehicleTypes', fuel_types: 'fuelTypes', purposes: 'purposes' };
+    const keyMap = { checklist: 'checklist', vehicle_types: 'vehicleTypes', fuel_types: 'fuelTypes', purposes: 'purposes', fuel_prices: 'fuelPrices' };
     setAppConfig(prev => ({ ...prev, [keyMap[key] || key]: value }));
   }
 
@@ -758,7 +758,7 @@ function App() {
         {route === "approvals" && <ApprovalsScreen bookings={bookings} vehicles={vehicles} users={users} mileageCorrections={mileageCorrections} user={currentUser} onApprove={handleApprove} onReject={handleReject} onApproveMileage={handleApproveMileageCorrection} onRejectMileage={handleRejectMileageCorrection} onSelectBooking={(b) => setSelectedBooking(b)} onPrintVoucher={(b) => setVoucherBooking(b)}/>}
         {route === "members" && <MembersScreen users={users} user={currentUser} departments={departments} onApproveUser={handleApproveUser} onRejectUser={handleRejectUser} onChangeRole={handleChangeRole} onUpdateUser={handleUpdateUser}/>}
         {route === "vehicles" && <VehiclesScreen vehicles={vehicles} bookings={bookings} vehicleHistory={vehicleHistory} users={users} user={currentUser} onUpdateVehicle={handleUpdateVehicle} onAddVehicle={handleAddVehicle} vehicleTypes={appConfig.vehicleTypes || VEHICLE_TYPES} fuelTypes={appConfig.fuelTypes || FUEL_TYPES}/>}
-        {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData}/>}
+        {route === "reports" && <ReportsScreen vehicles={vehicles} bookings={bookings} users={users} onRefresh={loadAllData} fuelPrices={appConfig.fuelPrices}/>}
         {route.startsWith("settings") && <SettingsScreen currentUser={currentUser} bookings={bookings} vehicles={vehicles} departments={departments} onUpdateProfile={(p) => setCurrentUser(p)} pushToast={pushToast} activeTab={route === "settings" ? "account" : route.replace("settings-", "")} onTabChange={(tab) => setRoute("settings-" + tab)} demoEnabled={demoEnabled} onSetDemoEnabled={(v) => { setDemoEnabled(v); localStorage.setItem('pea-demo-enabled', v ? '1' : '0'); }} onDeleteDemoBookings={handleDeleteDemoBookings} maintenanceMode={maintenanceMode} onSetMaintenanceMode={handleSetMaintenanceMode} maintenanceCfg={maintenanceCfg} onSetMaintenanceCfg={handleSetMaintenanceCfg} defaultMaintenanceMsg={DEFAULT_MAINTENANCE_MSG} appConfig={appConfig} onSaveConfig={handleSaveConfig} defaultConfig={{ checklist: CHECKLIST, vehicleTypes: VEHICLE_TYPES, fuelTypes: FUEL_TYPES, purposes: PURPOSES }}/>}
         {route === "help" && <ManualScreen role={currentUser?.role}/>}
       </main>

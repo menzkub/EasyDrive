@@ -4,7 +4,7 @@ import React from 'react'
 import { I, StatusPill, VehicleIcon, fmtDate, fmtDateTime, fmtNum, daysUntil } from '../components'
 import { VEHICLE_TYPES, FUEL_TYPES } from '../data'
 
-function ReportsScreen({ vehicles, bookings, users = [], onRefresh }) {
+function ReportsScreen({ vehicles, bookings, users = [], onRefresh, fuelPrices }) {
   const [range, setRange] = React.useState("month");
 
   function exportCSV() {
@@ -216,7 +216,7 @@ function ReportsScreen({ vehicles, bookings, users = [], onRefresh }) {
       {/* New: Department + Fuel cost + Peak hours */}
       <div className="grid-2" style={{gap:14, marginTop:14}}>
         <DepartmentReport bookings={bookings} users={users}/>
-        <FuelCostReport bookings={bookings} vehicles={vehicles}/>
+        <FuelCostReport bookings={bookings} vehicles={vehicles} configPrices={fuelPrices}/>
       </div>
 
       <div className="grid-2" style={{gap:14, marginTop:14, gridTemplateColumns:'1.2fr 1fr'}}>
@@ -272,9 +272,12 @@ function DepartmentReport({ bookings, users }) {
 }
 
 // ─── Fuel cost estimate ───────────────────────────────────────────
-function FuelCostReport({ bookings, vehicles }) {
-  const fuelPrices = { diesel: 32.5, gasohol: 38.5, benzin: 41.5, ngv: 16.5, ev: 4.5 };
-  const fuelConsumption = { diesel: 12, gasohol: 14, benzin: 14, ngv: 10, ev: 6 }; // km/L
+const DEFAULT_FUEL_PRICES = { diesel: 32.5, gasohol: 38.5, benzin: 41.5, ngv: 16.5, ev: 4.5 };
+const DEFAULT_FUEL_CONSUMPTION = { diesel: 12, gasohol: 14, benzin: 14, ngv: 10, ev: 6 };
+
+function FuelCostReport({ bookings, vehicles, configPrices }) {
+  const fuelPrices = configPrices ? { ...DEFAULT_FUEL_PRICES, ...configPrices } : DEFAULT_FUEL_PRICES;
+  const fuelConsumption = DEFAULT_FUEL_CONSUMPTION;
   const vehFuelMap = Object.fromEntries(vehicles.map((v) => [v.id, v.fuel]));
   const completed = bookings.filter((b) => b.mileageIn != null && b.mileageOut != null);
   const breakdown = {};
