@@ -248,12 +248,13 @@ a { color: inherit; text-decoration: none; }
 /* Sidebar */
 .sidebar {
   grid-area: side;
-  background: linear-gradient(180deg, var(--pea-purple-deep) 0%, var(--pea-purple) 100%);
-  color: white;
-  padding: 18px 14px;
+  background: var(--surface);
+  color: var(--text);
+  border-right: 1px solid var(--border);
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -261,46 +262,42 @@ a { color: inherit; text-decoration: none; }
 }
 .brand {
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 8px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.12);
-  margin-bottom: 12px;
+  padding: 4px 6px 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
 }
 .brand-logo {
-  width: 38px; height: 38px;
+  width: 34px; height: 34px;
   background: var(--pea-orange);
-  border-radius: 10px;
+  border-radius: 9px;
   display: grid; place-items: center;
   font-weight: 700;
   color: white;
   letter-spacing: -0.02em;
   position: relative;
-  box-shadow: 0 4px 10px rgba(243,112,33,0.4);
+  box-shadow: 0 2px 8px rgba(243,112,33,0.28);
+  flex-shrink: 0;
 }
 .brand-logo::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 13px;
-  pointer-events: none;
+  display: none;
 }
-.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-.brand-text b { font-weight: 700; font-size: 13.5px; letter-spacing: 0.02em; }
-.brand-text small { font-size: 11px; opacity: 0.7; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-text b { font-weight: 700; font-size: 13px; letter-spacing: 0.01em; color: var(--text); }
+.brand-text small { font-size: 10.5px; color: var(--text-3); }
 
 .nav-section {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.5);
-  padding: 14px 10px 6px;
+  color: var(--text-3);
+  padding: 12px 8px 3px;
 }
 .nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 10px;
-  border-radius: 8px;
-  color: rgba(255,255,255,0.82);
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 9px;
+  border-radius: 7px;
+  color: var(--text-2);
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
@@ -310,10 +307,11 @@ a { color: inherit; text-decoration: none; }
   text-align: left;
   transition: background 0.12s, color 0.12s;
 }
-.nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+.nav-item:hover { background: var(--bg); color: var(--text); }
 .nav-item.active {
-  background: rgba(255,255,255,0.16);
-  color: white;
+  background: rgba(243,112,33,0.09);
+  color: var(--pea-orange);
+  font-weight: 600;
   box-shadow: inset 3px 0 0 var(--pea-orange);
 }
 .nav-item .ico { width: 18px; height: 18px; display: grid; place-items: center; flex-shrink: 0; }
@@ -330,26 +328,58 @@ a { color: inherit; text-decoration: none; }
 }
 .sidebar-footer {
   margin-top: auto;
-  padding: 12px 4px 0;
-  border-top: 1px solid rgba(255,255,255,0.12);
+  padding: 10px 0 0;
+  border-top: 1px solid var(--border);
 }
 .role-card {
-  background: rgba(0,0,0,0.18);
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex; align-items: center; gap: 10px;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 9px;
+  display: flex; align-items: center; gap: 9px;
+  cursor: default;
+  transition: background 0.12s;
 }
+.role-card:hover { background: var(--bg); }
 .role-avatar {
-  width: 32px; height: 32px;
+  width: 30px; height: 30px;
   background: var(--pea-orange);
   border-radius: 50%;
   display: grid; place-items: center;
   font-weight: 700; font-size: 12px;
   color: white;
+  flex-shrink: 0;
 }
 .role-meta { flex: 1; min-width: 0; }
-.role-meta b { font-size: 12.5px; font-weight: 600; display: block; line-height: 1.2; }
-.role-meta small { font-size: 10.5px; opacity: 0.65; }
+.role-meta b { font-size: 12.5px; font-weight: 600; display: block; line-height: 1.2; color: var(--text); }
+.role-meta small { font-size: 10.5px; color: var(--text-3); }
+.logout-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  display: grid; place-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+.logout-btn:hover { color: var(--text); background: var(--bg); }
+
+/* Dark mode — restore dark sidebar */
+[data-dark="1"] .sidebar { background: linear-gradient(180deg, var(--pea-purple-deep) 0%, #2d1155 100%); color: white; border-right-color: rgba(255,255,255,0.07); }
+[data-dark="1"] .brand { border-bottom-color: rgba(255,255,255,0.1); }
+[data-dark="1"] .brand-text b { color: white; }
+[data-dark="1"] .brand-text small { color: rgba(255,255,255,0.5); }
+[data-dark="1"] .nav-section { color: rgba(255,255,255,0.4); }
+[data-dark="1"] .nav-item { color: rgba(255,255,255,0.72); }
+[data-dark="1"] .nav-item:hover { background: rgba(255,255,255,0.07); color: white; }
+[data-dark="1"] .nav-item.active { background: rgba(255,255,255,0.13); color: white; }
+[data-dark="1"] .sidebar-footer { border-top-color: rgba(255,255,255,0.1); }
+[data-dark="1"] .role-card:hover { background: rgba(255,255,255,0.07); }
+[data-dark="1"] .role-meta b { color: white; }
+[data-dark="1"] .role-meta small { color: rgba(255,255,255,0.5); }
+[data-dark="1"] .logout-btn { color: rgba(255,255,255,0.45); }
+[data-dark="1"] .logout-btn:hover { color: white; background: rgba(255,255,255,0.08); }
 
 /* Topbar */
 .topbar {
@@ -737,8 +767,9 @@ a { color: inherit; text-decoration: none; }
   .sidebar { padding: 14px 8px; }
   .sidebar .nav-text, .sidebar .nav-section, .sidebar .brand-text, .sidebar .role-meta, .sidebar .badge { display: none; }
   .sidebar .nav-item { justify-content: center; padding: 11px; position: relative; }
-  .sidebar .nav-item.active { box-shadow: inset 0 0 0 2px var(--pea-orange); }
+  .sidebar .nav-item.active { box-shadow: inset 0 0 0 2px var(--pea-orange); background: rgba(243,112,33,0.08); }
   .sidebar .role-card { padding: 8px; justify-content: center; }
+  .sidebar .logout-btn { display: none; }
   .brand { justify-content: center; padding: 6px 0 14px; }
   .main { padding: 16px; }
   .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }

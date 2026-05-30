@@ -164,7 +164,7 @@ function Sidebar({ route, setRoute, user, counts, onLogout, isOpen, onClose }) {
               <b>{user.name}</b>
               <small>{user.role === "admin" ? "ผู้ดูแลระบบ" : user.role === "manager" ? "ผู้จัดการ" : "ผู้ใช้งาน"}</small>
             </div>
-            <button className="btn icon" style={{background: 'transparent', color: 'rgba(255,255,255,0.7)', border: 'none'}} onClick={onLogout} title="ออกจากระบบ">
+            <button className="logout-btn" onClick={onLogout} title="ออกจากระบบ">
               {I.logout}
             </button>
           </div>
