@@ -72,6 +72,7 @@ function CheckinScreen({ bookings, vehicles, users, currentUser, onCheckIn, onCh
             <CheckinDetail
               booking={booking} vehicle={vehicle} user={user}
               isOut={isOut} isIn={isIn}
+              checklistItems={CHECKLIST}
               onCheckIn={(data) => onCheckIn(booking.id, data)}
               onCheckOut={(data) => onCheckOut(booking.id, data)}
               onPrintChecklist={() => onPrintChecklist(booking)}
@@ -187,7 +188,7 @@ function InlineAlert({ kind = 'warn', children }) {
   );
 }
 
-function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheckOut, onPrintChecklist }) {
+function CheckinDetail({ booking, vehicle, user, isOut, isIn, onCheckIn, onCheckOut, onPrintChecklist, checklistItems: CHECKLIST }) {
   const [mileageOut, setMileageOut] = React.useState(booking.mileageOut || vehicle.mileage);
   const [mileageIn, setMileageIn] = React.useState(booking.mileageIn || vehicle.mileage);
   const [checklist, setChecklist] = React.useState({});
